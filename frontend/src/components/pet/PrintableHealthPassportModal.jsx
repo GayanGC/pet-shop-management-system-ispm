@@ -36,7 +36,7 @@ const PrintableHealthPassportModal = ({ pet, onClose }) => {
   const appointments = passportData?.appointments || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md overflow-y-auto animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md overflow-y-auto transition-all duration-300">
       {/* Print Styles Injection */}
       <style>{`
         @media print {
@@ -65,7 +65,7 @@ const PrintableHealthPassportModal = ({ pet, onClose }) => {
       `}</style>
 
       {/* Modal Container */}
-      <div className="bg-white rounded-3xl max-w-4xl w-full p-6 shadow-2xl border border-slate-100 space-y-6 max-h-[90vh] overflow-y-auto relative">
+      <div className="bg-white/95 backdrop-blur-lg rounded-3xl max-w-4xl w-full p-6 shadow-2xl border border-slate-200/80 space-y-6 max-h-[90vh] overflow-y-auto relative transform transition-all duration-300 animate-in fade-in zoom-in-95">
         {/* Modal Top Bar (Non-Printable) */}
         <div className="flex justify-between items-center border-b border-slate-100 pb-4 no-print">
           <div className="flex items-center gap-2.5">
@@ -89,7 +89,7 @@ const PrintableHealthPassportModal = ({ pet, onClose }) => {
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-transform duration-200 hover:rotate-90 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

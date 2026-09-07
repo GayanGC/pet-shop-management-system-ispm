@@ -39,7 +39,7 @@ const ProductForm = ({ onSubmit, isLoading, isModal, onClose }) => {
   };
 
   const formContent = (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all duration-200 space-y-5">
+    <form onSubmit={handleSubmit} className={`p-6 space-y-5 transition-all duration-300 ${isModal ? 'bg-white/95 backdrop-blur-lg rounded-3xl border border-slate-200/80 shadow-2xl' : 'bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md'}`}>
       <div className="flex justify-between items-center border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 font-bold shadow-xs">
@@ -51,7 +51,7 @@ const ProductForm = ({ onSubmit, isLoading, isModal, onClose }) => {
           </div>
         </div>
         {isModal && (
-          <button type="button" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+          <button type="button" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-transform duration-200 hover:rotate-90 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         )}
@@ -196,8 +196,8 @@ const ProductForm = ({ onSubmit, isLoading, isModal, onClose }) => {
 
   if (isModal) {
     return (
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-        <div className="max-w-4xl w-full animate-fadeIn">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md transition-all duration-300">
+        <div className="max-w-4xl w-full transform transition-all duration-300 animate-in fade-in zoom-in-95">
           {formContent}
         </div>
       </div>

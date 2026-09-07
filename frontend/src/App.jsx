@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Phone, ShieldCheck, PawPrint, Package, Calendar, CreditCard, Plus, Stethoscope, AlertTriangle, TrendingUp, Scissors, Tag, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Phone, ShieldCheck, PawPrint, Package, Calendar, CreditCard, Plus, Stethoscope, AlertTriangle, TrendingUp, Scissors, Tag, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import PetForm from './components/pet/PetForm';
 import PetList from './components/pet/PetList';
@@ -27,6 +27,40 @@ function App() {
   const [pharmacySubTab, setPharmacySubTab] = useState('inventory');
   const [prefilledBookingData, setPrefilledBookingData] = useState(null);
   const [notification, setNotification] = useState({ message: '', type: '' });
+
+  // Hero Carousel State
+  const heroSlides = [
+    {
+      image: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&w=1600&q=80',
+      tag: '✨ Enterprise Veterinary Care & Wellness',
+      title: 'Compassionate Veterinary Care & Wellness',
+      subtitle: 'Complete hospital management, microchip patient registration, and expert surgical care.'
+    },
+    {
+      image: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=1600&q=80',
+      tag: '🐕 Dedicated Canine & Feline Health',
+      title: 'Dedicated Preventive Care for Dogs & Cats',
+      subtitle: 'Vaccination tracking, nutrition guidance, and comprehensive health passport generation.'
+    },
+    {
+      image: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=1600&q=80',
+      tag: '💊 Certified Pharmacy & Modern POS',
+      title: 'Fully Stocked Pet Pharmacy & POS',
+      subtitle: 'Certified medicines, real-time stock alerts, and automated thermal billing.'
+    }
+  ];
+
+  const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentHeroSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [heroSlides.length]);
+
+  const nextHeroSlide = () => setCurrentHeroSlide((prev) => (prev + 1) % heroSlides.length);
+  const prevHeroSlide = () => setCurrentHeroSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
 
   // Main content scroll ref
   const mainContentRef = useRef(null);
@@ -447,7 +481,10 @@ function App() {
             </button>
 
             <div className="flex items-center gap-1.5 bg-teal-800/80 px-3 py-1.5 rounded-full text-teal-100 font-medium border border-teal-600/60">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
               <span className="font-mono text-[11px]">Server Online</span>
             </div>
           </div>
@@ -528,49 +565,101 @@ function App() {
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         
-        {/* 3. Pet Care Hero Banner (Unsplash Photography) */}
-        <div className="relative overflow-hidden rounded-3xl bg-slate-900 min-h-[300px] flex items-center p-8 md:p-10 text-white shadow-xl border border-teal-600/20">
-          <img
-            src="https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=1600&q=80"
-            alt="Pet Care"
-            className="absolute inset-0 w-full h-full object-cover opacity-35"
-          />
+        {/* 3. Pet Care Hero Banner Carousel (3 Photo Slides + Auto-Play + Chevrons + Dots) */}
+        <div className="relative overflow-hidden rounded-3xl bg-slate-900 min-h-[320px] md:min-h-[340px] flex items-center p-8 md:p-10 text-white shadow-xl border border-teal-600/20 group">
+          {/* Slide Background Images with Smooth Cross-Fade */}
+          {heroSlides.map((slide, idx) => (
+            <div
+              key={idx}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                idx === currentHeroSlide ? 'opacity-40 scale-105 transition-transform duration-7000' : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              <img
+                src={slide.image}
+                alt={slide.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
 
+          {/* Gradient Overlay for Text Readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/60 to-transparent" />
+
+          {/* Left/Right Chevron Overlay Navigation */}
+          <button
+            onClick={prevHeroSlide}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-2.5 rounded-full backdrop-blur-xs transition-all duration-200 hover:scale-110 opacity-80 hover:opacity-100 cursor-pointer shadow-lg"
+            title="Previous Slide"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={nextHeroSlide}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-2.5 rounded-full backdrop-blur-xs transition-all duration-200 hover:scale-110 opacity-80 hover:opacity-100 cursor-pointer shadow-lg"
+            title="Next Slide"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+
+          {/* Hero Content (Dynamic Tag, Title & Subtitle based on active slide) */}
           <div className="relative z-10 max-w-2xl space-y-4">
-            <span className="bg-amber-400 text-slate-900 font-extrabold text-[11px] px-3 py-1 rounded-full inline-block tracking-wide uppercase">
-              ✨ Enterprise Veterinary Care & Wellness
+            <span className="bg-amber-400 text-slate-900 font-extrabold text-[11px] px-3.5 py-1 rounded-full inline-block tracking-wide uppercase shadow-sm">
+              {heroSlides[currentHeroSlide].tag}
             </span>
-            <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-tight text-white">
-              Compassionate Veterinary Care & Wellness for Your Beloved Pets
+
+            <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-tight text-white transition-all duration-500">
+              {heroSlides[currentHeroSlide].title}
             </h2>
-            <p className="text-xs md:text-sm text-teal-100 leading-relaxed max-w-xl">
-              Complete hospital management, microchip patient registration, pharmacy stock tracking, appointment scheduling, and automated POS invoicing.
+
+            <p className="text-xs md:text-sm text-teal-100 leading-relaxed max-w-xl transition-all duration-500">
+              {heroSlides[currentHeroSlide].subtitle}
             </p>
 
+            {/* Anchored Functional Action Buttons */}
             <div className="pt-2 flex flex-wrap gap-3">
               <button
                 onClick={() => setIsPetModalOpen(true)}
-                className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold py-2.5 px-5 rounded-2xl text-xs shadow-md transition-all flex items-center gap-1.5"
+                className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold py-2.5 px-5 rounded-2xl text-xs shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
-                <Plus className="w-4 h-4" /> Register New Patient
+                <Plus className="w-4 h-4" /> + Register New Patient
               </button>
+
               <button
                 onClick={() => setIsBookingModalOpen(true)}
-                className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-xs border border-white/20 transition-all flex items-center gap-1.5"
+                className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/20 hover:border-white/40 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
-                <Calendar className="w-4 h-4 text-amber-300" /> Book Clinical Appointment
+                <Calendar className="w-4 h-4 text-amber-300" /> 📅 Book Clinical Appointment
               </button>
+
               <button
                 onClick={() => setIsProductModalOpen(true)}
-                className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-xs border border-white/20 transition-all flex items-center gap-1.5"
+                className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/20 hover:border-white/40 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
-                <Package className="w-4 h-4 text-emerald-300" /> Add Pharmacy Product
+                <Package className="w-4 h-4 text-emerald-300" /> + Add Pharmacy Product
               </button>
             </div>
           </div>
+
+          {/* Bottom Slide Indicator Dots */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+            {heroSlides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentHeroSlide(idx)}
+                className={`transition-all duration-300 rounded-full cursor-pointer ${
+                  idx === currentHeroSlide
+                    ? 'w-7 h-2.5 bg-amber-400 shadow-sm'
+                    : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80'
+                }`}
+                title={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
         </div>
 
-        {/* 4. Circular Quick-Access Service Circles (PetMart Style) */}
+        {/* 4. Circular Quick-Access Service Circles (PetMart Style with Micro-Animations) */}
         <div className="space-y-3">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Quick Access Clinical Services</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
@@ -581,7 +670,7 @@ function App() {
                 setPetSpeciesFilter('Dog');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">🐕</span>
               <span className="text-xs font-bold text-slate-800">Canine / Dogs</span>
@@ -595,7 +684,7 @@ function App() {
                 setPetSpeciesFilter('Cat');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">🐈</span>
               <span className="text-xs font-bold text-slate-800">Feline / Cats</span>
@@ -609,7 +698,7 @@ function App() {
                 setProductCategoryFilter('Healthcare');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">💊</span>
               <span className="text-xs font-bold text-slate-800">Pet Pharmacy</span>
@@ -622,7 +711,7 @@ function App() {
                 setActiveTab('appointments');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">✂️</span>
               <span className="text-xs font-bold text-slate-800">Grooming & Spa</span>
@@ -635,7 +724,7 @@ function App() {
                 setActiveTab('appointments');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">🩺</span>
               <span className="text-xs font-bold text-slate-800">Consultations</span>
@@ -648,7 +737,7 @@ function App() {
                 setActiveTab('pos');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">🏷️</span>
               <span className="text-xs font-bold text-slate-800">POS & Retail</span>
@@ -657,14 +746,14 @@ function App() {
           </div>
         </div>
 
-        {/* 5. TOP KPI METRICS BAR */}
+        {/* 5. TOP KPI METRICS BAR (Hover Border Glow) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div
             onClick={() => {
               setActiveTab('pets');
               scrollToContent();
             }}
-            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
           >
             <div>
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Registered Patients</span>
@@ -680,7 +769,7 @@ function App() {
               setActiveTab('pharmacy');
               scrollToContent();
             }}
-            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
           >
             <div>
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Low Stock Warnings</span>
@@ -700,7 +789,7 @@ function App() {
               setActiveTab('appointments');
               scrollToContent();
             }}
-            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
           >
             <div>
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Active Appointments</span>
@@ -716,7 +805,7 @@ function App() {
               setActiveTab('pos');
               scrollToContent();
             }}
-            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
           >
             <div>
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Sales Revenue</span>

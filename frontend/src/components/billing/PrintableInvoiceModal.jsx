@@ -12,8 +12,8 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
   const customerName = invoice.customerId ? (invoice.customerId.name || invoice.customerId.email) : 'Walk-in Counter Guest';
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full flex flex-col overflow-hidden animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md transition-all duration-300">
+      <div className="bg-white/95 backdrop-blur-lg rounded-3xl border border-slate-200/80 shadow-2xl max-w-lg w-full flex flex-col overflow-hidden transform transition-all duration-300 animate-in fade-in zoom-in-95">
         {/* Modal Top Actions */}
         <div className="p-4 bg-slate-900 text-white flex justify-between items-center print:hidden">
           <div className="flex items-center gap-2">
@@ -23,11 +23,11 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-xs"
+              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" /> Print Receipt
             </button>
-            <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded-lg">
+            <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded-lg transition-transform duration-200 hover:rotate-90 cursor-pointer">
               <X className="w-4 h-4" />
             </button>
           </div>
