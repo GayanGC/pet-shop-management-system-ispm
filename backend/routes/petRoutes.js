@@ -7,11 +7,16 @@ const {
   getPetById,
   updatePet,
   deletePet,
-  addMedicalLog
+  addMedicalLog,
+  archivePet,
+  getPetHealthSummary
 } = require('../controllers/petController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.get('/health', petHealthCheck);
+
+router.patch('/:id/archive', protect, archivePet);
+router.get('/:id/health-passport', protect, getPetHealthSummary);
 
 router.route('/')
   .get(protect, getAllPets)

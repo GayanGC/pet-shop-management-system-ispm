@@ -7,6 +7,7 @@
  */
 
 const Pet = require('../models/Pet');
+const Appointment = require('../models/Appointment');
 
 const generatePetPin = () => {
   const randomDigits = Math.floor(1000 + Math.random() * 9000);
@@ -91,9 +92,12 @@ const createPet = async (req, res) => {
 
 const getAllPets = async (req, res) => {
   try {
-    const { species, search, ownerId } = req.query;
+    const { species, search, ownerId, includeArchived } = req.query;
 
-    let query = { isArchived: false };
+    let query = {};
+    if (includeArchived !== 'true') {
+      query.isArchived = false;
+    }
 
     if (species && species !== 'All') {
       query.species = species;
@@ -269,6 +273,86 @@ const addMedicalLog = async (req, res) => {
   }
 };
 
+/**
+ * Toggle / Archive Pet Patient Record
+ * Route: PATCH /api/pets/:id/archive
+ */
+const archivePet = async (req, res) => {
+  try {
+    const pet = await Pet.findById(req.params.id);
+
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pet record not found'
+      });
+    }
+
+    if (req.body.isArchived !== undefined) {
+      pet.isArchived = Boolean(req.body.isArchived);
+    } else {
+      pet.isArchived = !pet.isArchived;
+    }
+
+    if (req.body.reason) {
+      pet.clinicStatus = req.body.reason;
+    }
+
+    await pet.save();
+    await pet.populate('ownerId', 'name email role');
+
+    return res.status(200).json({
+      success: true,
+      message: `Pet '${pet.petName}' (${pet.uniquePin}) status updated to ${pet.isArchived ? 'Archived' : 'Active'}`,
+      data: pet
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error updating pet archival status',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get Pet Health Summary & Printable Passport Payload
+ * Route: GET /api/pets/:id/health-passport
+ */
+const getPetHealthSummary = async (req, res) => {
+  try {
+    const pet = await Pet.findById(req.params.id).populate('ownerId', 'name email role');
+
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pet patient record not found'
+      });
+    }
+
+    const appointments = await Appointment.find({ petId: pet._id }).sort({ appointmentDate: -1 });
+    const medicalLogs = pet.medicalLogs || [];
+    const vaccinations = medicalLogs.filter(log => log.vaccineName && log.vaccineName.trim() !== '');
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        pet,
+        owner: pet.ownerId,
+        medicalLogs,
+        appointments,
+        vaccinations
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error generating pet health passport payload',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   petHealthCheck,
   createPet,
@@ -276,5 +360,7 @@ module.exports = {
   getPetById,
   updatePet,
   deletePet,
-  addMedicalLog
+  addMedicalLog,
+  archivePet,
+  getPetHealthSummary
 };

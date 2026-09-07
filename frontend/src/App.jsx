@@ -14,7 +14,7 @@ import POSBilling from './components/billing/POSBilling';
 import InvoiceList from './components/billing/InvoiceList';
 import SalesAnalytics from './components/billing/SalesAnalytics';
 
-import { fetchPets, createPet, updatePet, deletePet, addMedicalLog } from './services/petService';
+import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
 import { fetchProducts, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
 import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
@@ -46,6 +46,7 @@ function App() {
   const [pets, setPets] = useState([]);
   const [petSearch, setPetSearch] = useState('');
   const [petSpeciesFilter, setPetSpeciesFilter] = useState('All');
+  const [includeArchivedPets, setIncludeArchivedPets] = useState(false);
   const [isPetLoading, setIsPetLoading] = useState(false);
 
   const [products, setProducts] = useState([]);
@@ -77,7 +78,11 @@ function App() {
   const loadPets = async () => {
     setIsPetLoading(true);
     try {
-      const res = await fetchPets({ search: petSearch, species: petSpeciesFilter });
+      const res = await fetchPets({
+        search: petSearch,
+        species: petSpeciesFilter,
+        includeArchived: includeArchivedPets
+      });
       if (res.success) setPets(res.data);
     } catch (err) {
       console.warn('API fetch warning:', err.message);
@@ -164,7 +169,7 @@ function App() {
     }
     if (activeTab === 'appointments') loadBookings();
     if (activeTab === 'pos') loadInvoices();
-  }, [activeTab, petSearch, petSpeciesFilter, productSearch, productCategoryFilter, bookingStatusFilter, paymentFilter]);
+  }, [activeTab, petSearch, petSpeciesFilter, includeArchivedPets, productSearch, productCategoryFilter, bookingStatusFilter, paymentFilter]);
 
   // Handlers - Patient Profiles
   const handleAddPet = async (petData) => {
@@ -185,6 +190,16 @@ function App() {
     try {
       const res = await deletePet(id);
       showToast(res.message);
+      loadPets();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleArchivePet = async (id, isArchivedState) => {
+    try {
+      const res = await archivePet(id, { isArchived: isArchivedState });
+      showToast(res.message || 'Pet archival status updated!');
       loadPets();
     } catch (err) {
       showToast(err.message, 'error');
@@ -722,6 +737,7 @@ function App() {
             <PetList
               pets={pets}
               onDelete={handleDeletePet}
+              onArchivePet={handleArchivePet}
               onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
               onUpdateClinicStatus={handleUpdateClinicStatus}
               onAddMedicalLog={handleAddMedicalLog}
@@ -729,6 +745,8 @@ function App() {
               setSearchTerm={setPetSearch}
               speciesFilter={petSpeciesFilter}
               setSpeciesFilter={setPetSpeciesFilter}
+              includeArchived={includeArchivedPets}
+              setIncludeArchived={setIncludeArchivedPets}
             />
           </div>
         )}
