@@ -70,6 +70,9 @@ app.use('/api/bookings', require('./routes/bookingRoutes'));
 // Member 4 Module: Order Processing & POS Billing Routes
 app.use('/api/billing', require('./routes/billingRoutes'));
 
+// Supplier & Directory Routes
+app.use('/api/suppliers', require('./routes/supplierRoutes'));
+
 // ============================================================================
 // GLOBAL ERROR HANDLING & 404 MIDDLEWARE
 // ============================================================================

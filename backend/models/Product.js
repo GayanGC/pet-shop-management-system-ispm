@@ -52,6 +52,19 @@ const productSchema = new mongoose.Schema(
     isDiscontinued: {
       type: Boolean,
       default: false
+    },
+    status: {
+      type: String,
+      enum: ['Active', 'Disposed', 'Expired'],
+      default: 'Active'
+    },
+    disposalReason: {
+      type: String,
+      default: null
+    },
+    disposedAt: {
+      type: Date,
+      default: null
     }
   },
   {

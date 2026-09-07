@@ -225,6 +225,68 @@ const adjustStock = async (req, res) => {
   }
 };
 
+/**
+ * Get products expiring within next 30 days or already expired
+ */
+const getExpiringProducts = async (req, res) => {
+  try {
+    const next30Days = new Date();
+    next30Days.setDate(next30Days.getDate() + 30);
+
+    const expiringProducts = await Product.find({
+      isDiscontinued: false,
+      expiryDate: { $ne: null, $lte: next30Days }
+    }).sort({ expiryDate: 1 });
+
+    return res.status(200).json({
+      success: true,
+      count: expiringProducts.length,
+      data: expiringProducts
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error fetching expiring products',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Dispose / Write-off expired batch
+ */
+const disposeBatch = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const product = await Product.findOne({ _id: req.params.id, isDiscontinued: false });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product batch record not found'
+      });
+    }
+
+    product.stockQuantity = 0;
+    product.status = 'Disposed';
+    product.disposalReason = reason || 'Batch expired - written off';
+    product.disposedAt = new Date();
+    await product.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Batch '${product.batchNo}' (${product.itemName}) disposed and stock written off to 0`,
+      data: product
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error disposing product batch',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   inventoryHealthCheck,
   createProduct,
@@ -232,5 +294,7 @@ module.exports = {
   getProductById,
   updateProduct,
   deleteProduct,
-  adjustStock
+  adjustStock,
+  getExpiringProducts,
+  disposeBatch
 };

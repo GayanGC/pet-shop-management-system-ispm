@@ -51,3 +51,22 @@ export const adjustStock = async (id, delta) => {
   });
   return handleResponse(res);
 };
+
+export const fetchExpiringProducts = async () => {
+  const res = await fetch(`${API_BASE_URL}/inventory/expiring-soon`, {
+    headers: getAuthHeader()
+  });
+  return handleResponse(res);
+};
+
+export const disposeBatch = async (id, reason) => {
+  const res = await fetch(`${API_BASE_URL}/inventory/dispose-batch/${id}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader()
+    },
+    body: JSON.stringify({ reason })
+  });
+  return handleResponse(res);
+};

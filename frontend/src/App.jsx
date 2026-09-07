@@ -5,6 +5,8 @@ import PetForm from './components/pet/PetForm';
 import PetList from './components/pet/PetList';
 import ProductForm from './components/inventory/ProductForm';
 import InventoryList from './components/inventory/InventoryList';
+import SupplierDirectory from './components/inventory/SupplierDirectory';
+import ExpiryTracker from './components/inventory/ExpiryTracker';
 import BookingForm from './components/booking/BookingForm';
 import BookingList from './components/booking/BookingList';
 import DoctorCalendarView from './components/appointments/DoctorCalendarView';
@@ -13,7 +15,8 @@ import InvoiceList from './components/billing/InvoiceList';
 import SalesAnalytics from './components/billing/SalesAnalytics';
 
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog } from './services/petService';
-import { fetchProducts, createProduct, deleteProduct, adjustStock } from './services/inventoryService';
+import { fetchProducts, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
+import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
 import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
 import { fetchInvoices, createInvoice, voidInvoice } from './services/billingService';
 
@@ -21,6 +24,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('pets');
   const [posSubTab, setPosSubTab] = useState('terminal');
   const [bookingSubTab, setBookingSubTab] = useState('directory');
+  const [pharmacySubTab, setPharmacySubTab] = useState('inventory');
   const [prefilledBookingData, setPrefilledBookingData] = useState(null);
   const [notification, setNotification] = useState({ message: '', type: '' });
 
@@ -48,6 +52,12 @@ function App() {
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('All');
   const [isProductLoading, setIsProductLoading] = useState(false);
+
+  const [suppliers, setSuppliers] = useState([]);
+  const [isSupplierLoading, setIsSupplierLoading] = useState(false);
+
+  const [expiringProducts, setExpiringProducts] = useState([]);
+  const [isExpiryLoading, setIsExpiryLoading] = useState(false);
 
   const [bookings, setBookings] = useState([]);
   const [bookingStatusFilter, setBookingStatusFilter] = useState('All');
@@ -88,6 +98,30 @@ function App() {
     }
   };
 
+  const loadSuppliers = async () => {
+    setIsSupplierLoading(true);
+    try {
+      const res = await fetchSuppliers();
+      if (res.success) setSuppliers(res.data);
+    } catch (err) {
+      console.warn('Supplier API warning:', err.message);
+    } finally {
+      setIsSupplierLoading(false);
+    }
+  };
+
+  const loadExpiringProducts = async () => {
+    setIsExpiryLoading(true);
+    try {
+      const res = await fetchExpiringProducts();
+      if (res.success) setExpiringProducts(res.data);
+    } catch (err) {
+      console.warn('Expiry API warning:', err.message);
+    } finally {
+      setIsExpiryLoading(false);
+    }
+  };
+
   const loadBookings = async () => {
     setIsBookingLoading(true);
     try {
@@ -115,13 +149,19 @@ function App() {
   useEffect(() => {
     loadPets();
     loadProducts();
+    loadSuppliers();
+    loadExpiringProducts();
     loadBookings();
     loadInvoices();
   }, []);
 
   useEffect(() => {
     if (activeTab === 'pets') loadPets();
-    if (activeTab === 'pharmacy') loadProducts();
+    if (activeTab === 'pharmacy') {
+      loadProducts();
+      loadSuppliers();
+      loadExpiringProducts();
+    }
     if (activeTab === 'appointments') loadBookings();
     if (activeTab === 'pos') loadInvoices();
   }, [activeTab, petSearch, petSpeciesFilter, productSearch, productCategoryFilter, bookingStatusFilter, paymentFilter]);
@@ -201,6 +241,50 @@ function App() {
       const res = await adjustStock(id, delta);
       showToast(res.message);
       loadProducts();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleAddSupplier = async (supplierData) => {
+    setIsSupplierLoading(true);
+    try {
+      const res = await createSupplier(supplierData);
+      showToast(res.message || 'Supplier registered successfully!');
+      loadSuppliers();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsSupplierLoading(false);
+    }
+  };
+
+  const handleUpdateSupplier = async (id, supplierData) => {
+    try {
+      const res = await updateSupplier(id, supplierData);
+      showToast(res.message || 'Supplier updated successfully!');
+      loadSuppliers();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleDeleteSupplier = async (id) => {
+    try {
+      const res = await deleteSupplier(id);
+      showToast(res.message);
+      loadSuppliers();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleDisposeBatch = async (id, reason) => {
+    try {
+      const res = await disposeBatch(id, reason);
+      showToast(res.message);
+      loadProducts();
+      loadExpiringProducts();
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -651,17 +735,77 @@ function App() {
 
         {/* PHARMACY & INVENTORY */}
         {activeTab === 'pharmacy' && (
-          <div className="space-y-8 animate-fadeIn">
-            <InventoryList
-              products={products}
-              onDelete={handleDeleteProduct}
-              onEdit={(prod) => alert(`Editing pharmacy product ${prod.itemName}`)}
-              onAdjustStock={handleAdjustStock}
-              searchTerm={productSearch}
-              setSearchTerm={setProductSearch}
-              categoryFilter={productCategoryFilter}
-              setCategoryFilter={setProductCategoryFilter}
-            />
+          <div className="space-y-6 animate-fadeIn">
+            {/* Pharmacy Sub-Navigation Switcher */}
+            <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex gap-2 w-fit flex-wrap">
+              <button
+                onClick={() => setPharmacySubTab('inventory')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  pharmacySubTab === 'inventory'
+                    ? 'bg-teal-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>📦</span> Medicine & Stock Directory
+              </button>
+
+              <button
+                onClick={() => setPharmacySubTab('suppliers')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  pharmacySubTab === 'suppliers'
+                    ? 'bg-teal-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>🏢</span> Supplier Directory
+              </button>
+
+              <button
+                onClick={() => setPharmacySubTab('expiry')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  pharmacySubTab === 'expiry'
+                    ? 'bg-teal-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>⚠️</span> Expiry Alerts
+                {expiringProducts.length > 0 && (
+                  <span className="bg-rose-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-full ml-1 animate-pulse">
+                    {expiringProducts.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {pharmacySubTab === 'inventory' && (
+              <InventoryList
+                products={products}
+                onDelete={handleDeleteProduct}
+                onEdit={(prod) => alert(`Editing pharmacy product ${prod.itemName}`)}
+                onAdjustStock={handleAdjustStock}
+                searchTerm={productSearch}
+                setSearchTerm={setProductSearch}
+                categoryFilter={productCategoryFilter}
+                setCategoryFilter={setProductCategoryFilter}
+              />
+            )}
+
+            {pharmacySubTab === 'suppliers' && (
+              <SupplierDirectory
+                suppliers={suppliers}
+                onAddSupplier={handleAddSupplier}
+                onUpdateSupplier={handleUpdateSupplier}
+                onDeleteSupplier={handleDeleteSupplier}
+              />
+            )}
+
+            {pharmacySubTab === 'expiry' && (
+              <ExpiryTracker
+                expiringProducts={expiringProducts}
+                onDisposeBatch={handleDisposeBatch}
+                onRefresh={loadExpiringProducts}
+              />
+            )}
           </div>
         )}
 

@@ -7,11 +7,16 @@ const {
   getProductById,
   updateProduct,
   deleteProduct,
-  adjustStock
+  adjustStock,
+  getExpiringProducts,
+  disposeBatch
 } = require('../controllers/inventoryController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.get('/health', inventoryHealthCheck);
+
+router.get('/expiring-soon', getExpiringProducts);
+router.post('/dispose-batch/:id', protect, authorize('Admin', 'Staff'), disposeBatch);
 
 router.route('/')
   .get(getAllProducts)

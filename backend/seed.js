@@ -14,6 +14,7 @@ const dotenv = require('dotenv');
 const User = require('./models/User');
 const Pet = require('./models/Pet');
 const Product = require('./models/Product');
+const Supplier = require('./models/Supplier');
 const Appointment = require('./models/Appointment');
 const Invoice = require('./models/Invoice');
 
@@ -25,14 +26,21 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/pet_shop_d
 const seedDatabase = async () => {
   try {
     console.log('[Seeder] Connecting to MongoDB database...');
-    await mongoose.connect(MONGO_URI);
-    console.log(`[Seeder] Connected successfully: ${mongoose.connection.host}`);
+    try {
+      await mongoose.connect(MONGO_URI);
+      console.log(`[Seeder] Connected successfully: ${mongoose.connection.host}`);
+    } catch (connErr) {
+      console.warn(`[Seeder Warning] Primary connection failed (${connErr.message}). Connecting to local MongoDB...`);
+      await mongoose.connect('mongodb://127.0.0.1:27017/pet_shop_db');
+      console.log(`[Seeder] Local MongoDB Connected successfully: ${mongoose.connection.host}`);
+    }
 
     // 1. CLEAR EXISTING COLLECTIONS
     console.log('[Seeder] Clearing old records...');
     await User.deleteMany({});
     await Pet.deleteMany({});
     await Product.deleteMany({});
+    await Supplier.deleteMany({});
     await Appointment.deleteMany({});
     await Invoice.deleteMany({});
 
@@ -250,6 +258,58 @@ const seedDatabase = async () => {
         batchNo: 'BTH-2026-08',
         expiryDate: null,
         unit: 'Piece'
+      },
+      {
+        itemName: 'Decomposing Antibiotic Syrup (Batch Expired)',
+        category: 'Healthcare',
+        price: 1200.00,
+        stockQuantity: 6,
+        supplier: 'MediVet Pharmaceuticals',
+        batchNo: 'BTH-2025-99',
+        expiryDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // Expired 5 days ago
+        unit: 'Bottle'
+      },
+      {
+        itemName: 'Meloxicam Pain Relief Oral Suspension',
+        category: 'Healthcare',
+        price: 3400.00,
+        stockQuantity: 4,
+        supplier: 'VetMed Lanka',
+        batchNo: 'BTH-2026-10',
+        expiryDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // Expires in 10 days
+        unit: 'Bottle'
+      }
+    ]);
+
+    // 4.5. SEED SUPPLIERS DIRECTORY
+    console.log('[Seeder] Seeding supplier directory...');
+    await Supplier.create([
+      {
+        name: 'VetMed Lanka',
+        contactPerson: 'Dr. Nimal Silva',
+        phone: '077-1234567',
+        email: 'info@vetmedlanka.lk',
+        address: 'No. 45, Baseline Road, Colombo 09',
+        suppliedCategories: ['Vaccines', 'Antibiotics', 'Healthcare'],
+        status: 'Active'
+      },
+      {
+        name: 'Ceylon Pet Supplies',
+        contactPerson: 'Sunethra Dias',
+        phone: '071-9876543',
+        email: 'sales@ceylonpet.lk',
+        address: 'No. 120, Kandy Road, Kelaniya',
+        suppliedCategories: ['Pet Food', 'Toys', 'Grooming Supplies'],
+        status: 'Active'
+      },
+      {
+        name: 'MediVet Pharmaceuticals',
+        contactPerson: 'K. Perera',
+        phone: '011-2345678',
+        email: 'orders@medivet.lk',
+        address: 'No. 88, Galle Road, Dehiwala',
+        suppliedCategories: ['Supplements', 'Dewormers', 'General'],
+        status: 'Active'
       }
     ]);
 
