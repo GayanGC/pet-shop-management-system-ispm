@@ -1,41 +1,24 @@
 /**
  * ============================================================================
- * MEMBER 2 MODULE: INVENTORY CONTROLLER (inventoryController.js)
+ * CLINICAL MODULE 2: PHARMACY & INVENTORY CONTROLLER (inventoryController.js)
  * ============================================================================
- * Assigned to: Team Member 2 (Inventory & Stock Control System)
- * 
- * Explanation for Viva:
- * - Handles CRUD operations for store products and stock control.
- * - Supports filtering by category and search by product item name.
- * - Standardized JSON response: { success: true/false, message: "...", data: ... }
  */
 
 const Product = require('../models/Product');
 
-/**
- * @desc    Health check endpoint for Member 2 Inventory Module
- * @route   GET /api/inventory/health
- * @access  Public
- */
 const inventoryHealthCheck = async (req, res) => {
   return res.status(200).json({
     success: true,
-    module: 'Member 2: Inventory & Stock Control System',
+    module: 'Pharmacy & Inventory Control System',
     status: 'Operational',
-    message: 'Member 2: Inventory Control Module connected successfully!'
+    message: 'Pharmacy & Inventory Module connected successfully!'
   });
 };
 
-/**
- * @desc    Create a new inventory product
- * @route   POST /api/inventory
- * @access  Private (Admin / Staff)
- */
 const createProduct = async (req, res) => {
   try {
-    const { itemName, category, price, stockQuantity, supplier, unit } = req.body;
+    const { itemName, category, price, stockQuantity, supplier, batchNo, expiryDate, unit } = req.body;
 
-    // 1. Validate required fields
     if (!itemName || price === undefined || stockQuantity === undefined) {
       return res.status(400).json({
         success: false,
@@ -43,13 +26,14 @@ const createProduct = async (req, res) => {
       });
     }
 
-    // 2. Create product document
     const product = await Product.create({
       itemName,
       category: category || 'General',
       price: Number(price),
       stockQuantity: Number(stockQuantity),
       supplier: supplier || 'Direct Supplier',
+      batchNo: batchNo || 'BATCH-2026-01',
+      expiryDate: expiryDate ? new Date(expiryDate) : null,
       unit: unit || 'Piece'
     });
 
@@ -68,27 +52,21 @@ const createProduct = async (req, res) => {
   }
 };
 
-/**
- * @desc    Fetch all inventory products (with category filter and search)
- * @route   GET /api/inventory
- * @access  Public / Protected
- */
 const getAllProducts = async (req, res) => {
   try {
     const { category, search } = req.query;
 
     let query = { isDiscontinued: false };
 
-    // Category filter
     if (category && category !== 'All') {
       query.category = category;
     }
 
-    // Search filter
     if (search) {
       query.$or = [
         { itemName: { $regex: search, $options: 'i' } },
-        { supplier: { $regex: search, $options: 'i' } }
+        { supplier: { $regex: search, $options: 'i' } },
+        { batchNo: { $regex: search, $options: 'i' } }
       ];
     }
 
@@ -101,7 +79,6 @@ const getAllProducts = async (req, res) => {
       data: products
     });
   } catch (error) {
-    console.error('[Get All Products Error]:', error.message);
     return res.status(500).json({
       success: false,
       message: 'Server Error fetching inventory products',
@@ -110,11 +87,6 @@ const getAllProducts = async (req, res) => {
   }
 };
 
-/**
- * @desc    Fetch single product details by ID
- * @route   GET /api/inventory/:id
- * @access  Public / Protected
- */
 const getProductById = async (req, res) => {
   try {
     const product = await Product.findOne({ _id: req.params.id, isDiscontinued: false });
@@ -139,14 +111,9 @@ const getProductById = async (req, res) => {
   }
 };
 
-/**
- * @desc    Update product details or adjust stock quantity
- * @route   PUT /api/inventory/:id
- * @access  Private (Admin / Staff)
- */
 const updateProduct = async (req, res) => {
   try {
-    const { itemName, category, price, stockQuantity, supplier, unit } = req.body;
+    const { itemName, category, price, stockQuantity, supplier, batchNo, expiryDate, unit } = req.body;
 
     let product = await Product.findOne({ _id: req.params.id, isDiscontinued: false });
 
@@ -157,12 +124,13 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    // Apply updates
     if (itemName) product.itemName = itemName;
     if (category) product.category = category;
     if (price !== undefined) product.price = Number(price);
     if (stockQuantity !== undefined) product.stockQuantity = Number(stockQuantity);
     if (supplier) product.supplier = supplier;
+    if (batchNo) product.batchNo = batchNo;
+    if (expiryDate) product.expiryDate = new Date(expiryDate);
     if (unit) product.unit = unit;
 
     const updatedProduct = await product.save();
@@ -181,11 +149,6 @@ const updateProduct = async (req, res) => {
   }
 };
 
-/**
- * @desc    Soft delete / mark product as discontinued
- * @route   DELETE /api/inventory/:id
- * @access  Private (Admin / Staff)
- */
 const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -197,7 +160,6 @@ const deleteProduct = async (req, res) => {
       });
     }
 
-    // Soft delete flag
     product.isDiscontinued = true;
     await product.save();
 
@@ -215,11 +177,60 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+/**
+ * Quick Stock Adjustment (+ / -) Endpoint
+ */
+const adjustStock = async (req, res) => {
+  try {
+    const { delta } = req.body;
+
+    if (delta === undefined || isNaN(delta)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid delta number (+ / -)'
+      });
+    }
+
+    const product = await Product.findOne({ _id: req.params.id, isDiscontinued: false });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    const newQty = product.stockQuantity + Number(delta);
+    if (newQty < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Stock quantity cannot be less than zero'
+      });
+    }
+
+    product.stockQuantity = newQty;
+    await product.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Stock updated for '${product.itemName}'. New Stock: ${product.stockQuantity}`,
+      data: product
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error adjusting stock quantity',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   inventoryHealthCheck,
   createProduct,
   getAllProducts,
   getProductById,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  adjustStock
 };

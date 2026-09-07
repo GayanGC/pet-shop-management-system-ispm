@@ -39,3 +39,15 @@ export const deletePet = async (id) => {
   });
   return handleResponse(res);
 };
+
+export const addMedicalLog = async (id, logData) => {
+  const res = await fetch(`${API_BASE_URL}/pets/${id}/medical-logs`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader()
+    },
+    body: JSON.stringify(logData)
+  });
+  return handleResponse(res);
+};

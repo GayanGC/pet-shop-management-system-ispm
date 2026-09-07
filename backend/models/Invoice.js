@@ -1,19 +1,7 @@
 /**
  * ============================================================================
- * MEMBER 4 MODULE: INVOICE / BILLING MODEL (Invoice.js)
+ * CLINICAL MODULE 4: POS & INVOICING MODEL (Invoice.js)
  * ============================================================================
- * Assigned to: Team Member 4 (Order Processing & POS Billing System)
- * 
- * Explanation for Viva:
- * - Represents POS transactions and store sales invoices.
- * - Fields:
- *   * invoiceNo: Unique identifier string (e.g. INV-2026-001).
- *   * customerId: Ref to User document (optional for walk-in guest purchases).
- *   * items: Array of purchased product items with line-item subtotals.
- *   * totalAmount: Total computed transaction cost.
- *   * paymentMethod: Payment channel ('Cash', 'Card', 'Online').
- *   * paymentStatus: Transaction status ('Paid', 'Pending').
- *   * isVoided: Soft delete / voided order flag (default: false).
  */
 
 const mongoose = require('mongoose');
@@ -22,7 +10,7 @@ const invoiceItemSchema = new mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
-    required: false // Optional for custom non-inventoried items
+    required: false
   },
   itemName: {
     type: String,
@@ -57,13 +45,33 @@ const invoiceSchema = new mongoose.Schema(
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: false // Nullable for walk-in counter customers
+      required: false
     },
     items: [invoiceItemSchema],
     totalAmount: {
       type: Number,
       required: [true, 'Total amount is required'],
       min: [0, 'Total amount cannot be negative']
+    },
+    discountRate: {
+      type: Number,
+      default: 0
+    },
+    discountAmount: {
+      type: Number,
+      default: 0
+    },
+    taxRate: {
+      type: Number,
+      default: 0
+    },
+    taxAmount: {
+      type: Number,
+      default: 0
+    },
+    finalTotal: {
+      type: Number,
+      required: true
     },
     paymentMethod: {
       type: String,

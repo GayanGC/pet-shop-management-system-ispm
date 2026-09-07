@@ -1,19 +1,7 @@
 /**
  * ============================================================================
- * MEMBER 3 MODULE: APPOINTMENT MODEL (Appointment.js)
+ * CLINICAL MODULE 3: APPOINTMENT SCHEDULING MODEL (Appointment.js)
  * ============================================================================
- * Assigned to: Team Member 3 (Service & Appointment Booking System)
- * 
- * Explanation for Viva:
- * - Represents appointment bookings for pet services.
- * - Fields:
- *   * petId: Ref to Pet document.
- *   * customerId: Ref to User document (Customer).
- *   * serviceType: Category ('Grooming & Bath', 'Veterinary Checkup', 'Vaccination', 'Dental Care', 'General Consultation').
- *   * appointmentDate: Scheduled date string/Date object.
- *   * timeSlot: Selected time slot string (e.g. '09:00 AM', '02:30 PM').
- *   * status: Booking status ('Pending', 'Confirmed', 'Completed', 'Cancelled').
- *   * notes: Additional special instructions or symptoms.
  */
 
 const mongoose = require('mongoose');
@@ -36,13 +24,18 @@ const appointmentSchema = new mongoose.Schema(
       enum: ['Grooming & Bath', 'Veterinary Checkup', 'Vaccination', 'Dental Care', 'General Consultation'],
       default: 'General Consultation'
     },
+    assignedStaff: {
+      type: String,
+      default: 'Dr. Perera (Senior Vet)',
+      trim: true
+    },
     appointmentDate: {
       type: Date,
       required: [true, 'Appointment date is required']
     },
     timeSlot: {
       type: String,
-      required: [true, 'Time slot is required (e.g. 09:00 AM, 02:00 PM)'],
+      required: [true, 'Time slot is required'],
       trim: true
     },
     status: {

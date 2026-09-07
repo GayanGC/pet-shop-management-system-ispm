@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
+import { ShoppingCart, Plus, Trash2, CreditCard, DollarSign, Receipt, Percent } from 'lucide-react';
 
 const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
   const [cartItems, setCartItems] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [itemQty, setItemQty] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [discountRate, setDiscountRate] = useState(0);
+  const [taxRate, setTaxRate] = useState(8); // Default 8% VAT
   const [customItemName, setCustomItemName] = useState('');
   const [customPrice, setCustomPrice] = useState('');
 
-  // Add product from inventory to cart
   const handleAddToCart = () => {
     if (selectedProductId) {
       const prod = products.find((p) => p._id === selectedProductId);
@@ -36,7 +38,6 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
       setSelectedProductId('');
       setItemQty(1);
     } else if (customItemName && customPrice) {
-      // Custom walk-in item
       setCartItems([
         ...cartItems,
         {
@@ -59,8 +60,21 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
     setCartItems(cartItems.filter((_, idx) => idx !== index));
   };
 
-  const calculateTotal = () => {
+  const calculateSubtotal = () => {
     return cartItems.reduce((acc, item) => acc + item.subtotal, 0);
+  };
+
+  const calculateDiscount = () => {
+    return calculateSubtotal() * (Number(discountRate) / 100);
+  };
+
+  const calculateTax = () => {
+    const afterDiscount = calculateSubtotal() - calculateDiscount();
+    return afterDiscount * (Number(taxRate) / 100);
+  };
+
+  const calculateFinalTotal = () => {
+    return calculateSubtotal() - calculateDiscount() + calculateTax();
   };
 
   const handleCheckout = (e) => {
@@ -72,7 +86,9 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
 
     const orderPayload = {
       items: cartItems,
-      totalAmount: calculateTotal(),
+      totalAmount: calculateSubtotal(),
+      discountRate: Number(discountRate),
+      taxRate: Number(taxRate),
       paymentMethod,
       paymentStatus: 'Paid'
     };
@@ -82,22 +98,28 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 space-y-6">
-      <div className="flex justify-between items-center border-b pb-3">
-        <div>
-          <h2 className="text-xl font-bold text-gray-800">💳 POS Billing Terminal</h2>
-          <p className="text-xs text-gray-500">Member 4 Scope - Order Checkout & Billing</p>
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all duration-200 space-y-6">
+      <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shadow-sm">
+            <CreditCard className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">POS Checkout Terminal</h2>
+            <p className="text-xs text-slate-500">Sales Transactions & Real-time Stock Deduction</p>
+          </div>
         </div>
-        <span className="text-xs bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-semibold">Member 4 Module</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Item Selection Panel */}
-        <div className="lg:col-span-1 space-y-4 border-r pr-0 lg:pr-6">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">1. Add Items to Order</h3>
+        <div className="lg:col-span-1 space-y-4 border-r border-slate-100 pr-0 lg:pr-6">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5 text-purple-500" /> 1. Select Items to Sell
+          </h3>
           
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Select Product from Stock</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Select Stock Product</label>
             <select
               value={selectedProductId}
               onChange={(e) => {
@@ -105,7 +127,7 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
                 setCustomItemName('');
                 setCustomPrice('');
               }}
-              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 focus:outline-none transition-all"
             >
               <option value="">-- Choose Stock Product --</option>
               {products.map((prod) => (
@@ -117,94 +139,97 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
           </div>
 
           <div className="relative flex py-1 items-center">
-            <div className="flex-grow border-t border-gray-200"></div>
-            <span className="flex-shrink mx-2 text-gray-400 text-xs uppercase font-bold">or Custom Item</span>
-            <div className="flex-grow border-t border-gray-200"></div>
+            <div className="flex-grow border-t border-slate-100"></div>
+            <span className="flex-shrink mx-2 text-slate-400 text-[10px] uppercase font-bold">or Custom Item</span>
+            <div className="flex-grow border-t border-slate-100"></div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Custom Service / Item Name</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Custom Service / Item Name</label>
             <input
               type="text"
-              placeholder="e.g. Special Bath Addon"
+              placeholder="e.g. Special Bath Addon / Consultation"
               value={customItemName}
               onChange={(e) => {
                 setCustomItemName(e.target.value);
                 setSelectedProductId('');
               }}
-              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 focus:outline-none transition-all placeholder:text-slate-400"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Custom Price ($)</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Custom Price ($)</label>
             <input
               type="number"
               step="0.01"
               placeholder="e.g. 15.00"
               value={customPrice}
               onChange={(e) => setCustomPrice(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-mono focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-sans"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Quantity</label>
             <input
               type="number"
               min="1"
               value={itemQty}
               onChange={(e) => setItemQty(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-mono focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 focus:outline-none transition-all"
             />
           </div>
 
           <button
             type="button"
             onClick={handleAddToCart}
-            className="w-full bg-purple-100 hover:bg-purple-200 text-purple-800 font-semibold py-2 rounded-lg text-sm transition-colors"
+            className="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold py-2.5 px-4 rounded-xl text-xs border border-purple-200/60 transition-all flex items-center justify-center gap-1.5"
           >
-            + Add Line Item
+            <Plus className="w-3.5 h-3.5" /> Add Line Item to Cart
           </button>
         </div>
 
         {/* Cart & Checkout Panel */}
         <div className="lg:col-span-2 space-y-4">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">2. Order Items Summary</h3>
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <ShoppingCart className="w-3.5 h-3.5 text-purple-500" /> 2. Order Cart Summary ({cartItems.length} items)
+          </h3>
 
-          <div className="overflow-x-auto min-h-[160px] border rounded-lg">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-xs font-semibold text-gray-500 border-b">
+          <div className="overflow-x-auto min-h-[160px] border border-slate-200/80 rounded-xl bg-slate-50/30">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
                 <tr>
-                  <th className="p-2.5">Item Name</th>
-                  <th className="p-2.5">Price</th>
-                  <th className="p-2.5">Qty</th>
-                  <th className="p-2.5">Subtotal</th>
-                  <th className="p-2.5 text-right">Action</th>
+                  <th className="py-3 px-4">Item Name</th>
+                  <th className="py-3 px-4">Price</th>
+                  <th className="py-3 px-4">Qty</th>
+                  <th className="py-3 px-4">Subtotal</th>
+                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {cartItems.length > 0 ? (
                   cartItems.map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="p-2.5 font-medium">{item.itemName}</td>
-                      <td className="p-2.5">${item.unitPrice.toFixed(2)}</td>
-                      <td className="p-2.5">{item.quantity}</td>
-                      <td className="p-2.5 font-bold font-mono">${item.subtotal.toFixed(2)}</td>
-                      <td className="p-2.5 text-right">
+                    <tr key={idx} className="bg-white hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-slate-800">{item.itemName}</td>
+                      <td className="py-3 px-4 font-mono text-slate-600">${item.unitPrice.toFixed(2)}</td>
+                      <td className="py-3 px-4 font-mono text-slate-700">{item.quantity}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">${item.subtotal.toFixed(2)}</td>
+                      <td className="py-3 px-4 text-right">
                         <button
                           onClick={() => handleRemoveFromCart(idx)}
-                          className="text-xs text-red-600 hover:underline"
+                          className="p-1 text-rose-600 hover:bg-rose-50 rounded transition-all"
+                          title="Remove item"
                         >
-                          Remove
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="p-6 text-center text-gray-400 text-sm">
-                      Cart is empty. Select products from the left panel to add to checkout.
+                    <td colSpan="5" className="py-10 text-center text-slate-400 text-xs">
+                      Cart is empty. Select items from the left panel to add to checkout.
                     </td>
                   </tr>
                 )}
@@ -212,26 +237,63 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
             </table>
           </div>
 
-          {/* Payment controls & Grand total */}
-          <div className="bg-gray-50 p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Payment Method</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="px-3 py-1.5 border rounded-lg text-sm font-semibold bg-white focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="Cash">Cash 💵</option>
-                <option value="Card">Credit / Debit Card 💳</option>
-                <option value="Online">Online Transfer 🌐</option>
-              </select>
+          {/* Discount, Tax & Payment Controls */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Payment Method</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none"
+                >
+                  <option value="Cash">Cash 💵</option>
+                  <option value="Card">Credit / Debit Card 💳</option>
+                  <option value="Online">Online Bank Transfer 🌐</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Discount Rate</label>
+                <select
+                  value={discountRate}
+                  onChange={(e) => setDiscountRate(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none font-mono"
+                >
+                  <option value={0}>0% No Discount</option>
+                  <option value={5}>5% Special Promo</option>
+                  <option value={10}>10% VIP Client</option>
+                  <option value={15}>15% Employee / Staff</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Sales Tax / VAT</label>
+                <select
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none font-mono"
+                >
+                  <option value={0}>0% Tax Exempt</option>
+                  <option value={8}>8% Standard Tax</option>
+                  <option value={12}>12% VAT Rate</option>
+                </select>
+              </div>
             </div>
 
-            <div className="text-right">
-              <span className="text-xs text-gray-500 block uppercase font-bold">Grand Total Amount</span>
-              <span className="text-3xl font-extrabold text-purple-700 font-mono">
-                ${calculateTotal().toFixed(2)}
-              </span>
+            <div className="border-t border-slate-200 pt-3 flex justify-between items-center text-xs">
+              <div className="space-y-0.5 text-slate-500 font-mono">
+                <div>Subtotal: <span className="font-bold text-slate-700">${calculateSubtotal().toFixed(2)}</span></div>
+                {discountRate > 0 && <div className="text-emerald-600 font-bold">Discount ({discountRate}%): -${calculateDiscount().toFixed(2)}</div>}
+                {taxRate > 0 && <div>Tax ({taxRate}%): +${calculateTax().toFixed(2)}</div>}
+              </div>
+
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Final Total</span>
+                <span className="text-3xl font-black text-purple-700 font-mono tracking-tight">
+                  ${calculateFinalTotal().toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -239,9 +301,10 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
             type="button"
             onClick={handleCheckout}
             disabled={isLoading || cartItems.length === 0}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-colors shadow-lg disabled:bg-purple-300"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-sm hover:shadow-purple-200 text-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Processing Order...' : 'Complete POS Payment & Issue Invoice'}
+            <Receipt className="w-4 h-4" />
+            {isLoading ? 'Processing Checkout Order...' : 'Complete Payment & Issue Invoice'}
           </button>
         </div>
       </div>

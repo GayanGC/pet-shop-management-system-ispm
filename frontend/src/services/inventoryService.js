@@ -39,3 +39,15 @@ export const deleteProduct = async (id) => {
   });
   return handleResponse(res);
 };
+
+export const adjustStock = async (id, delta) => {
+  const res = await fetch(`${API_BASE_URL}/inventory/${id}/stock`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader()
+    },
+    body: JSON.stringify({ delta })
+  });
+  return handleResponse(res);
+};

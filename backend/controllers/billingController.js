@@ -1,60 +1,38 @@
 /**
  * ============================================================================
- * MEMBER 4 MODULE: BILLING CONTROLLER (billingController.js)
+ * CLINICAL MODULE 4: POS & INVOICING CONTROLLER (billingController.js)
  * ============================================================================
- * Assigned to: Team Member 4 (Order Processing & POS Billing System)
- * 
- * Explanation for Viva:
- * - Handles checkout invoice generation, POS payments, and sales processing.
- * - Auto-generates unique invoice numbers (e.g. INV-2026-001).
- * - Automatically calculates line item subtotals and grand total.
- * - Supports soft-delete/voiding transactions (isVoided: true).
  */
 
 const Invoice = require('../models/Invoice');
 const Product = require('../models/Product');
 
-/**
- * Helper Utility: Generate Unique Invoice Number (e.g. INV-2026-1042)
- */
 const generateInvoiceNumber = () => {
   const year = new Date().getFullYear();
   const randomDigits = Math.floor(1000 + Math.random() * 9000);
   return `INV-${year}-${randomDigits}`;
 };
 
-/**
- * @desc    Health check endpoint for Member 4 Billing Module
- * @route   GET /api/billing/health
- * @access  Public
- */
 const billingHealthCheck = async (req, res) => {
   return res.status(200).json({
     success: true,
-    module: 'Member 4: Order Processing & POS Billing System',
+    module: 'POS & Invoicing System',
     status: 'Operational',
-    message: 'Member 4: Order Billing Module connected successfully!'
+    message: 'POS & Invoicing Module connected successfully!'
   });
 };
 
-/**
- * @desc    Create a new checkout order invoice
- * @route   POST /api/billing
- * @access  Private (Staff / Admin)
- */
 const createInvoice = async (req, res) => {
   try {
-    const { customerId, items, paymentMethod, paymentStatus } = req.body;
+    const { customerId, items, paymentMethod, paymentStatus, discountRate, taxRate } = req.body;
 
-    // 1. Validate items array presence
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Validation Error: Invoice must contain at least one purchased item'
+        message: 'Validation Error: Invoice must contain at least one item'
       });
     }
 
-    // 2. Auto-generate unique Invoice Number
     let invoiceNo = generateInvoiceNumber();
     let invoiceExists = await Invoice.findOne({ invoiceNo });
     while (invoiceExists) {
@@ -62,7 +40,6 @@ const createInvoice = async (req, res) => {
       invoiceExists = await Invoice.findOne({ invoiceNo });
     }
 
-    // 3. Process items and calculate subtotals & grand total
     let calculatedTotal = 0;
     const processedItems = [];
 
@@ -87,22 +64,35 @@ const createInvoice = async (req, res) => {
         subtotal: lineSubtotal
       });
 
-      // Optionally reduce stock count if product ID is linked
+      // Deduct stock count if product ID is provided
       if (item.product) {
         const prod = await Product.findById(item.product);
-        if (prod && prod.stockQuantity >= qty) {
-          prod.stockQuantity -= qty;
+        if (prod) {
+          prod.stockQuantity = Math.max(0, prod.stockQuantity - qty);
           await prod.save();
         }
       }
     }
 
-    // 4. Save invoice to database
+    // Calculate discount and tax
+    const discRate = discountRate ? Number(discountRate) : 0;
+    const tRate = taxRate ? Number(taxRate) : 0;
+
+    const discountAmount = calculatedTotal * (discRate / 100);
+    const amountAfterDiscount = calculatedTotal - discountAmount;
+    const taxAmount = amountAfterDiscount * (tRate / 100);
+    const finalTotal = amountAfterDiscount + taxAmount;
+
     const invoice = await Invoice.create({
       invoiceNo,
       customerId: customerId || null,
       items: processedItems,
       totalAmount: calculatedTotal,
+      discountRate: discRate,
+      discountAmount,
+      taxRate: tRate,
+      taxAmount,
+      finalTotal,
       paymentMethod: paymentMethod || 'Cash',
       paymentStatus: paymentStatus || 'Paid'
     });
@@ -126,11 +116,6 @@ const createInvoice = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get all active sales invoices
- * @route   GET /api/billing
- * @access  Private (Staff / Admin)
- */
 const getAllInvoices = async (req, res) => {
   try {
     const { paymentStatus, paymentMethod } = req.query;
@@ -156,7 +141,6 @@ const getAllInvoices = async (req, res) => {
       data: invoices
     });
   } catch (error) {
-    console.error('[Get All Invoices Error]:', error.message);
     return res.status(500).json({
       success: false,
       message: 'Server Error fetching invoice records',
@@ -165,11 +149,6 @@ const getAllInvoices = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get single invoice details by ID
- * @route   GET /api/billing/:id
- * @access  Private (Staff / Admin)
- */
 const getInvoiceById = async (req, res) => {
   try {
     const invoice = await Invoice.findOne({ _id: req.params.id, isVoided: false })
@@ -195,11 +174,6 @@ const getInvoiceById = async (req, res) => {
   }
 };
 
-/**
- * @desc    Update invoice payment status or payment method
- * @route   PUT /api/billing/:id
- * @access  Private (Staff / Admin)
- */
 const updatePaymentStatus = async (req, res) => {
   try {
     const { paymentStatus, paymentMethod } = req.body;
@@ -236,9 +210,7 @@ const updatePaymentStatus = async (req, res) => {
 };
 
 /**
- * @desc    Void / soft delete an invoice transaction
- * @route   DELETE /api/billing/:id
- * @access  Private (Admin only)
+ * Void Invoice Transaction and RESTORE Product Stock Count
  */
 const voidInvoice = async (req, res) => {
   try {
@@ -251,12 +223,25 @@ const voidInvoice = async (req, res) => {
       });
     }
 
+    // Restore stock counts for purchased items
+    if (invoice.items && invoice.items.length > 0) {
+      for (const item of invoice.items) {
+        if (item.product) {
+          const prod = await Product.findById(item.product);
+          if (prod) {
+            prod.stockQuantity += Number(item.quantity);
+            await prod.save();
+          }
+        }
+      }
+    }
+
     invoice.isVoided = true;
     await invoice.save();
 
     return res.status(200).json({
       success: true,
-      message: `Invoice '${invoice.invoiceNo}' successfully voided`,
+      message: `Invoice '${invoice.invoiceNo}' voided and stock restored successfully`,
       data: { _id: invoice._id, isVoided: true }
     });
   } catch (error) {

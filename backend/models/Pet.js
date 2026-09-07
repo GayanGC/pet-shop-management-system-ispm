@@ -1,24 +1,39 @@
 /**
  * ============================================================================
- * MEMBER 1 MODULE: PET MODEL (Pet.js)
+ * CLINICAL MODULE 1: PET PATIENT MODEL (Pet.js)
  * ============================================================================
- * Assigned to: Team Member 1 (Pet Registry & Customer Pet Portal)
- * 
- * Explanation for Viva:
- * - Represents registered pets owned by customer users or maintained in shop registry.
- * - Fields:
- *   * uniquePin: Unique identification tag or microchip PIN code for the pet (e.g. PET-1001).
- *   * petName: Name of the pet.
- *   * species: Category (Dog, Cat, Bird, Fish, Reptile, Small Animal).
- *   * breed: Specific breed designation.
- *   * age: Age of pet in years.
- *   * weight: Pet weight in kilograms (kg).
- *   * ownerId: Reference ID linking to the User document (Customer owner).
- *   * status: Medical / Adoption status ('Available', 'Adopted', 'Medical Care').
- *   * isArchived: Soft-delete flag (default: false) to preserve historic records.
+ * Represents registered pet patients, microchip PIN tags, medical status,
+ * and treatment/vaccination history logs.
  */
 
 const mongoose = require('mongoose');
+
+const medicalLogSchema = new mongoose.Schema({
+  date: {
+    type: Date,
+    default: Date.now
+  },
+  diagnosis: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  treatment: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  vaccineName: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  vetDoctor: {
+    type: String,
+    default: 'Dr. Perera (Senior Vet)',
+    trim: true
+  }
+});
 
 const petSchema = new mongoose.Schema(
   {
@@ -35,7 +50,7 @@ const petSchema = new mongoose.Schema(
     },
     species: {
       type: String,
-      required: [true, 'Species type is required (e.g. Dog, Cat, Bird)'],
+      required: [true, 'Species type is required'],
       trim: true
     },
     breed: {
@@ -56,13 +71,19 @@ const petSchema = new mongoose.Schema(
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Pet must belong to a registered customer owner']
+      required: [true, 'Pet must belong to a registered owner']
     },
     status: {
       type: String,
       enum: ['Available', 'Adopted', 'Medical Care'],
       default: 'Available'
     },
+    clinicStatus: {
+      type: String,
+      enum: ['Registered', 'Checked-In', 'In Consultation', 'Discharged'],
+      default: 'Registered'
+    },
+    medicalLogs: [medicalLogSchema],
     isArchived: {
       type: Boolean,
       default: false

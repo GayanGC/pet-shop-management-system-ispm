@@ -1,19 +1,7 @@
 /**
  * ============================================================================
- * MEMBER 2 MODULE: PRODUCT / INVENTORY MODEL (Product.js)
+ * CLINICAL MODULE 2: PHARMACY & INVENTORY MODEL (Product.js)
  * ============================================================================
- * Assigned to: Team Member 2 (Inventory & Stock Control System)
- * 
- * Explanation for Viva:
- * - Represents products, food items, and accessories in stock.
- * - Fields:
- *   * itemName: Product name.
- *   * category: Classification ('Food', 'Toys', 'Accessories', 'Healthcare', 'Grooming Supplies', 'General').
- *   * price: Unit price in currency.
- *   * stockQuantity: Current available stock count.
- *   * supplier: Vendor / manufacturer name.
- *   * unit: Unit description (e.g. 'Pack', 'Bottle', 'kg', 'Piece').
- *   * isDiscontinued: Soft-delete flag (default: false).
  */
 
 const mongoose = require('mongoose');
@@ -46,6 +34,15 @@ const productSchema = new mongoose.Schema(
       type: String,
       default: 'Direct Supplier',
       trim: true
+    },
+    batchNo: {
+      type: String,
+      default: 'BATCH-2026-01',
+      trim: true
+    },
+    expiryDate: {
+      type: Date,
+      default: null
     },
     unit: {
       type: String,

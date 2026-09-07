@@ -1,50 +1,31 @@
 /**
  * ============================================================================
- * MEMBER 1 MODULE: PET CONTROLLER (petController.js)
+ * CLINICAL MODULE 1: PET PATIENT CONTROLLER (petController.js)
  * ============================================================================
- * Assigned to: Team Member 1 (Pet Registry & Customer Pet Portal)
- * 
- * Explanation for Viva:
- * - Manages all CRUD operations for pet registration and profile management.
- * - Auto-generates a unique 6-digit PIN (e.g. PET-1001) if not provided.
- * - Uses soft-delete (isArchived) to preserve historical relationships with bookings.
- * - Standardized JSON response: { success: true/false, message: "...", data: ... }
+ * Manages CRUD operations for pet patients, clinic status changes,
+ * and medical/vaccination log history.
  */
 
 const Pet = require('../models/Pet');
 
-/**
- * Helper Utility: Generate Unique 6-Digit Pet PIN Code (e.g. PET-4819)
- */
 const generatePetPin = () => {
   const randomDigits = Math.floor(1000 + Math.random() * 9000);
   return `PET-${randomDigits}`;
 };
 
-/**
- * @desc    Health check endpoint for Member 1 Pet Module
- * @route   GET /api/pets/health
- * @access  Public
- */
 const petHealthCheck = async (req, res) => {
   return res.status(200).json({
     success: true,
-    module: 'Member 1: Pet Registry & Customer Pet Portal',
+    module: 'Patients & Pet Profiles Module',
     status: 'Operational',
-    message: 'Member 1: Pet Registry Module connected successfully!'
+    message: 'Patients & Pet Profiles Module connected successfully!'
   });
 };
 
-/**
- * @desc    Register a new pet
- * @route   POST /api/pets
- * @access  Private (Protected by JWT)
- */
 const createPet = async (req, res) => {
   try {
-    const { uniquePin, petName, species, breed, age, weight, ownerId, status } = req.body;
+    const { uniquePin, petName, species, breed, age, weight, ownerId, status, clinicStatus } = req.body;
 
-    // 1. Validation check for required fields
     if (!petName || !species || age === undefined) {
       return res.status(400).json({
         success: false,
@@ -52,30 +33,25 @@ const createPet = async (req, res) => {
       });
     }
 
-    // 2. Auto-generate unique PIN if not manually provided
     let finalPin = uniquePin;
     if (!finalPin) {
       finalPin = generatePetPin();
-      // Ensure generated PIN is unique in database
       let pinExists = await Pet.findOne({ uniquePin: finalPin });
       while (pinExists) {
         finalPin = generatePetPin();
         pinExists = await Pet.findOne({ uniquePin: finalPin });
       }
     } else {
-      // Check if manually entered PIN already exists
       const existingPin = await Pet.findOne({ uniquePin: finalPin });
       if (existingPin) {
         return res.status(400).json({
           success: false,
-          message: `Pet PIN '${finalPin}' already exists. Please use a unique PIN.`
+          message: `Pet PIN '${finalPin}' already exists.`
         });
       }
     }
 
-    // 3. Set target owner (Default to logged-in user if ownerId not passed)
     const targetOwner = ownerId || (req.user ? req.user._id : null);
-
     if (!targetOwner) {
       return res.status(400).json({
         success: false,
@@ -83,7 +59,6 @@ const createPet = async (req, res) => {
       });
     }
 
-    // 4. Create pet record in DB
     const pet = await Pet.create({
       uniquePin: finalPin,
       petName,
@@ -92,15 +67,16 @@ const createPet = async (req, res) => {
       age: Number(age),
       weight: weight ? Number(weight) : 0,
       ownerId: targetOwner,
-      status: status || 'Available'
+      status: status || 'Available',
+      clinicStatus: clinicStatus || 'Registered',
+      medicalLogs: []
     });
 
-    // 5. Populate owner info for response
     await pet.populate('ownerId', 'name email role');
 
     return res.status(201).json({
       success: true,
-      message: 'Pet registered successfully',
+      message: 'Pet patient registered successfully',
       data: pet
     });
   } catch (error) {
@@ -113,29 +89,20 @@ const createPet = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get all pets (with species filter, search query, and owner details)
- * @route   GET /api/pets
- * @access  Private / Protected
- */
 const getAllPets = async (req, res) => {
   try {
     const { species, search, ownerId } = req.query;
 
-    // Filter condition: only non-archived pets by default
     let query = { isArchived: false };
 
-    // Species filter
     if (species && species !== 'All') {
       query.species = species;
     }
 
-    // Filter by specific owner ID
     if (ownerId) {
       query.ownerId = ownerId;
     }
 
-    // Search by pet name or unique PIN
     if (search) {
       query.$or = [
         { petName: { $regex: search, $options: 'i' } },
@@ -155,7 +122,6 @@ const getAllPets = async (req, res) => {
       data: pets
     });
   } catch (error) {
-    console.error('[Get All Pets Error]:', error.message);
     return res.status(500).json({
       success: false,
       message: 'Server Error fetching pet list',
@@ -164,11 +130,6 @@ const getAllPets = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get single pet profile details by ID
- * @route   GET /api/pets/:id
- * @access  Private / Protected
- */
 const getPetById = async (req, res) => {
   try {
     const pet = await Pet.findOne({ _id: req.params.id, isArchived: false })
@@ -194,14 +155,9 @@ const getPetById = async (req, res) => {
   }
 };
 
-/**
- * @desc    Update pet profile details
- * @route   PUT /api/pets/:id
- * @access  Private (Protected)
- */
 const updatePet = async (req, res) => {
   try {
-    const { petName, species, breed, age, weight, status, ownerId } = req.body;
+    const { petName, species, breed, age, weight, status, clinicStatus, ownerId } = req.body;
 
     let pet = await Pet.findOne({ _id: req.params.id, isArchived: false });
 
@@ -212,13 +168,13 @@ const updatePet = async (req, res) => {
       });
     }
 
-    // Apply updates
     if (petName) pet.petName = petName;
     if (species) pet.species = species;
     if (breed) pet.breed = breed;
     if (age !== undefined) pet.age = Number(age);
     if (weight !== undefined) pet.weight = Number(weight);
     if (status) pet.status = status;
+    if (clinicStatus) pet.clinicStatus = clinicStatus;
     if (ownerId) pet.ownerId = ownerId;
 
     const updatedPet = await pet.save();
@@ -238,11 +194,6 @@ const updatePet = async (req, res) => {
   }
 };
 
-/**
- * @desc    Soft delete / archive pet record
- * @route   DELETE /api/pets/:id
- * @access  Private (Admin / Staff / Owner)
- */
 const deletePet = async (req, res) => {
   try {
     const pet = await Pet.findById(req.params.id);
@@ -254,13 +205,12 @@ const deletePet = async (req, res) => {
       });
     }
 
-    // Perform soft delete
     pet.isArchived = true;
     await pet.save();
 
     return res.status(200).json({
       success: true,
-      message: `Pet '${pet.petName}' (${pet.uniquePin}) successfully archived`,
+      message: `Pet '${pet.petName}' (${pet.uniquePin}) archived successfully`,
       data: { _id: pet._id }
     });
   } catch (error) {
@@ -272,11 +222,59 @@ const deletePet = async (req, res) => {
   }
 };
 
+/**
+ * Add Medical/Vaccination Log to Pet Patient
+ */
+const addMedicalLog = async (req, res) => {
+  try {
+    const { diagnosis, treatment, vaccineName, vetDoctor } = req.body;
+
+    if (!diagnosis || !treatment) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide diagnosis and treatment'
+      });
+    }
+
+    const pet = await Pet.findOne({ _id: req.params.id, isArchived: false });
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pet patient record not found'
+      });
+    }
+
+    pet.medicalLogs.push({
+      date: new Date(),
+      diagnosis,
+      treatment,
+      vaccineName: vaccineName || '',
+      vetDoctor: vetDoctor || 'Dr. Perera (Senior Vet)'
+    });
+
+    await pet.save();
+    await pet.populate('ownerId', 'name email role');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Medical log added successfully',
+      data: pet
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error adding medical log',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   petHealthCheck,
   createPet,
   getAllPets,
   getPetById,
   updatePet,
-  deletePet
+  deletePet,
+  addMedicalLog
 };
