@@ -401,14 +401,12 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         
         {/* 3. Pet Care Hero Banner (Unsplash Photography) */}
-        <div className="relative rounded-3xl overflow-hidden shadow-lg border border-teal-600/20 bg-gradient-to-r from-teal-800 via-teal-700 to-slate-900 text-white p-8 md:p-10">
-          <div className="absolute inset-0 opacity-25 mix-blend-overlay">
-            <img
-              src="https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=1600&q=80"
-              alt="Happy Pets Care"
-              className="w-full h-full object-cover object-center"
-            />
-          </div>
+        <div className="relative overflow-hidden rounded-3xl bg-slate-900 min-h-[300px] flex items-center p-8 md:p-10 text-white shadow-xl border border-teal-600/20">
+          <img
+            src="https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=1600&q=80"
+            alt="Pet Care"
+            className="absolute inset-0 w-full h-full object-cover opacity-35"
+          />
 
           <div className="relative z-10 max-w-2xl space-y-4">
             <span className="bg-amber-400 text-slate-900 font-extrabold text-[11px] px-3 py-1 rounded-full inline-block tracking-wide uppercase">
