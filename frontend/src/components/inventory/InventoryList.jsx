@@ -95,7 +95,7 @@ const InventoryList = ({ products = [], onDelete, onEdit, onAdjustStock, searchT
                       )}
                     </td>
                     <td className="py-3.5 px-5 font-mono text-slate-900 font-bold">
-                      ${Number(item.price).toFixed(2)}
+                      Rs. {Number(item.price).toFixed(2)}
                     </td>
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-2">

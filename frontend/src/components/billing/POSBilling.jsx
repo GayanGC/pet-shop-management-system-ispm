@@ -132,7 +132,7 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
               <option value="">-- Choose Stock Product --</option>
               {products.map((prod) => (
                 <option key={prod._id} value={prod._id}>
-                  {prod.itemName} - ${prod.price} (Stock: {prod.stockQuantity})
+                  {prod.itemName} - Rs. {prod.price} (Stock: {prod.stockQuantity})
                 </option>
               ))}
             </select>
@@ -159,7 +159,7 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Custom Price ($)</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Custom Price (Rs.)</label>
             <input
               type="number"
               step="0.01"
@@ -212,9 +212,9 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
                   cartItems.map((item, idx) => (
                     <tr key={idx} className="bg-white hover:bg-slate-50/60 transition-colors">
                       <td className="py-3 px-4 font-semibold text-slate-800">{item.itemName}</td>
-                      <td className="py-3 px-4 font-mono text-slate-600">${item.unitPrice.toFixed(2)}</td>
+                      <td className="py-3 px-4 font-mono text-slate-600">Rs. {item.unitPrice.toFixed(2)}</td>
                       <td className="py-3 px-4 font-mono text-slate-700">{item.quantity}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900">${item.subtotal.toFixed(2)}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">Rs. {item.subtotal.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right">
                         <button
                           onClick={() => handleRemoveFromCart(idx)}
@@ -283,15 +283,15 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
 
             <div className="border-t border-slate-200 pt-3 flex justify-between items-center text-xs">
               <div className="space-y-0.5 text-slate-500 font-mono">
-                <div>Subtotal: <span className="font-bold text-slate-700">${calculateSubtotal().toFixed(2)}</span></div>
-                {discountRate > 0 && <div className="text-emerald-600 font-bold">Discount ({discountRate}%): -${calculateDiscount().toFixed(2)}</div>}
-                {taxRate > 0 && <div>Tax ({taxRate}%): +${calculateTax().toFixed(2)}</div>}
+                <div>Subtotal: <span className="font-bold text-slate-700">Rs. {calculateSubtotal().toFixed(2)}</span></div>
+                {discountRate > 0 && <div className="text-emerald-600 font-bold">Discount ({discountRate}%): -Rs. {calculateDiscount().toFixed(2)}</div>}
+                {taxRate > 0 && <div>Tax ({taxRate}%): +Rs. {calculateTax().toFixed(2)}</div>}
               </div>
 
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Final Total</span>
                 <span className="text-3xl font-black text-purple-700 font-mono tracking-tight">
-                  ${calculateFinalTotal().toFixed(2)}
+                  Rs. {calculateFinalTotal().toFixed(2)}
                 </span>
               </div>
             </div>

@@ -73,7 +73,7 @@ const InvoiceList = ({ invoices = [], onVoidInvoice, paymentFilter, setPaymentFi
                       </span>
                     </td>
                     <td className="py-3.5 px-5 font-mono font-bold text-slate-900 text-sm">
-                      ${Number(totalToShow).toFixed(2)}
+                      Rs. {Number(totalToShow).toFixed(2)}
                     </td>
                     <td className="py-3.5 px-5">
                       <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px] font-semibold border border-slate-200">

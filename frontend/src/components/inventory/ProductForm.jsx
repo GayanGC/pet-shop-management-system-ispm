@@ -94,7 +94,7 @@ const ProductForm = ({ onSubmit, isLoading, isModal, onClose }) => {
 
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <DollarSign className="w-3.5 h-3.5 text-teal-600" /> Unit Selling Price ($) <span className="text-rose-500">*</span>
+            <DollarSign className="w-3.5 h-3.5 text-teal-600" /> Unit Selling Price (Rs.) <span className="text-rose-500">*</span>
           </label>
           <input
             type="number"
@@ -102,7 +102,7 @@ const ProductForm = ({ onSubmit, isLoading, isModal, onClose }) => {
             name="price"
             value={formData.price}
             onChange={handleChange}
-            placeholder="e.g. 24.99"
+            placeholder="e.g. 1500.00"
             required
             min="0"
             className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all placeholder:text-slate-400 font-mono"

@@ -382,7 +382,7 @@ function App() {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <span>💳</span> POS Terminal (${totalRevenue.toFixed(2)})
+            <span>💳</span> POS Terminal (Rs. {totalRevenue.toFixed(2)})
           </button>
         </div>
       </nav>
@@ -562,7 +562,7 @@ function App() {
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
             <div>
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Sales Revenue</span>
-              <span className="text-2xl font-black text-purple-700 font-mono mt-1 block">${totalRevenue.toFixed(2)}</span>
+              <span className="text-2xl font-black text-purple-700 font-mono mt-1 block">Rs. {totalRevenue.toFixed(2)}</span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center font-bold">
               <TrendingUp className="w-5 h-5" />

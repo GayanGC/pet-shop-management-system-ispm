@@ -78,8 +78,8 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
                   <tr key={idx}>
                     <td className="py-2 font-medium text-slate-800">{item.itemName}</td>
                     <td className="py-2 text-center font-mono">{item.quantity}</td>
-                    <td className="py-2 text-right font-mono">${item.unitPrice.toFixed(2)}</td>
-                    <td className="py-2 text-right font-mono font-bold">${item.subtotal.toFixed(2)}</td>
+                    <td className="py-2 text-right font-mono">Rs. {item.unitPrice.toFixed(2)}</td>
+                    <td className="py-2 text-right font-mono font-bold">Rs. {item.subtotal.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -90,26 +90,26 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
           <div className="border-t border-slate-200 pt-3 text-xs space-y-1.5">
             <div className="flex justify-between text-slate-600">
               <span>Items Subtotal:</span>
-              <span className="font-mono font-semibold">${(invoice.totalAmount || 0).toFixed(2)}</span>
+              <span className="font-mono font-semibold">Rs. {(invoice.totalAmount || 0).toFixed(2)}</span>
             </div>
 
             {invoice.discountAmount > 0 && (
               <div className="flex justify-between text-emerald-600 font-medium">
                 <span>Discount ({invoice.discountRate}%):</span>
-                <span className="font-mono">-${(invoice.discountAmount || 0).toFixed(2)}</span>
+                <span className="font-mono">-Rs. {(invoice.discountAmount || 0).toFixed(2)}</span>
               </div>
             )}
 
             {invoice.taxAmount > 0 && (
               <div className="flex justify-between text-slate-600">
                 <span>VAT / Tax ({invoice.taxRate}%):</span>
-                <span className="font-mono">+${(invoice.taxAmount || 0).toFixed(2)}</span>
+                <span className="font-mono">+Rs. {(invoice.taxAmount || 0).toFixed(2)}</span>
               </div>
             )}
 
             <div className="flex justify-between text-base font-extrabold text-slate-900 border-t border-slate-200 pt-2 font-mono">
               <span>Total Paid:</span>
-              <span className="text-purple-700">${(invoice.finalTotal || invoice.totalAmount || 0).toFixed(2)}</span>
+              <span className="text-purple-700">Rs. {(invoice.finalTotal || invoice.totalAmount || 0).toFixed(2)}</span>
             </div>
           </div>
 
