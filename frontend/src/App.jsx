@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Phone, ShieldCheck, PawPrint, Package, Calendar, CreditCard, Plus, Stethoscope, AlertTriangle, TrendingUp, Scissors, Tag, CheckCircle2, AlertCircle } from 'lucide-react';
 
 import PetForm from './components/pet/PetForm';
@@ -18,6 +18,15 @@ import { fetchInvoices, createInvoice, voidInvoice } from './services/billingSer
 function App() {
   const [activeTab, setActiveTab] = useState('pets');
   const [notification, setNotification] = useState({ message: '', type: '' });
+
+  // Main content scroll ref
+  const mainContentRef = useRef(null);
+
+  const scrollToContent = () => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   // Modal open states
   const [isPetModalOpen, setIsPetModalOpen] = useState(false);
@@ -325,10 +334,13 @@ function App() {
               <span>+94 11 234 5678</span>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-teal-800/80 px-3 py-1.5 rounded-full text-teal-100 font-medium border border-teal-600/60">
+            <button
+              onClick={() => scrollToContent()}
+              className="flex items-center gap-1.5 bg-teal-800/80 hover:bg-teal-600 px-3 py-1.5 rounded-full text-teal-100 font-medium border border-teal-600/60 transition-all cursor-pointer"
+            >
               <ShieldCheck className="w-3.5 h-3.5 text-teal-200" />
               <span>Admin Portal</span>
-            </div>
+            </button>
 
             <div className="flex items-center gap-1.5 bg-teal-800/80 px-3 py-1.5 rounded-full text-teal-100 font-medium border border-teal-600/60">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -342,7 +354,10 @@ function App() {
       <nav className="bg-white border-b border-slate-200/80 shadow-xs sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto py-2.5 gap-2 text-xs font-semibold">
           <button
-            onClick={() => setActiveTab('pets')}
+            onClick={() => {
+              setActiveTab('pets');
+              scrollToContent();
+            }}
             className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 ${
               activeTab === 'pets'
                 ? 'bg-teal-700 text-white shadow-sm font-bold'
@@ -353,7 +368,10 @@ function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('pharmacy')}
+            onClick={() => {
+              setActiveTab('pharmacy');
+              scrollToContent();
+            }}
             className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 ${
               activeTab === 'pharmacy'
                 ? 'bg-teal-700 text-white shadow-sm font-bold'
@@ -364,7 +382,10 @@ function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('appointments')}
+            onClick={() => {
+              setActiveTab('appointments');
+              scrollToContent();
+            }}
             className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 ${
               activeTab === 'appointments'
                 ? 'bg-teal-700 text-white shadow-sm font-bold'
@@ -375,7 +396,10 @@ function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('pos')}
+            onClick={() => {
+              setActiveTab('pos');
+              scrollToContent();
+            }}
             className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 ${
               activeTab === 'pos'
                 ? 'bg-teal-700 text-white shadow-sm font-bold'
@@ -451,6 +475,7 @@ function App() {
               onClick={() => {
                 setActiveTab('pets');
                 setPetSpeciesFilter('Dog');
+                scrollToContent();
               }}
               className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
             >
@@ -464,6 +489,7 @@ function App() {
               onClick={() => {
                 setActiveTab('pets');
                 setPetSpeciesFilter('Cat');
+                scrollToContent();
               }}
               className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
             >
@@ -477,6 +503,7 @@ function App() {
               onClick={() => {
                 setActiveTab('pharmacy');
                 setProductCategoryFilter('Healthcare');
+                scrollToContent();
               }}
               className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
             >
@@ -489,6 +516,7 @@ function App() {
             <div
               onClick={() => {
                 setActiveTab('appointments');
+                scrollToContent();
               }}
               className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
             >
@@ -501,6 +529,7 @@ function App() {
             <div
               onClick={() => {
                 setActiveTab('appointments');
+                scrollToContent();
               }}
               className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
             >
@@ -513,6 +542,7 @@ function App() {
             <div
               onClick={() => {
                 setActiveTab('pos');
+                scrollToContent();
               }}
               className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 hover:scale-105 transition-all cursor-pointer p-4 rounded-3xl text-center shadow-xs flex flex-col items-center justify-center gap-1"
             >
@@ -525,7 +555,13 @@ function App() {
 
         {/* 5. TOP KPI METRICS BAR */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div
+            onClick={() => {
+              setActiveTab('pets');
+              scrollToContent();
+            }}
+            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+          >
             <div>
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Registered Patients</span>
               <span className="text-2xl font-black text-slate-800 font-mono mt-1 block">{totalPatientsCount}</span>
@@ -535,7 +571,13 @@ function App() {
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div
+            onClick={() => {
+              setActiveTab('pharmacy');
+              scrollToContent();
+            }}
+            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+          >
             <div>
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Low Stock Warnings</span>
               <span className={`text-2xl font-black font-mono mt-1 block ${lowStockCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
@@ -549,7 +591,13 @@ function App() {
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div
+            onClick={() => {
+              setActiveTab('appointments');
+              scrollToContent();
+            }}
+            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+          >
             <div>
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Active Appointments</span>
               <span className="text-2xl font-black text-slate-800 font-mono mt-1 block">{activeBookingsCount}</span>
@@ -559,7 +607,13 @@ function App() {
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div
+            onClick={() => {
+              setActiveTab('pos');
+              scrollToContent();
+            }}
+            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+          >
             <div>
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Sales Revenue</span>
               <span className="text-2xl font-black text-purple-700 font-mono mt-1 block">Rs. {totalRevenue.toFixed(2)}</span>
@@ -571,6 +625,7 @@ function App() {
         </div>
 
         {/* 6. MAIN CONTENT PANELS */}
+        <div ref={mainContentRef} className="pt-2">
 
         {/* PATIENTS & PET PROFILES */}
         {activeTab === 'pets' && (
@@ -631,6 +686,7 @@ function App() {
             />
           </div>
         )}
+        </div>
       </main>
 
       {/* REGISTRATION POPUP MODALS */}
