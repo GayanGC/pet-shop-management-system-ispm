@@ -9,6 +9,7 @@ import BookingForm from './components/booking/BookingForm';
 import BookingList from './components/booking/BookingList';
 import POSBilling from './components/billing/POSBilling';
 import InvoiceList from './components/billing/InvoiceList';
+import SalesAnalytics from './components/billing/SalesAnalytics';
 
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog } from './services/petService';
 import { fetchProducts, createProduct, deleteProduct, adjustStock } from './services/inventoryService';
@@ -17,6 +18,7 @@ import { fetchInvoices, createInvoice, voidInvoice } from './services/billingSer
 
 function App() {
   const [activeTab, setActiveTab] = useState('pets');
+  const [posSubTab, setPosSubTab] = useState('terminal');
   const [notification, setNotification] = useState({ message: '', type: '' });
 
   // Main content scroll ref
@@ -676,14 +678,45 @@ function App() {
 
         {/* POS & INVOICING */}
         {activeTab === 'pos' && (
-          <div className="space-y-8 animate-fadeIn">
-            <POSBilling products={products} onSubmitOrder={handleCheckoutPOS} isLoading={isBillingLoading} />
-            <InvoiceList
-              invoices={invoices}
-              onVoidInvoice={handleVoidInvoice}
-              paymentFilter={paymentFilter}
-              setPaymentFilter={setPaymentFilter}
-            />
+          <div className="space-y-6 animate-fadeIn">
+            {/* POS Sub-Navigation Switcher */}
+            <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex gap-2 w-fit">
+              <button
+                onClick={() => setPosSubTab('terminal')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  posSubTab === 'terminal'
+                    ? 'bg-teal-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>🛒</span> POS Terminal & Invoices
+              </button>
+
+              <button
+                onClick={() => setPosSubTab('analytics')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  posSubTab === 'analytics'
+                    ? 'bg-teal-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>📊</span> Sales Analytics & Reports
+              </button>
+            </div>
+
+            {posSubTab === 'terminal' ? (
+              <div className="space-y-8">
+                <POSBilling products={products} onSubmitOrder={handleCheckoutPOS} isLoading={isBillingLoading} />
+                <InvoiceList
+                  invoices={invoices}
+                  onVoidInvoice={handleVoidInvoice}
+                  paymentFilter={paymentFilter}
+                  setPaymentFilter={setPaymentFilter}
+                />
+              </div>
+            ) : (
+              <SalesAnalytics />
+            )}
           </div>
         )}
         </div>

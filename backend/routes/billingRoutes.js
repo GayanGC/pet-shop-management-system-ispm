@@ -15,12 +15,18 @@ const {
   getAllInvoices,
   getInvoiceById,
   updatePaymentStatus,
-  voidInvoice
+  voidInvoice,
+  getSalesAnalytics,
+  exportInvoicesCSV
 } = require('../controllers/billingController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 // Health Check Route
 router.get('/health', billingHealthCheck);
+
+// Analytics & CSV Export Endpoints
+router.get('/analytics', getSalesAnalytics);
+router.get('/export-csv', exportInvoicesCSV);
 
 // Protected Billing Endpoints (Restricted to Staff and Admin)
 router.route('/')

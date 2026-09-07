@@ -253,11 +253,130 @@ const voidInvoice = async (req, res) => {
   }
 };
 
+/**
+ * GET Sales Financial Analytics & Aggregations
+ */
+const getSalesAnalytics = async (req, res) => {
+  try {
+    const invoices = await Invoice.find({ isVoided: false }).populate('customerId', 'name email');
+
+    let totalRevenue = 0;
+    let paidInvoicesCount = 0;
+    const paymentMap = { Cash: { count: 0, revenue: 0 }, Card: { count: 0, revenue: 0 }, Online: { count: 0, revenue: 0 } };
+    const itemMap = {};
+    const dailyMap = {};
+
+    invoices.forEach(inv => {
+      const revenue = inv.finalTotal || inv.totalAmount || 0;
+      totalRevenue += revenue;
+      if (inv.paymentStatus === 'Paid') paidInvoicesCount++;
+
+      // Payment method split
+      const method = inv.paymentMethod || 'Cash';
+      if (!paymentMap[method]) paymentMap[method] = { count: 0, revenue: 0 };
+      paymentMap[method].count += 1;
+      paymentMap[method].revenue += revenue;
+
+      // Daily sales date grouping YYYY-MM-DD
+      const dateKey = inv.createdAt ? new Date(inv.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      if (!dailyMap[dateKey]) dailyMap[dateKey] = { date: dateKey, totalAmount: 0, ordersCount: 0 };
+      dailyMap[dateKey].totalAmount += revenue;
+      dailyMap[dateKey].ordersCount += 1;
+
+      // Items breakdown
+      if (inv.items && Array.isArray(inv.items)) {
+        inv.items.forEach(item => {
+          const name = item.itemName;
+          const qty = Number(item.quantity || 1);
+          const itemRev = Number(item.subtotal || 0);
+          if (!itemMap[name]) itemMap[name] = { itemName: name, totalQuantity: 0, totalRevenue: 0 };
+          itemMap[name].totalQuantity += qty;
+          itemMap[name].totalRevenue += itemRev;
+        });
+      }
+    });
+
+    // Format top 5 selling items
+    const topSellingItems = Object.values(itemMap)
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
+      .slice(0, 5);
+
+    // Format daily sales array sorted by date
+    const dailySales = Object.values(dailyMap).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Summary object
+    const totalInvoices = invoices.length;
+    const averageOrderValue = totalInvoices > 0 ? (totalRevenue / totalInvoices) : 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        summary: {
+          totalRevenue,
+          totalInvoices,
+          paidInvoicesCount,
+          averageOrderValue
+        },
+        dailySales,
+        paymentMethodBreakdown: paymentMap,
+        topSellingItems
+      }
+    });
+  } catch (error) {
+    console.error('[Sales Analytics Error]:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error aggregating sales analytics',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Export Invoices as RFC-4180 Compliant CSV
+ */
+const exportInvoicesCSV = async (req, res) => {
+  try {
+    const invoices = await Invoice.find({ isVoided: false }).populate('customerId', 'name email').sort({ createdAt: -1 });
+
+    const headers = ['Invoice Number', 'Date', 'Customer Name', 'Payment Method', 'Subtotal (LKR)', 'Discount (%)', 'Tax (%)', 'Grand Total (LKR)', 'Status'];
+    const rows = invoices.map(inv => {
+      const dateStr = inv.createdAt ? new Date(inv.createdAt).toISOString().split('T')[0] : '';
+      const customerName = inv.customerId ? inv.customerId.name : 'Walk-in Client';
+      return [
+        `"${inv.invoiceNo}"`,
+        `"${dateStr}"`,
+        `"${customerName}"`,
+        `"${inv.paymentMethod}"`,
+        (inv.totalAmount || 0).toFixed(2),
+        (inv.discountRate || 0),
+        (inv.taxRate || 0),
+        (inv.finalTotal || inv.totalAmount || 0).toFixed(2),
+        `"${inv.paymentStatus}"`
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="4paw_sales_report.csv"');
+    return res.status(200).send(csvContent);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error exporting CSV',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   billingHealthCheck,
   createInvoice,
   getAllInvoices,
   getInvoiceById,
   updatePaymentStatus,
-  voidInvoice
+  voidInvoice,
+  getSalesAnalytics,
+  exportInvoicesCSV
 };

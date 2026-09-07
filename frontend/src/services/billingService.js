@@ -39,3 +39,12 @@ export const voidInvoice = async (id) => {
   });
   return handleResponse(res);
 };
+
+export const fetchSalesAnalytics = async () => {
+  const res = await fetch(`${API_BASE_URL}/billing/analytics`, {
+    headers: getAuthHeader()
+  });
+  return handleResponse(res);
+};
+
+export const getCSVExportUrl = () => `${API_BASE_URL}/billing/export-csv`;
