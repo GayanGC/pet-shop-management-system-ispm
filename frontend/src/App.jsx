@@ -7,6 +7,7 @@ import ProductForm from './components/inventory/ProductForm';
 import InventoryList from './components/inventory/InventoryList';
 import BookingForm from './components/booking/BookingForm';
 import BookingList from './components/booking/BookingList';
+import DoctorCalendarView from './components/appointments/DoctorCalendarView';
 import POSBilling from './components/billing/POSBilling';
 import InvoiceList from './components/billing/InvoiceList';
 import SalesAnalytics from './components/billing/SalesAnalytics';
@@ -19,6 +20,8 @@ import { fetchInvoices, createInvoice, voidInvoice } from './services/billingSer
 function App() {
   const [activeTab, setActiveTab] = useState('pets');
   const [posSubTab, setPosSubTab] = useState('terminal');
+  const [bookingSubTab, setBookingSubTab] = useState('directory');
+  const [prefilledBookingData, setPrefilledBookingData] = useState(null);
   const [notification, setNotification] = useState({ message: '', type: '' });
 
   // Main content scroll ref
@@ -664,15 +667,49 @@ function App() {
 
         {/* APPOINTMENT SCHEDULING */}
         {activeTab === 'appointments' && (
-          <div className="space-y-8 animate-fadeIn">
-            <BookingList
-              bookings={bookings}
-              onUpdateStatus={handleUpdateBookingStatus}
-              onCancel={handleCancelBooking}
-              onReschedule={handleRescheduleBooking}
-              statusFilter={bookingStatusFilter}
-              setStatusFilter={setBookingStatusFilter}
-            />
+          <div className="space-y-6 animate-fadeIn">
+            {/* Appointments Sub-Navigation Switcher */}
+            <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex gap-2 w-fit">
+              <button
+                onClick={() => setBookingSubTab('directory')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  bookingSubTab === 'directory'
+                    ? 'bg-teal-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>📋</span> Bookings Directory
+              </button>
+
+              <button
+                onClick={() => setBookingSubTab('calendar')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  bookingSubTab === 'calendar'
+                    ? 'bg-teal-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>📅</span> Doctor Day Calendar
+              </button>
+            </div>
+
+            {bookingSubTab === 'directory' ? (
+              <BookingList
+                bookings={bookings}
+                onUpdateStatus={handleUpdateBookingStatus}
+                onCancel={handleCancelBooking}
+                onReschedule={handleRescheduleBooking}
+                statusFilter={bookingStatusFilter}
+                setStatusFilter={setBookingStatusFilter}
+              />
+            ) : (
+              <DoctorCalendarView
+                onBookSlot={(slotData) => {
+                  setPrefilledBookingData(slotData);
+                  setIsBookingModalOpen(true);
+                }}
+              />
+            )}
           </div>
         )}
 
@@ -744,10 +781,14 @@ function App() {
       {isBookingModalOpen && (
         <BookingForm
           isModal={true}
-          onClose={() => setIsBookingModalOpen(false)}
+          onClose={() => {
+            setIsBookingModalOpen(false);
+            setPrefilledBookingData(null);
+          }}
           pets={pets}
           onSubmit={handleAddBooking}
           isLoading={isBookingLoading}
+          initialData={prefilledBookingData}
         />
       )}
 

@@ -44,20 +44,23 @@ const createBooking = async (req, res) => {
     }
 
     const parsedDate = new Date(appointmentDate);
-    const startOfDay = new Date(parsedDate.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(parsedDate.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(new Date(parsedDate).setHours(0, 0, 0, 0));
+    const endOfDay = new Date(new Date(parsedDate).setHours(23, 59, 59, 999));
+    const staffToUse = assignedStaff || 'Dr. Perera (Senior Vet)';
 
-    const existingBooking = await Appointment.findOne({
-      petId,
+    // Strict Double Booking Guard (Doctor + Date + Slot)
+    const existingConflict = await Appointment.findOne({
+      assignedStaff: staffToUse,
+      appointmentDate: { $gte: startOfDay, $lte: endOfDay },
       timeSlot,
-      status: { $ne: 'Cancelled' },
-      appointmentDate: { $gte: startOfDay, $lte: endOfDay }
+      status: { $ne: 'Cancelled' }
     });
 
-    if (existingBooking) {
-      return res.status(400).json({
+    if (existingConflict) {
+      const dateStr = startOfDay.toISOString().split('T')[0];
+      return res.status(409).json({
         success: false,
-        message: `Appointment Slot Conflict: Pet already has an active booking at ${timeSlot} on this date`
+        message: `Slot Conflict: ${staffToUse} is already booked on ${dateStr} at ${timeSlot}. Please select a different slot.`
       });
     }
 
@@ -65,7 +68,7 @@ const createBooking = async (req, res) => {
       petId,
       customerId: targetCustomer,
       serviceType,
-      assignedStaff: assignedStaff || 'Dr. Perera (Senior Vet)',
+      assignedStaff: staffToUse,
       appointmentDate: new Date(appointmentDate),
       timeSlot,
       notes: notes || '',
@@ -163,6 +166,32 @@ const updateBooking = async (req, res) => {
       });
     }
 
+    const docToUse = assignedStaff || booking.assignedStaff;
+    const dateToUse = appointmentDate ? new Date(appointmentDate) : booking.appointmentDate;
+    const slotToUse = timeSlot || booking.timeSlot;
+
+    // Strict Double Booking Guard for Updates / Rescheduling
+    if (assignedStaff || appointmentDate || timeSlot) {
+      const startOfDay = new Date(new Date(dateToUse).setHours(0, 0, 0, 0));
+      const endOfDay = new Date(new Date(dateToUse).setHours(23, 59, 59, 999));
+
+      const existingConflict = await Appointment.findOne({
+        _id: { $ne: req.params.id },
+        assignedStaff: docToUse,
+        appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+        timeSlot: slotToUse,
+        status: { $ne: 'Cancelled' }
+      });
+
+      if (existingConflict) {
+        const dateStr = startOfDay.toISOString().split('T')[0];
+        return res.status(409).json({
+          success: false,
+          message: `Slot Conflict: ${docToUse} is already booked on ${dateStr} at ${slotToUse}. Please select a different slot.`
+        });
+      }
+    }
+
     if (serviceType) booking.serviceType = serviceType;
     if (assignedStaff) booking.assignedStaff = assignedStaff;
     if (appointmentDate) booking.appointmentDate = new Date(appointmentDate);
@@ -216,11 +245,59 @@ const deleteBooking = async (req, res) => {
   }
 };
 
+/**
+ * GET Doctor Day Schedule Aggregation
+ */
+const getDoctorDaySchedule = async (req, res) => {
+  try {
+    const { doctor, date } = req.query;
+
+    const docToUse = doctor || 'Dr. Perera (Senior Vet)';
+    const queryDate = date ? new Date(date) : new Date();
+
+    const startOfDay = new Date(new Date(queryDate).setHours(0, 0, 0, 0));
+    const endOfDay = new Date(new Date(queryDate).setHours(23, 59, 59, 999));
+
+    const bookings = await Appointment.find({
+      assignedStaff: docToUse,
+      appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+      status: { $ne: 'Cancelled' }
+    })
+      .populate('petId', 'petName species breed uniquePin')
+      .populate('customerId', 'name email role');
+
+    const workingSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
+
+    const schedule = workingSlots.map((slot) => {
+      const match = bookings.find((b) => b.timeSlot === slot);
+      return {
+        timeSlot: slot,
+        status: match ? 'booked' : 'available',
+        booking: match || null
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      doctor: docToUse,
+      date: startOfDay.toISOString().split('T')[0],
+      data: schedule
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error fetching doctor schedule',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   bookingHealthCheck,
   createBooking,
   getAllBookings,
   getBookingById,
   updateBooking,
-  deleteBooking
+  deleteBooking,
+  getDoctorDaySchedule
 };

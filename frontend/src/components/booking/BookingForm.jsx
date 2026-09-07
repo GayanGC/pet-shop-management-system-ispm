@@ -1,49 +1,88 @@
-import React, { useState } from 'react';
-import { Calendar, Clock, UserCheck, FileText, Plus, User, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, UserCheck, FileText, Plus, User, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { fetchDoctorDaySchedule } from '../../services/bookingService';
 
-const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose }) => {
+const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose, initialData }) => {
   const [formData, setFormData] = useState({
-    petId: '',
-    serviceType: 'Veterinary Checkup',
-    assignedStaff: 'Dr. Perera (Senior Vet)',
-    appointmentDate: '',
-    timeSlot: '09:00 AM',
-    notes: ''
+    petId: initialData?.petId || '',
+    serviceType: initialData?.serviceType || 'Veterinary Checkup',
+    assignedStaff: initialData?.assignedStaff || 'Dr. Perera (Senior Vet)',
+    appointmentDate: initialData?.appointmentDate || '',
+    timeSlot: initialData?.timeSlot || '09:00 AM',
+    notes: initialData?.notes || ''
   });
+
+  const [slotSchedule, setSlotSchedule] = useState([]);
+  const [conflictError, setConflictError] = useState('');
+
+  const workingSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData((prev) => ({
+        ...prev,
+        ...initialData
+      }));
+    }
+  }, [initialData]);
+
+  useEffect(() => {
+    if (formData.assignedStaff && formData.appointmentDate) {
+      fetchDoctorDaySchedule(formData.assignedStaff, formData.appointmentDate)
+        .then((res) => {
+          if (res.success) {
+            setSlotSchedule(res.data || []);
+          }
+        })
+        .catch((err) => console.log('[Schedule Check Note]:', err.message));
+    }
+  }, [formData.assignedStaff, formData.appointmentDate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setConflictError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setConflictError('');
+
     if (!formData.petId || !formData.appointmentDate || !formData.timeSlot) {
       alert('Please select a pet, appointment date, and time slot');
       return;
     }
-    onSubmit(formData);
-    setFormData({
-      petId: '',
-      serviceType: 'Veterinary Checkup',
-      assignedStaff: 'Dr. Perera (Senior Vet)',
-      appointmentDate: '',
-      timeSlot: '09:00 AM',
-      notes: ''
-    });
-    if (isModal && onClose) onClose();
+
+    try {
+      await onSubmit(formData);
+      setFormData({
+        petId: '',
+        serviceType: 'Veterinary Checkup',
+        assignedStaff: 'Dr. Perera (Senior Vet)',
+        appointmentDate: '',
+        timeSlot: '09:00 AM',
+        notes: ''
+      });
+      if (isModal && onClose) onClose();
+    } catch (err) {
+      if (err.message && err.message.includes('Conflict')) {
+        setConflictError(err.message);
+      } else {
+        alert(err.message || 'Error booking appointment');
+      }
+    }
   };
 
   const formContent = (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all duration-200 space-y-5">
+    <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all duration-200 space-y-5">
       <div className="flex justify-between items-center border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 font-bold shadow-xs">
+          <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 font-bold shadow-xs">
             <Calendar className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-800">Schedule Clinical Appointment</h2>
-            <p className="text-xs text-slate-500">Clinical Consultation, Vaccination & Grooming Scheduler</p>
+            <p className="text-xs text-slate-500">Interactive Clinician Slot Booking & Double-Booking Guard</p>
           </div>
         </div>
         {isModal && (
@@ -52,6 +91,13 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose }) => {
           </button>
         )}
       </div>
+
+      {conflictError && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-700 flex items-center gap-2 animate-bounce">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{conflictError}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
@@ -94,7 +140,7 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose }) => {
 
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 text-teal-600" /> Assigned Doctor / Groomer
+            <User className="w-3.5 h-3.5 text-teal-600" /> Assigned Doctor / Clinician
           </label>
           <select
             name="assignedStaff"
@@ -103,7 +149,7 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose }) => {
             className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all"
           >
             <option value="Dr. Perera (Senior Vet)">Dr. Perera (Senior Vet)</option>
-            <option value="Dr. Fernando (Surgeon)">Dr. Fernando (Surgeon)</option>
+            <option value="Dr. Fernando (Vet Surgeon)">Dr. Fernando (Vet Surgeon)</option>
             <option value="Nurse Silva">Nurse Silva</option>
             <option value="Senior Groomer Kapila">Senior Groomer Kapila</option>
           </select>
@@ -123,27 +169,52 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose }) => {
           />
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-teal-600" /> Time Slot <span className="text-rose-500">*</span>
+            <Clock className="w-3.5 h-3.5 text-teal-600" /> Select Time Slot (Live Availability) <span className="text-rose-500">*</span>
           </label>
-          <select
-            name="timeSlot"
-            value={formData.timeSlot}
-            onChange={handleChange}
-            className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-mono focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all"
-          >
-            <option value="09:00 AM">09:00 AM - 10:00 AM</option>
-            <option value="10:30 AM">10:30 AM - 11:30 AM</option>
-            <option value="01:30 PM">01:30 PM - 02:30 PM</option>
-            <option value="03:00 PM">03:00 PM - 04:00 PM</option>
-            <option value="04:30 PM">04:30 PM - 05:30 PM</option>
-          </select>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {workingSlots.map((slot) => {
+              const matched = slotSchedule.find((s) => s.timeSlot === slot);
+              const isBooked = matched?.status === 'booked';
+              const isSelected = formData.timeSlot === slot;
+
+              if (isBooked) {
+                return (
+                  <button
+                    key={slot}
+                    type="button"
+                    disabled
+                    className="py-2 px-3 rounded-xl text-xs font-mono font-bold bg-slate-100 text-slate-400 border border-slate-200 opacity-50 cursor-not-allowed line-through flex items-center justify-between"
+                  >
+                    <span>{slot}</span>
+                    <span className="text-[9px] no-underline font-semibold bg-rose-100 text-rose-700 px-1 py-0.5 rounded">Booked</span>
+                  </button>
+                );
+              }
+
+              return (
+                <button
+                  key={slot}
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, timeSlot: slot }))}
+                  className={`py-2 px-3 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer flex items-center justify-between ${
+                    isSelected
+                      ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                      : 'bg-teal-50/60 hover:bg-teal-100 text-teal-800 border-teal-200/80'
+                  }`}
+                >
+                  <span>{slot}</span>
+                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-amber-300" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <div>
+        <div className="md:col-span-3">
           <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <FileText className="w-3.5 h-3.5 text-slate-400" /> Special Notes
+            <FileText className="w-3.5 h-3.5 text-slate-400" /> Special Notes / Medical Symptoms
           </label>
           <input
             type="text"
@@ -160,10 +231,10 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose }) => {
         <button
           type="submit"
           disabled={isLoading || pets.length === 0}
-          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2.5 px-6 rounded-xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-3 px-6 rounded-2xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />
-          {isLoading ? 'Scheduling Appointment...' : pets.length === 0 ? 'Register a Patient First to Book' : 'Book Clinical Appointment'}
+          {isLoading ? 'Scheduling Appointment...' : pets.length === 0 ? 'Register a Patient First to Book' : 'Confirm & Schedule Appointment'}
         </button>
       </div>
     </form>

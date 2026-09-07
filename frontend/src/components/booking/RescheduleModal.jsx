@@ -5,17 +5,23 @@ const RescheduleModal = ({ booking, onClose, onReschedule }) => {
   const [appointmentDate, setAppointmentDate] = useState('');
   const [timeSlot, setTimeSlot] = useState('09:00 AM');
   const [assignedStaff, setAssignedStaff] = useState(booking?.assignedStaff || 'Dr. Perera (Senior Vet)');
+  const [errorMsg, setErrorMsg] = useState('');
 
   if (!booking) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMsg('');
     if (!appointmentDate) {
       alert('Please select a new appointment date');
       return;
     }
-    onReschedule(booking._id, { appointmentDate, timeSlot, assignedStaff });
-    onClose();
+    try {
+      await onReschedule(booking._id, { appointmentDate, timeSlot, assignedStaff });
+      onClose();
+    } catch (err) {
+      setErrorMsg(err.message || 'Slot conflict or rescheduling error');
+    }
   };
 
   const petName = booking.petId ? booking.petId.petName : 'Pet Patient';
@@ -37,6 +43,12 @@ const RescheduleModal = ({ booking, onClose, onReschedule }) => {
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {errorMsg && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-700">
+            {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>

@@ -39,3 +39,11 @@ export const cancelBooking = async (id) => {
   });
   return handleResponse(res);
 };
+
+export const fetchDoctorDaySchedule = async (doctor, date) => {
+  const query = new URLSearchParams({ doctor: doctor || '', date: date || '' }).toString();
+  const res = await fetch(`${API_BASE_URL}/bookings/schedule?${query}`, {
+    headers: getAuthHeader()
+  });
+  return handleResponse(res);
+};

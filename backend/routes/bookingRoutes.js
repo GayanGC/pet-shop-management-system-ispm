@@ -15,12 +15,16 @@ const {
   getAllBookings,
   getBookingById,
   updateBooking,
-  deleteBooking
+  deleteBooking,
+  getDoctorDaySchedule
 } = require('../controllers/bookingController');
 const { protect } = require('../middleware/authMiddleware');
 
 // Health Check Route
 router.get('/health', bookingHealthCheck);
+
+// Doctor Schedule Endpoint
+router.get('/schedule', getDoctorDaySchedule);
 
 // Booking Endpoints
 router.route('/')
