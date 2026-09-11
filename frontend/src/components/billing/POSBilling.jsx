@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Plus, Trash2, CreditCard, DollarSign, Receipt, Percent } from 'lucide-react';
 
-const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
-  const [cartItems, setCartItems] = useState([]);
+const POSBilling = ({
+  products = [],
+  onSubmitOrder,
+  isLoading,
+  cartItems: externalCartItems,
+  setCartItems: externalSetCartItems,
+  currentUser,
+  onRequireAuth
+}) => {
+  const [internalCartItems, setInternalCartItems] = useState([]);
+  const cartItems = externalCartItems !== undefined ? externalCartItems : internalCartItems;
+  const setCartItems = externalSetCartItems !== undefined ? externalSetCartItems : setInternalCartItems;
+
   const [selectedProductId, setSelectedProductId] = useState('');
   const [itemQty, setItemQty] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
@@ -64,23 +75,32 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
     return cartItems.reduce((acc, item) => acc + item.subtotal, 0);
   };
 
-  const calculateDiscount = () => {
-    return calculateSubtotal() * (Number(discountRate) / 100);
-  };
-
   const calculateTax = () => {
-    const afterDiscount = calculateSubtotal() - calculateDiscount();
-    return afterDiscount * (Number(taxRate) / 100);
+    return (calculateSubtotal() * (Number(taxRate) / 100));
   };
 
-  const calculateFinalTotal = () => {
-    return calculateSubtotal() - calculateDiscount() + calculateTax();
+  const calculateDiscount = () => {
+    return (calculateSubtotal() * (Number(discountRate) / 100));
+  };
+
+  const calculateGrandTotal = () => {
+    const subtotal = calculateSubtotal();
+    const discount = calculateDiscount();
+    const tax = calculateTax();
+    return Math.max(0, subtotal - discount + tax);
   };
 
   const handleCheckout = (e) => {
     e.preventDefault();
     if (cartItems.length === 0) {
       alert('Cart is empty! Add products before checking out.');
+      return;
+    }
+
+    if (!currentUser && onRequireAuth) {
+      onRequireAuth(() => {
+        // Will continue once authenticated
+      }, 'Please sign in to complete your checkout and order.');
       return;
     }
 
@@ -98,15 +118,15 @@ const POSBilling = ({ products = [], onSubmitOrder, isLoading }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all duration-200 space-y-6">
-      <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+    <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xl space-y-6 transition-colors">
+      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 flex items-center justify-center text-purple-600 dark:text-purple-300 shadow-sm">
             <CreditCard className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-800">POS Checkout Terminal</h2>
-            <p className="text-xs text-slate-500">Sales Transactions & Real-time Stock Deduction</p>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white">POS Checkout Terminal</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Sales Transactions & Real-time Stock Deduction</p>
           </div>
         </div>
       </div>

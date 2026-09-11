@@ -21,13 +21,16 @@ import {
   LogIn,
   LogOut,
   User as UserIcon,
-  ShoppingBag
+  ShoppingBag,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 
 import PetForm from './components/pet/PetForm';
 import PetList from './components/pet/PetList';
 import ProductForm from './components/inventory/ProductForm';
 import InventoryList from './components/inventory/InventoryList';
+import ProductShowcase from './components/inventory/ProductShowcase';
 import SupplierDirectory from './components/inventory/SupplierDirectory';
 import ExpiryTracker from './components/inventory/ExpiryTracker';
 import BookingForm from './components/booking/BookingForm';
@@ -68,11 +71,14 @@ function App() {
   const [authModalMessage, setAuthModalMessage] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
 
+  // Cart State (Shared between Showcase & POS)
+  const [cartItems, setCartItems] = useState([]);
+
   // Active Tabs
   const [activeTab, setActiveTab] = useState('pets');
   const [posSubTab, setPosSubTab] = useState('terminal');
   const [bookingSubTab, setBookingSubTab] = useState('directory');
-  const [pharmacySubTab, setPharmacySubTab] = useState('inventory');
+  const [pharmacySubTab, setPharmacySubTab] = useState('showcase'); // 'showcase' | 'inventory' | 'suppliers' | 'expiry'
   const [prefilledBookingData, setPrefilledBookingData] = useState(null);
   const [notification, setNotification] = useState({ message: '', type: '' });
 
@@ -82,6 +88,7 @@ function App() {
     const role = currentUser.role ? currentUser.role.toLowerCase() : 'customer';
     if (role === 'inventory_officer') {
       setActiveTab('pharmacy');
+      setPharmacySubTab('inventory');
     } else if (role === 'staff') {
       if (activeTab !== 'pets' && activeTab !== 'appointments') {
         setActiveTab('pets');
@@ -90,7 +97,7 @@ function App() {
   }, [currentUser]);
 
   // Guest Protection Trigger
-  const handleActionWithAuth = (actionCallback, message = 'Please sign in to continue with your booking or purchase.') => {
+  const handleActionWithAuth = (actionCallback, message = 'Please sign in to proceed with your booking or order.') => {
     if (!currentUser) {
       setAuthModalMessage(message);
       setPendingAction(() => actionCallback);
@@ -116,7 +123,61 @@ function App() {
     logout();
     setCurrentUser(null);
     setActiveTab('pets');
+    setCartItems([]);
     showToast('Signed out successfully. Switched to Guest View.');
+  };
+
+  // Add To Cart from Showcase
+  const handleAddToCart = (product) => {
+    handleActionWithAuth(() => {
+      const existingIdx = cartItems.findIndex((c) => c.product === product._id);
+      if (existingIdx > -1) {
+        const updated = [...cartItems];
+        updated[existingIdx].quantity += 1;
+        updated[existingIdx].subtotal = updated[existingIdx].quantity * updated[existingIdx].unitPrice;
+        setCartItems(updated);
+      } else {
+        setCartItems([
+          ...cartItems,
+          {
+            product: product._id,
+            itemName: product.itemName,
+            unitPrice: Number(product.price),
+            quantity: 1,
+            subtotal: Number(product.price)
+          }
+        ]);
+      }
+      showToast(`Added "${product.itemName}" to cart! (Rs. ${Number(product.price).toFixed(2)})`);
+    }, 'Please sign in to proceed with your booking or order.');
+  };
+
+  // Quick Buy: Add to Cart and jump directly to POS checkout
+  const handleQuickBuy = (product) => {
+    handleActionWithAuth(() => {
+      const existingIdx = cartItems.findIndex((c) => c.product === product._id);
+      if (existingIdx > -1) {
+        const updated = [...cartItems];
+        updated[existingIdx].quantity += 1;
+        updated[existingIdx].subtotal = updated[existingIdx].quantity * updated[existingIdx].unitPrice;
+        setCartItems(updated);
+      } else {
+        setCartItems([
+          ...cartItems,
+          {
+            product: product._id,
+            itemName: product.itemName,
+            unitPrice: Number(product.price),
+            quantity: 1,
+            subtotal: Number(product.price)
+          }
+        ]);
+      }
+      setActiveTab('pos');
+      setPosSubTab('terminal');
+      scrollToContent();
+      showToast(`Instant Buy: "${product.itemName}" ready for checkout!`);
+    }, 'Please sign in to proceed with your booking or order.');
   };
 
   // Hero Carousel State
@@ -486,6 +547,7 @@ function App() {
     try {
       const res = await createInvoice(orderData);
       showToast(`Invoice ${res.data.invoiceNo} issued & inventory deducted!`);
+      setCartItems([]);
       loadInvoices();
       loadProducts();
     } catch (err) {
@@ -512,6 +574,7 @@ function App() {
   const lowStockCount = products.filter((p) => p.stockQuantity <= 5).length;
   const activeBookingsCount = bookings.filter((b) => b.status !== 'Cancelled').length;
   const totalRevenue = invoices.reduce((acc, inv) => acc + (inv.finalTotal || inv.totalAmount || 0), 0);
+  const cartItemCount = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
   // Search Submit Handler
   const handleGlobalSearchSubmit = (e) => {
@@ -529,7 +592,7 @@ function App() {
         { id: 'pets', label: '🐾 My Pets', count: totalPatientsCount },
         { id: 'appointments', label: '📅 Book Appointment', count: activeBookingsCount },
         { id: 'pharmacy', label: '🛒 Pet Pharmacy Store', count: products.length },
-        { id: 'pos', label: '🧾 My Orders & Cart', count: invoices.length }
+        { id: 'pos', label: `🧾 My Orders & Cart (${cartItemCount})`, count: invoices.length }
       ];
     }
     if (role === 'inventory_officer') {
@@ -548,28 +611,31 @@ function App() {
       { id: 'pets', label: `🐕 Patients & Pets (${totalPatientsCount})` },
       { id: 'pharmacy', label: `💊 Pharmacy & Stock (${products.length})` },
       { id: 'appointments', label: `📅 Appointments (${activeBookingsCount})` },
-      { id: 'pos', label: `💳 POS Terminal (Rs. ${totalRevenue.toFixed(2)})` }
+      { id: 'pos', label: `💳 POS Terminal (Cart: ${cartItemCount})` }
     ];
   };
 
   const navTabs = getNavTabs();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans selection:bg-teal-600 selection:text-white transition-colors duration-300">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-teal-50/50 to-amber-50/40 dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-teal-950 text-slate-800 dark:text-slate-100 font-sans selection:bg-teal-600 selection:text-white transition-colors duration-500">
       {/* 1. Ocean Teal Top Header Bar */}
-      <header className="bg-teal-700 dark:bg-slate-900 text-white shadow-md border-b border-teal-800 dark:border-slate-800 transition-colors">
+      <header className="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950 text-white shadow-lg border-b border-teal-600/40 dark:border-emerald-500/20 transition-colors sticky top-0 z-50 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-3">
           {/* Logo & Brand Identity */}
           <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-teal-800 dark:bg-teal-950/80 border border-teal-600/60 dark:border-teal-800 flex items-center justify-center text-xl shadow-xs">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-amber-200 text-slate-950 border border-amber-300 flex items-center justify-center text-xl shadow-md shadow-amber-400/20">
                 🐾
               </div>
               <div>
-                <h1 className="text-lg font-black tracking-tight leading-none text-white">
+                <h1 className="text-lg font-black tracking-tight leading-none text-white flex items-center gap-1.5">
                   4 Paw Animal Clinic
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-mono font-bold">
+                    PRO
+                  </span>
                 </h1>
-                <p className="text-xs text-teal-100 dark:text-slate-400 font-medium">Veterinary Hospital & Pet Care Platform</p>
+                <p className="text-xs text-teal-100 dark:text-slate-400 font-medium">Veterinary Hospital & E-Commerce Care Platform</p>
               </div>
             </div>
 
@@ -597,12 +663,12 @@ function App() {
                   if (activeTab === 'pets') setPetSearch(e.target.value);
                   if (activeTab === 'pharmacy') setProductSearch(e.target.value);
                 }}
-                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs rounded-xl border-0 focus:ring-4 focus:ring-amber-300 focus:outline-none placeholder:text-slate-400 font-medium"
+                className="w-full pl-9 pr-4 py-2 bg-white/95 dark:bg-slate-800/90 text-slate-800 dark:text-white text-xs rounded-xl border border-teal-200/60 dark:border-slate-700 focus:ring-4 focus:ring-amber-300 focus:outline-none placeholder:text-slate-400 font-medium shadow-inner"
               />
             </div>
             <button
               type="submit"
-              className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+              className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-all shadow-md shadow-amber-400/20 cursor-pointer"
             >
               Search
             </button>
@@ -610,7 +676,7 @@ function App() {
 
           {/* Top Right Header Controls & Authentication */}
           <div className="hidden lg:flex items-center gap-3 text-xs">
-            <div className="flex items-center gap-1.5 bg-teal-800/80 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/60 dark:border-slate-700">
+            <div className="flex items-center gap-1.5 bg-teal-900/60 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/40 dark:border-slate-700 shadow-xs">
               <Phone className="w-3.5 h-3.5 text-amber-300" />
               <span>+94 11 234 5678</span>
             </div>
@@ -618,14 +684,14 @@ function App() {
             {/* Theme Toggler (Sun / Moon) */}
             <button
               onClick={toggleTheme}
-              className="p-1.5 rounded-full bg-teal-800/80 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/60 dark:border-slate-700 flex items-center justify-center"
+              className="p-1.5 rounded-full bg-teal-900/60 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/40 dark:border-slate-700 flex items-center justify-center shadow-xs"
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
-              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-teal-100" />}
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300 animate-spin-slow" /> : <Moon className="w-4 h-4 text-teal-100" />}
             </button>
 
             {/* Live Server Status Radar Ping */}
-            <div className="flex items-center gap-1.5 bg-teal-800/80 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/60 dark:border-slate-700">
+            <div className="flex items-center gap-1.5 bg-teal-900/60 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/40 dark:border-slate-700 shadow-xs">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -636,8 +702,8 @@ function App() {
             {/* Auth User Status / Login Button */}
             {currentUser ? (
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-teal-800/90 dark:bg-slate-800 px-3 py-1.5 rounded-full text-white font-medium border border-teal-600/60 dark:border-slate-700">
-                  <span>
+                <div className="flex items-center gap-1.5 bg-teal-900/80 dark:bg-slate-800 px-3 py-1.5 rounded-full text-white font-medium border border-teal-600/40 dark:border-slate-700 shadow-xs">
+                  <span className="text-sm">
                     {role === 'admin' ? '👑' : role === 'staff' ? '🩺' : role === 'inventory_officer' ? '📦' : '👤'}
                   </span>
                   <span className="font-bold text-xs truncate max-w-[110px]">{currentUser.name || currentUser.email}</span>
@@ -647,7 +713,7 @@ function App() {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-1 bg-rose-600/80 hover:bg-rose-700 px-2.5 py-1.5 rounded-full text-white font-bold text-[11px] transition-all cursor-pointer shadow-xs"
+                  className="flex items-center gap-1 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 px-3 py-1.5 rounded-full text-white font-bold text-[11px] transition-all cursor-pointer shadow-sm shadow-rose-600/20"
                   title="Sign Out"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -657,7 +723,7 @@ function App() {
             ) : (
               <button
                 onClick={() => { setAuthModalMessage(''); setIsAuthModalOpen(true); }}
-                className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold px-3.5 py-1.5 rounded-full text-xs transition-all shadow-sm cursor-pointer"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-extrabold px-3.5 py-1.5 rounded-full text-xs transition-all shadow-md shadow-amber-400/20 cursor-pointer"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span>Sign In / Demo</span>
@@ -668,7 +734,7 @@ function App() {
       </header>
 
       {/* 2. Secondary Navigation Bar (Role-Adaptive Module Tabs) */}
-      <nav className="bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 shadow-xs sticky top-0 z-40 transition-colors">
+      <nav className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-teal-100/80 dark:border-slate-800 shadow-sm sticky top-[61px] z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto py-2.5 gap-2 text-xs font-semibold">
           {navTabs.map((tab) => (
             <button
@@ -677,10 +743,10 @@ function App() {
                 setActiveTab(tab.id);
                 scrollToContent();
               }}
-              className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              className={`py-2.5 px-4 rounded-2xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 cursor-pointer ${
                 activeTab === tab.id
-                  ? 'bg-teal-700 text-white shadow-sm font-bold'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md shadow-teal-700/20 font-black scale-105'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-teal-50 dark:hover:bg-slate-800'
               }`}
             >
               <span>{tab.label}</span>
@@ -691,8 +757,8 @@ function App() {
 
       {/* Notification Toast */}
       {notification.message && (
-        <div className={`fixed top-20 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2 text-white transition-all transform animate-bounce ${
-          notification.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'
+        <div className={`fixed top-24 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 text-white transition-all transform animate-bounce ${
+          notification.type === 'error' ? 'bg-rose-600 shadow-rose-600/30' : 'bg-emerald-600 shadow-emerald-600/30'
         }`}>
           {notification.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
           <span>{notification.message}</span>
@@ -702,7 +768,7 @@ function App() {
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         {/* 3. DYNAMIC HERO PHOTO CAROUSEL BANNER */}
-        <div className="relative rounded-3xl overflow-hidden shadow-xl min-h-[320px] md:min-h-[360px] flex items-center">
+        <div className="relative rounded-3xl overflow-hidden shadow-2xl min-h-[320px] md:min-h-[360px] flex items-center border border-teal-100/50 dark:border-emerald-500/20">
           {heroSlides.map((slide, index) => (
             <div
               key={index}
@@ -715,21 +781,21 @@ function App() {
                 alt={slide.title}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-teal-950/90 via-teal-900/75 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-teal-950/95 via-teal-900/80 to-transparent" />
             </div>
           ))}
 
           {/* Carousel Left / Right Navigation Chevrons */}
           <button
             onClick={prevHeroSlide}
-            className="absolute left-3 md:left-5 z-20 hover:scale-110 transition-all bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-xs cursor-pointer"
+            className="absolute left-3 md:left-5 z-20 hover:scale-110 transition-all bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-xs cursor-pointer border border-white/20"
             title="Previous Slide"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={nextHeroSlide}
-            className="absolute right-3 md:right-5 z-20 hover:scale-110 transition-all bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-xs cursor-pointer"
+            className="absolute right-3 md:right-5 z-20 hover:scale-110 transition-all bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-xs cursor-pointer border border-white/20"
             title="Next Slide"
           >
             <ChevronRight className="w-5 h-5" />
@@ -737,7 +803,7 @@ function App() {
 
           {/* Hero Content Overlay */}
           <div className="relative z-20 p-6 md:p-10 max-w-2xl text-white space-y-3">
-            <span className="inline-block bg-amber-400 text-slate-950 font-extrabold text-[10px] px-3 py-1 rounded-full uppercase tracking-wider">
+            <span className="inline-block bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-[10px] px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
               {heroSlides[currentHeroSlide].tag}
             </span>
             <h2 className="text-2xl md:text-3xl font-black leading-tight drop-shadow-sm">
@@ -750,14 +816,14 @@ function App() {
             <div className="pt-2 flex flex-wrap gap-2.5">
               <button
                 onClick={() => handleActionWithAuth(() => setIsPetModalOpen(true), 'Please sign in to register a pet patient.')}
-                className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold py-2.5 px-5 rounded-2xl text-xs shadow-md transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black py-2.5 px-5 rounded-2xl text-xs shadow-lg shadow-amber-500/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> + Register New Patient
               </button>
 
               <button
                 onClick={() => handleActionWithAuth(() => setIsBookingModalOpen(true), 'Please sign in to book a clinical appointment.')}
-                className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/20 hover:border-white/40 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                className="bg-white/15 hover:bg-white/25 text-white font-bold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-md"
               >
                 <Calendar className="w-4 h-4 text-amber-300" /> 📅 Book Clinical Appointment
               </button>
@@ -765,7 +831,7 @@ function App() {
               {(!currentUser || role === 'admin' || role === 'inventory_officer') && (
                 <button
                   onClick={() => handleActionWithAuth(() => setIsProductModalOpen(true), 'Please sign in as Admin or Inventory Officer to add stock.')}
-                  className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/20 hover:border-white/40 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                  className="bg-white/15 hover:bg-white/25 text-white font-bold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-md"
                 >
                   <Package className="w-4 h-4 text-emerald-300" /> + Add Pharmacy Product
                 </button>
@@ -781,7 +847,7 @@ function App() {
                 onClick={() => setCurrentHeroSlide(idx)}
                 className={`transition-all duration-300 rounded-full cursor-pointer ${
                   idx === currentHeroSlide
-                    ? 'w-7 h-2.5 bg-amber-400 shadow-sm'
+                    ? 'w-7 h-2.5 bg-amber-400 shadow-md'
                     : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80'
                 }`}
                 title={`Go to slide ${idx + 1}`}
@@ -790,104 +856,105 @@ function App() {
           </div>
         </div>
 
-        {/* 4. Circular Quick-Access Service Circles (Rebalanced to 5 Cards - Grooming Removed) */}
+        {/* 4. Circular Quick-Access Service Circles (Rebalanced to 5 Cards with Vibrant Distinct Glows) */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               Quick Access Clinical Services
             </h3>
-            <span className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold">5 Core Portals</span>
+            <span className="text-[11px] text-teal-700 dark:text-teal-400 font-bold">5 Core Clinical Hubs</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {/* Circle 1: Canine */}
+            {/* Circle 1: Canine (Sunset Amber Glow) */}
             <div
               onClick={() => {
                 setActiveTab('pets');
                 setPetSpeciesFilter('Dog');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/20 hover:from-amber-500/25 hover:to-orange-500/30 border-2 border-amber-400/60 dark:border-amber-500/40 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
-              <span className="text-2xl">🐕</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">Canine / Dogs</span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Patients & Profiles</span>
+              <span className="text-3xl drop-shadow-sm">🐕</span>
+              <span className="text-xs font-black text-amber-950 dark:text-amber-200">Canine / Dogs</span>
+              <span className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-medium">Patients & Profiles</span>
             </div>
 
-            {/* Circle 2: Feline */}
+            {/* Circle 2: Feline (Coral Rose Glow) */}
             <div
               onClick={() => {
                 setActiveTab('pets');
                 setPetSpeciesFilter('Cat');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-gradient-to-br from-rose-500/15 via-rose-500/5 to-pink-500/20 hover:from-rose-500/25 hover:to-pink-500/30 border-2 border-rose-400/60 dark:border-rose-500/40 shadow-lg shadow-rose-500/10 hover:shadow-rose-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
-              <span className="text-2xl">🐈</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">Feline / Cats</span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Patients & Profiles</span>
+              <span className="text-3xl drop-shadow-sm">🐈</span>
+              <span className="text-xs font-black text-rose-950 dark:text-rose-200">Feline / Cats</span>
+              <span className="text-[10px] text-rose-800/80 dark:text-rose-400/80 font-medium">Patients & Profiles</span>
             </div>
 
-            {/* Circle 3: Pharmacy */}
+            {/* Circle 3: Pharmacy (Neon Emerald Glow) */}
             <div
               onClick={() => {
                 setActiveTab('pharmacy');
                 setProductCategoryFilter('Healthcare');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-teal-500/20 hover:from-emerald-500/25 hover:to-teal-500/30 border-2 border-emerald-400/60 dark:border-emerald-500/40 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
-              <span className="text-2xl">💊</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">Pet Pharmacy</span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Meds & Stock</span>
+              <span className="text-3xl drop-shadow-sm">💊</span>
+              <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Pet Pharmacy</span>
+              <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Meds & Stock</span>
             </div>
 
-            {/* Circle 4: Consultations */}
+            {/* Circle 4: Consultations (Cyan Blue Glow) */}
             <div
               onClick={() => {
                 setActiveTab('appointments');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-gradient-to-br from-cyan-500/15 via-cyan-500/5 to-blue-500/20 hover:from-cyan-500/25 hover:to-blue-500/30 border-2 border-cyan-400/60 dark:border-cyan-500/40 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
-              <span className="text-2xl">🩺</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">Consultations</span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Vet Clinical Slots</span>
+              <span className="text-3xl drop-shadow-sm">🩺</span>
+              <span className="text-xs font-black text-cyan-950 dark:text-cyan-200">Consultations</span>
+              <span className="text-[10px] text-cyan-800/80 dark:text-cyan-400/80 font-medium">Vet Clinical Slots</span>
             </div>
 
-            {/* Circle 5: POS & Retail */}
+            {/* Circle 5: POS & Retail (Violet Purple Glow) */}
             <div
               onClick={() => {
                 setActiveTab('pos');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
-              <span className="text-2xl">🏷️</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">POS & Retail</span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Checkout Sales</span>
+              <span className="text-3xl drop-shadow-sm">🏷️</span>
+              <span className="text-xs font-black text-purple-950 dark:text-purple-200">POS & Retail</span>
+              <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Checkout Sales</span>
             </div>
           </div>
         </div>
 
-        {/* 5. TOP KPI METRICS BAR (Dark / Light Mode Responsive) */}
+        {/* 5. TOP KPI METRICS BAR (Vibrant Colored Glass Surfaces) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div
             onClick={() => {
               setActiveTab('pets');
               scrollToContent();
             }}
-            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
+            className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-teal-100/80 dark:border-slate-800 shadow-md hover:shadow-xl hover:border-teal-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex items-center justify-between"
           >
             <div>
               <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
                 {role === 'customer' ? 'My Registered Pets' : 'Registered Patients'}
               </span>
-              <span className="text-2xl font-black text-slate-800 dark:text-white font-mono mt-1 block">
+              <span className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-1 block">
                 {totalPatientsCount}
               </span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-100 dark:border-teal-800 flex items-center justify-center font-bold">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500/20 to-emerald-500/20 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 flex items-center justify-center font-bold">
               <PawPrint className="w-5 h-5" />
             </div>
           </div>
@@ -895,19 +962,20 @@ function App() {
           <div
             onClick={() => {
               setActiveTab('pharmacy');
+              setPharmacySubTab('inventory');
               scrollToContent();
             }}
-            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
+            className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-amber-100/80 dark:border-slate-800 shadow-md hover:shadow-xl hover:border-amber-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex items-center justify-between"
           >
             <div>
               <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
                 {role === 'customer' ? 'Catalog Medications' : 'Low Stock Items'}
               </span>
-              <span className={`text-2xl font-black font-mono mt-1 block ${lowStockCount > 0 ? 'text-amber-500' : 'text-slate-800 dark:text-white'}`}>
+              <span className={`text-2xl font-black font-mono mt-1 block ${lowStockCount > 0 ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                 {role === 'customer' ? products.length : lowStockCount}
               </span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 border border-amber-100 dark:border-amber-800 flex items-center justify-center font-bold">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center font-bold">
               <Package className="w-5 h-5" />
             </div>
           </div>
@@ -917,17 +985,17 @@ function App() {
               setActiveTab('appointments');
               scrollToContent();
             }}
-            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
+            className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-blue-100/80 dark:border-slate-800 shadow-md hover:shadow-xl hover:border-blue-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex items-center justify-between"
           >
             <div>
               <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
                 {role === 'customer' ? 'My Appointments' : 'Active Appointments'}
               </span>
-              <span className="text-2xl font-black text-slate-800 dark:text-white font-mono mt-1 block">
+              <span className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-1 block">
                 {activeBookingsCount}
               </span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-100 dark:border-blue-800 flex items-center justify-center font-bold">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-cyan-500/20 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center font-bold">
               <Calendar className="w-5 h-5" />
             </div>
           </div>
@@ -937,7 +1005,7 @@ function App() {
               setActiveTab('pos');
               scrollToContent();
             }}
-            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
+            className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-purple-100/80 dark:border-slate-800 shadow-md hover:shadow-xl hover:border-purple-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex items-center justify-between"
           >
             <div>
               <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
@@ -947,13 +1015,24 @@ function App() {
                 {role === 'customer' ? `${invoices.length} Orders` : `Rs. ${totalRevenue.toFixed(2)}`}
               </span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-100 dark:border-purple-800 flex items-center justify-center font-bold">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-500/20 to-pink-500/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 flex items-center justify-center font-bold">
               <TrendingUp className="w-5 h-5" />
             </div>
           </div>
         </div>
 
-        {/* 6. MAIN CONTENT PANELS */}
+        {/* 6. EYE-CATCHING E-COMMERCE PRODUCTS SHOWCASE (PROMINENT STOREFRONT) */}
+        {(role === 'customer' || role === 'guest') && (
+          <ProductShowcase
+            products={products}
+            onAddToCart={handleAddToCart}
+            onQuickBuy={handleQuickBuy}
+            title="Featured Pet Medications & Essentials Store"
+            subtitle="Browse authentic veterinary pharmaceuticals, nutritional feeds & accessories. Instant purchase with LKR pricing."
+          />
+        )}
+
+        {/* 7. MAIN CONTENT PANELS */}
         <div ref={mainContentRef} className="pt-2">
           {/* PATIENTS & PET PROFILES */}
           {activeTab === 'pets' && (
@@ -980,25 +1059,36 @@ function App() {
             <div className="space-y-6 animate-fadeIn">
               {/* Subtabs for Staff/Admin/Inventory Officer */}
               {role !== 'customer' && (
-                <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex gap-2 w-fit flex-wrap">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit flex-wrap">
                   <button
                     onClick={() => setPharmacySubTab('inventory')}
-                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                       pharmacySubTab === 'inventory'
-                        ? 'bg-teal-700 text-white shadow-sm'
+                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
                     <span>📦</span> Medicine & Stock Directory
                   </button>
 
+                  <button
+                    onClick={() => setPharmacySubTab('showcase')}
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                      pharmacySubTab === 'showcase'
+                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>🛍️</span> Customer Storefront View
+                  </button>
+
                   {(role === 'admin' || role === 'inventory_officer') && (
                     <>
                       <button
                         onClick={() => setPharmacySubTab('suppliers')}
-                        className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                           pharmacySubTab === 'suppliers'
-                            ? 'bg-teal-700 text-white shadow-sm'
+                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
                             : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
@@ -1007,9 +1097,9 @@ function App() {
 
                       <button
                         onClick={() => setPharmacySubTab('expiry')}
-                        className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                           pharmacySubTab === 'expiry'
-                            ? 'bg-teal-700 text-white shadow-sm'
+                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
                             : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
@@ -1020,7 +1110,17 @@ function App() {
                 </div>
               )}
 
-              {pharmacySubTab === 'inventory' && (
+              {/* View 1: Customer Storefront Showcase */}
+              {(pharmacySubTab === 'showcase' || role === 'customer') && (
+                <ProductShowcase
+                  products={products}
+                  onAddToCart={handleAddToCart}
+                  onQuickBuy={handleQuickBuy}
+                />
+              )}
+
+              {/* View 2: Inventory Catalog Management Table */}
+              {pharmacySubTab === 'inventory' && role !== 'customer' && (
                 <InventoryList
                   products={products}
                   onDelete={handleDeleteProduct}
@@ -1057,12 +1157,12 @@ function App() {
             <div className="space-y-6 animate-fadeIn">
               {/* Doctor Day Calendar Subtab (for Admin & Staff) */}
               {role !== 'customer' && (
-                <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex gap-2 w-fit">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
                   <button
                     onClick={() => setBookingSubTab('directory')}
-                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                       bookingSubTab === 'directory'
-                        ? 'bg-teal-700 text-white shadow-sm'
+                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
@@ -1071,9 +1171,9 @@ function App() {
 
                   <button
                     onClick={() => setBookingSubTab('calendar')}
-                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                       bookingSubTab === 'calendar'
-                        ? 'bg-teal-700 text-white shadow-sm'
+                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
@@ -1107,23 +1207,23 @@ function App() {
             <div className="space-y-6 animate-fadeIn">
               {/* POS Sub-Navigation Switcher (Analytics hidden for Customer) */}
               {role === 'admin' && (
-                <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex gap-2 w-fit">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
                   <button
                     onClick={() => setPosSubTab('terminal')}
-                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                       posSubTab === 'terminal'
-                        ? 'bg-teal-700 text-white shadow-sm'
+                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
-                    <span>🛒</span> POS Terminal & Invoices
+                    <span>🛒</span> POS Terminal & Cart ({cartItemCount})
                   </button>
 
                   <button
                     onClick={() => setPosSubTab('analytics')}
-                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                       posSubTab === 'analytics'
-                        ? 'bg-teal-700 text-white shadow-sm'
+                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
@@ -1134,7 +1234,15 @@ function App() {
 
               {posSubTab === 'terminal' ? (
                 <div className="space-y-8">
-                  <POSBilling products={products} onSubmitOrder={handleCheckoutPOS} isLoading={isBillingLoading} />
+                  <POSBilling
+                    products={products}
+                    onSubmitOrder={handleCheckoutPOS}
+                    isLoading={isBillingLoading}
+                    cartItems={cartItems}
+                    setCartItems={setCartItems}
+                    currentUser={currentUser}
+                    onRequireAuth={handleActionWithAuth}
+                  />
                   <InvoiceList
                     invoices={invoices}
                     onVoidInvoice={handleVoidInvoice}

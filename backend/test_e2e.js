@@ -179,7 +179,10 @@ async function runE2ETests() {
   try {
     info("SUITE 3: Appointments & Double-Booking Guard (Module 3)");
 
-    const targetDate = '2026-11-25';
+    const randOffset = Math.floor(Math.random() * 1000) + 50;
+    const future = new Date();
+    future.setDate(future.getDate() + randOffset);
+    const targetDate = future.toISOString().split('T')[0];
     const targetSlot = '02:00 PM';
     const doctorName = 'Dr. Perera (Senior Vet)';
 
@@ -354,7 +357,7 @@ async function runE2ETests() {
       await fetch(`${BASE_URL}/inventory/${testData.productId}`, { method: 'DELETE' });
     }
     if (testData.bookingId) {
-      await fetch(`${BASE_URL}/bookings/${testData.bookingId}/cancel`, { method: 'PUT' });
+      await fetch(`${BASE_URL}/bookings/${testData.bookingId}`, { method: 'DELETE' });
     }
     if (testData.invoiceId) {
       await fetch(`${BASE_URL}/billing/${testData.invoiceId}/void`, { method: 'PUT' });
