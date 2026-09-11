@@ -20,11 +20,7 @@ const CATEGORY_ICONS = {
   Vaccines: '💉',
   Nutrition: '🍖',
   Supplements: '✨',
-  Healthcare: '💊',
-  Food: '🍖',
-  Toys: '🎾',
-  Accessories: '🦮',
-  'Grooming Supplies': '🧼',
+  Healthcare: '🩺',
   General: '📦'
 };
 
@@ -34,10 +30,6 @@ const CATEGORY_GRADIENTS = {
   Nutrition: 'from-amber-500/20 via-orange-500/10 to-yellow-500/20 border-amber-400/40 text-amber-800 dark:text-amber-300',
   Supplements: 'from-purple-500/20 via-indigo-500/10 to-pink-500/20 border-purple-400/40 text-purple-800 dark:text-purple-300',
   Healthcare: 'from-emerald-500/20 via-teal-500/10 to-cyan-500/20 border-emerald-400/40 text-emerald-800 dark:text-emerald-300',
-  Food: 'from-amber-500/20 via-orange-500/10 to-yellow-500/20 border-amber-400/40 text-amber-800 dark:text-amber-300',
-  Toys: 'from-purple-500/20 via-indigo-500/10 to-pink-500/20 border-purple-400/40 text-purple-800 dark:text-purple-300',
-  Accessories: 'from-blue-500/20 via-cyan-500/10 to-teal-500/20 border-blue-400/40 text-blue-800 dark:text-blue-300',
-  'Grooming Supplies': 'from-rose-500/20 via-pink-500/10 to-amber-500/20 border-rose-400/40 text-rose-800 dark:text-rose-300',
   General: 'from-slate-500/20 via-slate-600/10 to-slate-700/20 border-slate-400/40 text-slate-800 dark:text-slate-300'
 };
 
@@ -96,54 +88,70 @@ const ProductShowcase = ({
 
   const filteredProducts = products.filter((item) => {
     if (item.status === 'Disposed') return false;
-    const cat = item.category || 'General';
-    const name = (item.itemName || '').toLowerCase();
+    if (selectedCategory === 'All') return true;
 
-    let matchesCategory = false;
-    if (selectedCategory === 'All') {
-      matchesCategory = true;
-    } else if (selectedCategory === 'Medicines') {
-      matchesCategory =
-        cat === 'Medicines' ||
-        cat === 'Medicine' ||
-        cat === 'Healthcare' ||
-        name.includes('antibiotic') ||
-        name.includes('spray') ||
-        name.includes('drops') ||
-        name.includes('shampoo') ||
-        name.includes('bravecto') ||
-        name.includes('amoxicillin');
-    } else if (selectedCategory === 'Vaccines') {
-      matchesCategory =
-        cat === 'Vaccines' ||
-        cat === 'Vaccine' ||
-        name.includes('vaccine') ||
-        name.includes('rabisin') ||
-        name.includes('injection');
-    } else if (selectedCategory === 'Nutrition') {
-      matchesCategory =
-        cat === 'Nutrition' ||
-        cat === 'Food' ||
-        name.includes('food') ||
-        name.includes('kibble') ||
-        name.includes('royal canin') ||
-        name.includes('whiskas');
-    } else if (selectedCategory === 'Supplements') {
-      matchesCategory =
-        cat === 'Supplements' ||
-        cat === 'Supplement' ||
-        name.includes('vitamin') ||
-        name.includes('mineral') ||
-        name.includes('chew');
-    } else {
-      matchesCategory = cat === selectedCategory;
+    const cat = (item.category || '').toLowerCase();
+    const sel = selectedCategory.toLowerCase();
+
+    if (sel === 'medicines') {
+      return (
+        cat === 'medicines' ||
+        cat === 'medicine' ||
+        cat === 'healthcare' ||
+        item.itemName?.toLowerCase().includes('antibiotic') ||
+        item.itemName?.toLowerCase().includes('spray') ||
+        item.itemName?.toLowerCase().includes('drops') ||
+        item.itemName?.toLowerCase().includes('shampoo') ||
+        item.itemName?.toLowerCase().includes('bravecto') ||
+        item.itemName?.toLowerCase().includes('amoxicillin')
+      );
+    }
+    if (sel === 'vaccines') {
+      return (
+        cat === 'vaccines' ||
+        cat === 'vaccine' ||
+        item.itemName?.toLowerCase().includes('vaccine') ||
+        item.itemName?.toLowerCase().includes('rabisin') ||
+        item.itemName?.toLowerCase().includes('injection')
+      );
+    }
+    if (sel === 'nutrition') {
+      return (
+        cat === 'nutrition' ||
+        cat === 'food' ||
+        item.itemName?.toLowerCase().includes('food') ||
+        item.itemName?.toLowerCase().includes('kibble') ||
+        item.itemName?.toLowerCase().includes('royal canin') ||
+        item.itemName?.toLowerCase().includes('whiskas')
+      );
+    }
+    if (sel === 'supplements') {
+      return (
+        cat === 'supplements' ||
+        cat === 'supplement' ||
+        item.itemName?.toLowerCase().includes('vitamin') ||
+        item.itemName?.toLowerCase().includes('mineral') ||
+        item.itemName?.toLowerCase().includes('chew')
+      );
+    }
+    if (sel === 'healthcare') {
+      return (
+        cat === 'healthcare' ||
+        cat === 'medicines' ||
+        cat === 'vaccines' ||
+        cat === 'supplements'
+      );
     }
 
-    const matchesSearch =
-      name.includes(searchTerm.toLowerCase()) ||
-      (item.supplier && item.supplier.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.batchNo && item.batchNo.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesCategory && matchesSearch;
+    return cat === sel;
+  }).filter((item) => {
+    if (!searchTerm || !searchTerm.trim()) return true;
+    const term = searchTerm.trim().toLowerCase();
+    return (
+      (item.itemName && item.itemName.toLowerCase().includes(term)) ||
+      (item.supplier && item.supplier.toLowerCase().includes(term)) ||
+      (item.batchNo && item.batchNo.toLowerCase().includes(term))
+    );
   });
 
   const handleAddWithFeedback = (item) => {
@@ -202,7 +210,7 @@ const ProductShowcase = ({
 
         {/* Category Filter Pills matching MongoDB categories */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-          {['All', 'Medicines', 'Vaccines', 'Nutrition', 'Supplements'].map((cat) => (
+          {['All', 'Medicines', 'Vaccines', 'Nutrition', 'Supplements', 'Healthcare'].map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
@@ -305,14 +313,14 @@ const ProductShowcase = ({
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-slate-400 line-through font-mono">
-                          Rs. {originalPrice.toFixed(2)}
+                          Rs. {Number(Math.round(originalPrice)).toLocaleString()}.00
                         </span>
                         <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-sans">
                           SAVE 15%
                         </span>
                       </div>
                       <span className="text-xl font-black bg-gradient-to-r from-teal-700 via-emerald-600 to-teal-500 bg-clip-text text-transparent dark:from-teal-300 dark:to-emerald-300 font-mono tracking-tight">
-                        Rs. {itemPrice.toFixed(2)}
+                        Rs. {Number(itemPrice).toLocaleString()}.00
                       </span>
                     </div>
                     <span className="text-[10px] text-slate-400 font-semibold mb-1">

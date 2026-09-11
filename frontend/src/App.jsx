@@ -47,7 +47,7 @@ import CustomerPortal from './components/customer/CustomerPortal';
 
 import { getCurrentUser, logout } from './services/authService';
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
-import { fetchProducts, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
+import productService, { fetchProducts as fetchProductsApi, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
 import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
 import { fetchInvoices as fetchInvoicesApi, createInvoice, voidInvoice } from './services/billingService';
@@ -409,24 +409,28 @@ function App() {
     }
   };
 
-  const loadProducts = async () => {
+  const loadFallbackProducts = () => {
+    setProducts(DEFAULT_FALLBACK_PRODUCTS);
+  };
+
+  const fetchProducts = async () => {
     try {
-      const data = await fetchProducts({
-        category: productCategoryFilter !== 'All' ? productCategoryFilter : undefined,
-        search: productSearch || undefined
-      });
-      if (data && data.data && data.data.length > 0) {
-        setProducts(data.data);
-      } else if (!productSearch && (productCategoryFilter === 'All' || !productCategoryFilter)) {
-        setProducts(DEFAULT_FALLBACK_PRODUCTS);
+      const res = await productService.getAllProducts();
+      const items = Array.isArray(res) 
+        ? res 
+        : (res?.data || res?.products || []);
+      
+      if (items.length > 0) {
+        setProducts(items);
       } else {
-        setProducts(data.data || []);
+        loadFallbackProducts();
       }
     } catch (err) {
-      console.error('Error loading products, using safe fallback:', err);
-      setProducts(DEFAULT_FALLBACK_PRODUCTS);
+      console.error('Failed to load products:', err);
+      loadFallbackProducts();
     }
   };
+  const loadProducts = fetchProducts;
 
   const loadSuppliers = async () => {
     try {
@@ -469,6 +473,17 @@ function App() {
     }
   };
   const loadInvoices = fetchInvoices;
+  
+  const fetchInitialData = () => {
+    fetchProducts();
+    loadPets();
+    loadBookings();
+    loadInvoices();
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
 
   useEffect(() => {
     loadPets();
@@ -775,7 +790,9 @@ function App() {
   const navTabs = getNavTabs();
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
+    <div className={theme === 'dark' 
+      ? 'min-h-screen bg-slate-950 text-slate-100 transition-colors duration-300' 
+      : 'min-h-screen bg-slate-100 text-slate-900 transition-colors duration-300'}>
       
       {/* 1. TOP HEADER BAR */}
       <header className="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950 text-white shadow-lg border-b border-teal-600/40 dark:border-emerald-500/20 transition-colors sticky top-0 z-50 backdrop-blur-md">
@@ -803,11 +820,11 @@ function App() {
             {/* Mobile Controls */}
             <div className="flex items-center gap-2 md:hidden">
               <button
-                onClick={toggleTheme}
-                className="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-amber-500 hover:scale-105 transition"
-                title="Toggle Theme"
+                onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+                className="p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-amber-500 hover:scale-105 transition shadow-sm cursor-pointer"
+                title="Toggle Light/Dark Theme"
               >
-                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {theme === 'dark' ? '☀️' : '🌙'}
               </button>
             </div>
           </div>
@@ -859,11 +876,11 @@ function App() {
 
             {/* Theme Toggler (Sun / Moon) */}
             <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-amber-500 hover:scale-105 transition cursor-pointer"
-              title="Toggle Theme"
+              onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+              className="p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-amber-500 hover:scale-105 transition shadow-sm cursor-pointer"
+              title="Toggle Light/Dark Theme"
             >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === 'dark' ? '☀️' : '🌙'}
             </button>
 
             {/* Live Server Status Radar Ping */}

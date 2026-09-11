@@ -70,3 +70,18 @@ export const disposeBatch = async (id, reason) => {
   });
   return handleResponse(res);
 };
+
+export const getAllProducts = fetchProducts;
+
+const productService = {
+  getAllProducts,
+  fetchProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  adjustStock,
+  fetchExpiringProducts,
+  disposeBatch
+};
+
+export default productService;
