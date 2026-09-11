@@ -9,4 +9,15 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.dark {
+  color-scheme: dark;
+  background-color: #020617;
+}
+
+html.dark body {
+  background-color: #020617;
+  color: #f8fafc;
 }

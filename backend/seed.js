@@ -44,20 +44,34 @@ const seedDatabase = async () => {
     await Appointment.deleteMany({});
     await Invoice.deleteMany({});
 
-    // 2. SEED SYSTEM USERS
-    console.log('[Seeder] Creating sample system users...');
+    // 2. SEED SYSTEM USERS (4 Distinct Roles)
+    console.log('[Seeder] Creating sample system users (4 Roles)...');
     const adminUser = await User.create({
       name: 'Dr. Perera (Chief Veterinarian)',
-      email: 'admin@4pawclinic.lk',
-      password: 'password123',
-      role: 'Admin'
+      email: 'admin@4paw.lk',
+      password: 'admin123',
+      role: 'admin'
     });
 
     const customerUser = await User.create({
-      name: 'Nimal Perera',
-      email: 'nimal.perera@gmail.com',
-      password: 'password123',
-      role: 'Customer'
+      name: 'Nimal Perera (Pet Owner)',
+      email: 'customer@gmail.com',
+      password: 'customer123',
+      role: 'customer'
+    });
+
+    const staffUser = await User.create({
+      name: 'Kasun Silva (Clinical Staff / Nurse)',
+      email: 'staff@4paw.lk',
+      password: 'staff123',
+      role: 'staff'
+    });
+
+    const inventoryUser = await User.create({
+      name: 'Dilshan Gunawardena (Inventory Lead)',
+      email: 'inventory@4paw.lk',
+      password: 'inv123',
+      role: 'inventory_officer'
     });
 
     // 3. SEED PET PATIENTS

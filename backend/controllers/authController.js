@@ -59,16 +59,22 @@ const registerUser = async (req, res) => {
     });
 
     if (user) {
+      const token = generateToken(user._id, user.role);
+      const userData = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      };
       // 4. Return user details and JWT Token
       return res.status(201).json({
         success: true,
         message: 'User registered successfully',
+        token,
+        user: userData,
         data: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          token: generateToken(user._id, user.role)
+          ...userData,
+          token
         }
       });
     } else {
@@ -109,15 +115,21 @@ const loginUser = async (req, res) => {
 
     // 3. Verify user existence and compare password using matchPassword method
     if (user && (await user.matchPassword(password))) {
+      const token = generateToken(user._id, user.role);
+      const userData = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      };
       return res.status(200).json({
         success: true,
         message: 'User logged in successfully',
+        token,
+        user: userData,
         data: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          token: generateToken(user._id, user.role)
+          ...userData,
+          token
         }
       });
     } else {

@@ -37,21 +37,21 @@ const protect = async (req, res, next) => {
   // Development / Presentation Mode Fallback:
   // Attach an active system User from DB so all clinical CRUD operations work seamlessly without authentication barriers
   try {
-    let fallbackUser = await User.findOne({ role: 'Admin' });
+    let fallbackUser = await User.findOne({ role: { $in: ['admin', 'Admin'] } });
     if (!fallbackUser) {
       fallbackUser = await User.findOne();
     }
     if (!fallbackUser) {
       fallbackUser = await User.create({
         name: 'Clinic Admin',
-        email: 'admin@4pawclinic.lk',
-        password: 'password123',
-        role: 'Admin'
+        email: 'admin@4paw.lk',
+        password: 'admin123',
+        role: 'admin'
       });
     }
     req.user = fallbackUser;
   } catch (err) {
-    req.user = { _id: '65f1234567890123456789ab', name: 'Clinic Admin', role: 'Admin' };
+    req.user = { _id: '65f1234567890123456789ab', name: 'Clinic Admin', role: 'admin' };
   }
 
   next();

@@ -1,5 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Phone, ShieldCheck, PawPrint, Package, Calendar, CreditCard, Plus, Stethoscope, AlertTriangle, TrendingUp, Scissors, Tag, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Search,
+  Phone,
+  ShieldCheck,
+  PawPrint,
+  Package,
+  Calendar,
+  CreditCard,
+  Plus,
+  Stethoscope,
+  AlertTriangle,
+  TrendingUp,
+  Tag,
+  CheckCircle2,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Sun,
+  Moon,
+  LogIn,
+  LogOut,
+  User as UserIcon,
+  ShoppingBag
+} from 'lucide-react';
 
 import PetForm from './components/pet/PetForm';
 import PetList from './components/pet/PetList';
@@ -13,7 +36,9 @@ import DoctorCalendarView from './components/appointments/DoctorCalendarView';
 import POSBilling from './components/billing/POSBilling';
 import InvoiceList from './components/billing/InvoiceList';
 import SalesAnalytics from './components/billing/SalesAnalytics';
+import AuthModal from './components/auth/AuthModal';
 
+import { getCurrentUser, logout } from './services/authService';
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
 import { fetchProducts, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
@@ -21,12 +46,78 @@ import { fetchBookings, createBooking, updateBooking, cancelBooking } from './se
 import { fetchInvoices, createInvoice, voidInvoice } from './services/billingService';
 
 function App() {
+  // Theme State Management (Persisted in localStorage, defaults to 'light')
+  const [theme, setTheme] = useState(() => localStorage.getItem('4paw_theme') || 'light');
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('4paw_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  // RBAC User Authentication State
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser() || null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMessage, setAuthModalMessage] = useState('');
+  const [pendingAction, setPendingAction] = useState(null);
+
+  // Active Tabs
   const [activeTab, setActiveTab] = useState('pets');
   const [posSubTab, setPosSubTab] = useState('terminal');
   const [bookingSubTab, setBookingSubTab] = useState('directory');
   const [pharmacySubTab, setPharmacySubTab] = useState('inventory');
   const [prefilledBookingData, setPrefilledBookingData] = useState(null);
   const [notification, setNotification] = useState({ message: '', type: '' });
+
+  // Role Auto-Landing & Active Tab Sanitization
+  useEffect(() => {
+    if (!currentUser) return;
+    const role = currentUser.role ? currentUser.role.toLowerCase() : 'customer';
+    if (role === 'inventory_officer') {
+      setActiveTab('pharmacy');
+    } else if (role === 'staff') {
+      if (activeTab !== 'pets' && activeTab !== 'appointments') {
+        setActiveTab('pets');
+      }
+    }
+  }, [currentUser]);
+
+  // Guest Protection Trigger
+  const handleActionWithAuth = (actionCallback, message = 'Please sign in to continue with your booking or purchase.') => {
+    if (!currentUser) {
+      setAuthModalMessage(message);
+      setPendingAction(() => actionCallback);
+      setIsAuthModalOpen(true);
+      return false;
+    }
+    if (actionCallback) actionCallback();
+    return true;
+  };
+
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    showToast(`Welcome, ${user.name}! Authenticated as ${user.role.toUpperCase()}`);
+    if (pendingAction) {
+      setTimeout(() => {
+        pendingAction();
+        setPendingAction(null);
+      }, 300);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setCurrentUser(null);
+    setActiveTab('pets');
+    showToast('Signed out successfully. Switched to Guest View.');
+  };
 
   // Hero Carousel State
   const heroSlides = [
@@ -99,27 +190,24 @@ function App() {
   const [isBookingLoading, setIsBookingLoading] = useState(false);
 
   const [invoices, setInvoices] = useState([]);
-  const [paymentFilter, setPaymentFilter] = useState('All');
   const [isBillingLoading, setIsBillingLoading] = useState(false);
 
-  // Helper toast
+  // Notification Toast Helper
   const showToast = (message, type = 'success') => {
     setNotification({ message, type });
-    setTimeout(() => setNotification({ message: '', type: '' }), 4000);
+    setTimeout(() => {
+      setNotification({ message: '', type: '' });
+    }, 4000);
   };
 
-  // Load Data
+  // Data Loading
   const loadPets = async () => {
     setIsPetLoading(true);
     try {
-      const res = await fetchPets({
-        search: petSearch,
-        species: petSpeciesFilter,
-        includeArchived: includeArchivedPets
-      });
-      if (res.success) setPets(res.data);
+      const data = await fetchPets({ search: petSearch, species: petSpeciesFilter, includeArchived: includeArchivedPets });
+      setPets(data.data || []);
     } catch (err) {
-      console.warn('API fetch warning:', err.message);
+      console.error(err);
     } finally {
       setIsPetLoading(false);
     }
@@ -128,10 +216,10 @@ function App() {
   const loadProducts = async () => {
     setIsProductLoading(true);
     try {
-      const res = await fetchProducts({ search: productSearch, category: productCategoryFilter });
-      if (res.success) setProducts(res.data);
+      const data = await fetchProducts({ search: productSearch, category: productCategoryFilter });
+      setProducts(data.data || []);
     } catch (err) {
-      console.warn('API fetch warning:', err.message);
+      console.error(err);
     } finally {
       setIsProductLoading(false);
     }
@@ -140,10 +228,10 @@ function App() {
   const loadSuppliers = async () => {
     setIsSupplierLoading(true);
     try {
-      const res = await fetchSuppliers();
-      if (res.success) setSuppliers(res.data);
+      const data = await fetchSuppliers();
+      setSuppliers(data.data || []);
     } catch (err) {
-      console.warn('Supplier API warning:', err.message);
+      console.error(err);
     } finally {
       setIsSupplierLoading(false);
     }
@@ -152,10 +240,10 @@ function App() {
   const loadExpiringProducts = async () => {
     setIsExpiryLoading(true);
     try {
-      const res = await fetchExpiringProducts();
-      if (res.success) setExpiringProducts(res.data);
+      const data = await fetchExpiringProducts(30);
+      setExpiringProducts(data.data || []);
     } catch (err) {
-      console.warn('Expiry API warning:', err.message);
+      console.error(err);
     } finally {
       setIsExpiryLoading(false);
     }
@@ -164,10 +252,10 @@ function App() {
   const loadBookings = async () => {
     setIsBookingLoading(true);
     try {
-      const res = await fetchBookings({ status: bookingStatusFilter });
-      if (res.success) setBookings(res.data);
+      const data = await fetchBookings({ status: bookingStatusFilter });
+      setBookings(data.data || []);
     } catch (err) {
-      console.warn('API fetch warning:', err.message);
+      console.error(err);
     } finally {
       setIsBookingLoading(false);
     }
@@ -176,10 +264,10 @@ function App() {
   const loadInvoices = async () => {
     setIsBillingLoading(true);
     try {
-      const res = await fetchInvoices({ paymentMethod: paymentFilter });
-      if (res.success) setInvoices(res.data);
+      const data = await fetchInvoices();
+      setInvoices(data.data || []);
     } catch (err) {
-      console.warn('API fetch warning:', err.message);
+      console.error(err);
     } finally {
       setIsBillingLoading(false);
     }
@@ -187,30 +275,29 @@ function App() {
 
   useEffect(() => {
     loadPets();
+  }, [petSearch, petSpeciesFilter, includeArchivedPets]);
+
+  useEffect(() => {
     loadProducts();
+  }, [productSearch, productCategoryFilter]);
+
+  useEffect(() => {
+    loadBookings();
+  }, [bookingStatusFilter]);
+
+  useEffect(() => {
     loadSuppliers();
     loadExpiringProducts();
-    loadBookings();
     loadInvoices();
   }, []);
 
-  useEffect(() => {
-    if (activeTab === 'pets') loadPets();
-    if (activeTab === 'pharmacy') {
-      loadProducts();
-      loadSuppliers();
-      loadExpiringProducts();
-    }
-    if (activeTab === 'appointments') loadBookings();
-    if (activeTab === 'pos') loadInvoices();
-  }, [activeTab, petSearch, petSpeciesFilter, includeArchivedPets, productSearch, productCategoryFilter, bookingStatusFilter, paymentFilter]);
-
-  // Handlers - Patient Profiles
-  const handleAddPet = async (petData) => {
+  // Handlers - Pets
+  const handleCreatePet = async (petData) => {
     setIsPetLoading(true);
     try {
       const res = await createPet(petData);
-      showToast(res.message || 'Pet patient registered successfully!');
+      showToast(`Patient ${res.data.petName} registered successfully! (PIN: ${res.data.uniquePin})`);
+      setIsPetModalOpen(false);
       loadPets();
     } catch (err) {
       showToast(err.message, 'error');
@@ -220,7 +307,7 @@ function App() {
   };
 
   const handleDeletePet = async (id) => {
-    if (!window.confirm('Are you sure you want to archive this pet patient record?')) return;
+    if (!window.confirm('Are you sure you want to remove this pet patient record?')) return;
     try {
       const res = await deletePet(id);
       showToast(res.message);
@@ -230,10 +317,10 @@ function App() {
     }
   };
 
-  const handleArchivePet = async (id, isArchivedState) => {
+  const handleArchivePet = async (id, reason) => {
     try {
-      const res = await archivePet(id, { isArchived: isArchivedState });
-      showToast(res.message || 'Pet archival status updated!');
+      const res = await archivePet(id, reason);
+      showToast(res.message);
       loadPets();
     } catch (err) {
       showToast(err.message, 'error');
@@ -243,7 +330,7 @@ function App() {
   const handleUpdateClinicStatus = async (id, clinicStatus) => {
     try {
       const res = await updatePet(id, { clinicStatus });
-      showToast(`Patient status changed to '${clinicStatus}'`);
+      showToast(`Clinic status updated to ${clinicStatus}`);
       loadPets();
     } catch (err) {
       showToast(err.message, 'error');
@@ -253,20 +340,22 @@ function App() {
   const handleAddMedicalLog = async (id, logData) => {
     try {
       const res = await addMedicalLog(id, logData);
-      showToast('Medical log recorded successfully!');
+      showToast('Medical record entry appended successfully!');
       loadPets();
     } catch (err) {
       showToast(err.message, 'error');
     }
   };
 
-  // Handlers - Pharmacy & Inventory
-  const handleAddProduct = async (prodData) => {
+  // Handlers - Products & Pharmacy
+  const handleCreateProduct = async (productData) => {
     setIsProductLoading(true);
     try {
-      const res = await createProduct(prodData);
-      showToast(res.message || 'Product added to pharmacy catalog!');
+      const res = await createProduct(productData);
+      showToast(`Stock item ${res.data.itemName} registered successfully!`);
+      setIsProductModalOpen(false);
       loadProducts();
+      loadExpiringProducts();
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -275,43 +364,54 @@ function App() {
   };
 
   const handleDeleteProduct = async (id) => {
-    if (!window.confirm('Mark medication/product as discontinued?')) return;
+    if (!window.confirm('Discontinue this pharmacy / inventory product?')) return;
     try {
       const res = await deleteProduct(id);
       showToast(res.message);
       loadProducts();
+      loadExpiringProducts();
     } catch (err) {
       showToast(err.message, 'error');
     }
   };
 
-  const handleAdjustStock = async (id, delta) => {
+  const handleAdjustStock = async (id, delta, reason) => {
     try {
-      const res = await adjustStock(id, delta);
+      const res = await adjustStock(id, delta, reason);
+      showToast(`Stock updated for ${res.data.itemName}. New quantity: ${res.data.stockQuantity}`);
+      loadProducts();
+      loadExpiringProducts();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleDisposeBatch = async (id, auditReason) => {
+    try {
+      const res = await disposeBatch(id, auditReason);
       showToast(res.message);
       loadProducts();
+      loadExpiringProducts();
     } catch (err) {
       showToast(err.message, 'error');
     }
   };
 
-  const handleAddSupplier = async (supplierData) => {
-    setIsSupplierLoading(true);
+  // Handlers - Suppliers
+  const handleAddSupplier = async (data) => {
     try {
-      const res = await createSupplier(supplierData);
-      showToast(res.message || 'Supplier registered successfully!');
+      const res = await createSupplier(data);
+      showToast(`Supplier ${res.data.name} added!`);
       loadSuppliers();
     } catch (err) {
       showToast(err.message, 'error');
-    } finally {
-      setIsSupplierLoading(false);
     }
   };
 
-  const handleUpdateSupplier = async (id, supplierData) => {
+  const handleUpdateSupplier = async (id, data) => {
     try {
-      const res = await updateSupplier(id, supplierData);
-      showToast(res.message || 'Supplier updated successfully!');
+      const res = await updateSupplier(id, data);
+      showToast(`Supplier ${res.data.name} updated!`);
       loadSuppliers();
     } catch (err) {
       showToast(err.message, 'error');
@@ -319,6 +419,7 @@ function App() {
   };
 
   const handleDeleteSupplier = async (id) => {
+    if (!window.confirm('Remove this supplier from directory?')) return;
     try {
       const res = await deleteSupplier(id);
       showToast(res.message);
@@ -328,23 +429,14 @@ function App() {
     }
   };
 
-  const handleDisposeBatch = async (id, reason) => {
-    try {
-      const res = await disposeBatch(id, reason);
-      showToast(res.message);
-      loadProducts();
-      loadExpiringProducts();
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
-
   // Handlers - Appointments
-  const handleAddBooking = async (bookingData) => {
+  const handleCreateBooking = async (bookingData) => {
     setIsBookingLoading(true);
     try {
       const res = await createBooking(bookingData);
-      showToast(res.message || 'Clinical appointment scheduled!');
+      showToast('Appointment scheduled successfully! Slot confirmed.');
+      setIsBookingModalOpen(false);
+      setPrefilledBookingData(null);
       loadBookings();
     } catch (err) {
       showToast(err.message, 'error');
@@ -386,6 +478,10 @@ function App() {
 
   // Handlers - POS & Invoicing
   const handleCheckoutPOS = async (orderData) => {
+    if (!currentUser) {
+      handleActionWithAuth(() => handleCheckoutPOS(orderData), 'Please sign in to complete checkout and purchase.');
+      return;
+    }
     setIsBillingLoading(true);
     try {
       const res = await createInvoice(orderData);
@@ -424,21 +520,68 @@ function App() {
     if (activeTab === 'pharmacy') setProductSearch(productSearch);
   };
 
+  // Dynamic Navigation Tabs Based on RBAC Role
+  const role = currentUser?.role ? currentUser.role.toLowerCase() : 'guest';
+
+  const getNavTabs = () => {
+    if (role === 'customer') {
+      return [
+        { id: 'pets', label: '🐾 My Pets', count: totalPatientsCount },
+        { id: 'appointments', label: '📅 Book Appointment', count: activeBookingsCount },
+        { id: 'pharmacy', label: '🛒 Pet Pharmacy Store', count: products.length },
+        { id: 'pos', label: '🧾 My Orders & Cart', count: invoices.length }
+      ];
+    }
+    if (role === 'inventory_officer') {
+      return [
+        { id: 'pharmacy', label: '💊 Pharmacy & Stock Management', count: products.length }
+      ];
+    }
+    if (role === 'staff') {
+      return [
+        { id: 'pets', label: '🐕 Patients & Medical Records', count: totalPatientsCount },
+        { id: 'appointments', label: '📅 Appointments & Calendar', count: activeBookingsCount }
+      ];
+    }
+    // Admin & Guest default view
+    return [
+      { id: 'pets', label: `🐕 Patients & Pets (${totalPatientsCount})` },
+      { id: 'pharmacy', label: `💊 Pharmacy & Stock (${products.length})` },
+      { id: 'appointments', label: `📅 Appointments (${activeBookingsCount})` },
+      { id: 'pos', label: `💳 POS Terminal (Rs. ${totalRevenue.toFixed(2)})` }
+    ];
+  };
+
+  const navTabs = getNavTabs();
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-teal-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans selection:bg-teal-600 selection:text-white transition-colors duration-300">
       {/* 1. Ocean Teal Top Header Bar */}
-      <header className="bg-teal-700 text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
-          {/* Logo & Title */}
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-400 text-slate-900 flex items-center justify-center font-black text-2xl shadow-sm">
-              🐾
+      <header className="bg-teal-700 dark:bg-slate-900 text-white shadow-md border-b border-teal-800 dark:border-slate-800 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-3">
+          {/* Logo & Brand Identity */}
+          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-teal-800 dark:bg-teal-950/80 border border-teal-600/60 dark:border-teal-800 flex items-center justify-center text-xl shadow-xs">
+                🐾
+              </div>
+              <div>
+                <h1 className="text-lg font-black tracking-tight leading-none text-white">
+                  4 Paw Animal Clinic
+                </h1>
+                <p className="text-xs text-teal-100 dark:text-slate-400 font-medium">Veterinary Hospital & Pet Care Platform</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-                4 Paw Animal Clinic
-              </h1>
-              <p className="text-xs text-teal-100 font-medium">Veterinary Hospital & Pet Care Platform</p>
+
+            {/* Mobile Controls */}
+            <div className="flex items-center gap-2 md:hidden">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-xl bg-teal-800 dark:bg-slate-800 text-amber-300 border border-teal-600/40"
+                title="Toggle Theme"
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
@@ -454,101 +597,95 @@ function App() {
                   if (activeTab === 'pets') setPetSearch(e.target.value);
                   if (activeTab === 'pharmacy') setProductSearch(e.target.value);
                 }}
-                className="w-full pl-9 pr-4 py-2 bg-white text-slate-800 text-xs rounded-xl border-0 focus:ring-4 focus:ring-amber-300 focus:outline-none placeholder:text-slate-400 font-medium"
+                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs rounded-xl border-0 focus:ring-4 focus:ring-amber-300 focus:outline-none placeholder:text-slate-400 font-medium"
               />
             </div>
             <button
               type="submit"
-              className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-all shadow-sm"
+              className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-all shadow-sm cursor-pointer"
             >
               Search
             </button>
           </form>
 
-          {/* Top Right Badges */}
+          {/* Top Right Header Controls & Authentication */}
           <div className="hidden lg:flex items-center gap-3 text-xs">
-            <div className="flex items-center gap-1.5 bg-teal-800/80 px-3 py-1.5 rounded-full text-teal-100 font-medium border border-teal-600/60">
+            <div className="flex items-center gap-1.5 bg-teal-800/80 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/60 dark:border-slate-700">
               <Phone className="w-3.5 h-3.5 text-amber-300" />
               <span>+94 11 234 5678</span>
             </div>
 
+            {/* Theme Toggler (Sun / Moon) */}
             <button
-              onClick={() => scrollToContent()}
-              className="flex items-center gap-1.5 bg-teal-800/80 hover:bg-teal-600 px-3 py-1.5 rounded-full text-teal-100 font-medium border border-teal-600/60 transition-all cursor-pointer"
+              onClick={toggleTheme}
+              className="p-1.5 rounded-full bg-teal-800/80 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/60 dark:border-slate-700 flex items-center justify-center"
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-teal-200" />
-              <span>Admin Portal</span>
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-teal-100" />}
             </button>
 
-            <div className="flex items-center gap-1.5 bg-teal-800/80 px-3 py-1.5 rounded-full text-teal-100 font-medium border border-teal-600/60">
+            {/* Live Server Status Radar Ping */}
+            <div className="flex items-center gap-1.5 bg-teal-800/80 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/60 dark:border-slate-700">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
               </span>
               <span className="font-mono text-[11px]">Server Online</span>
             </div>
+
+            {/* Auth User Status / Login Button */}
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-teal-800/90 dark:bg-slate-800 px-3 py-1.5 rounded-full text-white font-medium border border-teal-600/60 dark:border-slate-700">
+                  <span>
+                    {role === 'admin' ? '👑' : role === 'staff' ? '🩺' : role === 'inventory_officer' ? '📦' : '👤'}
+                  </span>
+                  <span className="font-bold text-xs truncate max-w-[110px]">{currentUser.name || currentUser.email}</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-300 uppercase font-mono font-bold">
+                    {role === 'inventory_officer' ? 'INVENTORY' : role}
+                  </span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 bg-rose-600/80 hover:bg-rose-700 px-2.5 py-1.5 rounded-full text-white font-bold text-[11px] transition-all cursor-pointer shadow-xs"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Exit</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setAuthModalMessage(''); setIsAuthModalOpen(true); }}
+                className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold px-3.5 py-1.5 rounded-full text-xs transition-all shadow-sm cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In / Demo</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* 2. Secondary Navigation Bar (Module Tabs) */}
-      <nav className="bg-white border-b border-slate-200/80 shadow-xs sticky top-0 z-40">
+      {/* 2. Secondary Navigation Bar (Role-Adaptive Module Tabs) */}
+      <nav className="bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 shadow-xs sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto py-2.5 gap-2 text-xs font-semibold">
-          <button
-            onClick={() => {
-              setActiveTab('pets');
-              scrollToContent();
-            }}
-            className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 ${
-              activeTab === 'pets'
-                ? 'bg-teal-700 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <span>🐕</span> Patients & Pets ({totalPatientsCount})
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('pharmacy');
-              scrollToContent();
-            }}
-            className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 ${
-              activeTab === 'pharmacy'
-                ? 'bg-teal-700 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <span>💊</span> Pharmacy & Stock ({products.length})
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('appointments');
-              scrollToContent();
-            }}
-            className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 ${
-              activeTab === 'appointments'
-                ? 'bg-teal-700 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <span>📅</span> Appointments ({activeBookingsCount})
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('pos');
-              scrollToContent();
-            }}
-            className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 ${
-              activeTab === 'pos'
-                ? 'bg-teal-700 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <span>💳</span> POS Terminal (Rs. {totalRevenue.toFixed(2)})
-          </button>
+          {navTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                scrollToContent();
+              }}
+              className={`py-2.5 px-4 rounded-xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                activeTab === tab.id
+                  ? 'bg-teal-700 text-white shadow-sm font-bold'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <span>{tab.label}</span>
+            </button>
+          ))}
         </div>
       </nav>
 
@@ -564,15 +701,13 @@ function App() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-        
-        {/* 3. Pet Care Hero Banner Carousel (3 Photo Slides + Auto-Play + Chevrons + Dots) */}
-        <div className="relative overflow-hidden rounded-3xl bg-slate-900 min-h-[320px] md:min-h-[340px] flex items-center p-8 md:p-10 text-white shadow-xl border border-teal-600/20 group">
-          {/* Slide Background Images with Smooth Cross-Fade */}
-          {heroSlides.map((slide, idx) => (
+        {/* 3. DYNAMIC HERO PHOTO CAROUSEL BANNER */}
+        <div className="relative rounded-3xl overflow-hidden shadow-xl min-h-[320px] md:min-h-[360px] flex items-center">
+          {heroSlides.map((slide, index) => (
             <div
-              key={idx}
+              key={index}
               className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                idx === currentHeroSlide ? 'opacity-40 scale-105 transition-transform duration-7000' : 'opacity-0 pointer-events-none'
+                index === currentHeroSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
               }`}
             >
               <img
@@ -580,65 +715,61 @@ function App() {
                 alt={slide.title}
                 className="w-full h-full object-cover"
               />
+              <div className="absolute inset-0 bg-gradient-to-r from-teal-950/90 via-teal-900/75 to-transparent" />
             </div>
           ))}
 
-          {/* Gradient Overlay for Text Readability */}
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/60 to-transparent" />
-
-          {/* Left/Right Chevron Overlay Navigation */}
+          {/* Carousel Left / Right Navigation Chevrons */}
           <button
             onClick={prevHeroSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-2.5 rounded-full backdrop-blur-xs transition-all duration-200 hover:scale-110 opacity-80 hover:opacity-100 cursor-pointer shadow-lg"
+            className="absolute left-3 md:left-5 z-20 hover:scale-110 transition-all bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-xs cursor-pointer"
             title="Previous Slide"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-
           <button
             onClick={nextHeroSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-2.5 rounded-full backdrop-blur-xs transition-all duration-200 hover:scale-110 opacity-80 hover:opacity-100 cursor-pointer shadow-lg"
+            className="absolute right-3 md:right-5 z-20 hover:scale-110 transition-all bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-xs cursor-pointer"
             title="Next Slide"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
 
-          {/* Hero Content (Dynamic Tag, Title & Subtitle based on active slide) */}
-          <div className="relative z-10 max-w-2xl space-y-4">
-            <span className="bg-amber-400 text-slate-900 font-extrabold text-[11px] px-3.5 py-1 rounded-full inline-block tracking-wide uppercase shadow-sm">
+          {/* Hero Content Overlay */}
+          <div className="relative z-20 p-6 md:p-10 max-w-2xl text-white space-y-3">
+            <span className="inline-block bg-amber-400 text-slate-950 font-extrabold text-[10px] px-3 py-1 rounded-full uppercase tracking-wider">
               {heroSlides[currentHeroSlide].tag}
             </span>
-
-            <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-tight text-white transition-all duration-500">
+            <h2 className="text-2xl md:text-3xl font-black leading-tight drop-shadow-sm">
               {heroSlides[currentHeroSlide].title}
             </h2>
-
-            <p className="text-xs md:text-sm text-teal-100 leading-relaxed max-w-xl transition-all duration-500">
+            <p className="text-xs md:text-sm text-teal-100 max-w-lg font-medium drop-shadow-xs">
               {heroSlides[currentHeroSlide].subtitle}
             </p>
 
-            {/* Anchored Functional Action Buttons */}
-            <div className="pt-2 flex flex-wrap gap-3">
+            <div className="pt-2 flex flex-wrap gap-2.5">
               <button
-                onClick={() => setIsPetModalOpen(true)}
-                className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold py-2.5 px-5 rounded-2xl text-xs shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                onClick={() => handleActionWithAuth(() => setIsPetModalOpen(true), 'Please sign in to register a pet patient.')}
+                className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold py-2.5 px-5 rounded-2xl text-xs shadow-md transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> + Register New Patient
               </button>
 
               <button
-                onClick={() => setIsBookingModalOpen(true)}
+                onClick={() => handleActionWithAuth(() => setIsBookingModalOpen(true), 'Please sign in to book a clinical appointment.')}
                 className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/20 hover:border-white/40 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
                 <Calendar className="w-4 h-4 text-amber-300" /> 📅 Book Clinical Appointment
               </button>
 
-              <button
-                onClick={() => setIsProductModalOpen(true)}
-                className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/20 hover:border-white/40 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
-              >
-                <Package className="w-4 h-4 text-emerald-300" /> + Add Pharmacy Product
-              </button>
+              {(!currentUser || role === 'admin' || role === 'inventory_officer') && (
+                <button
+                  onClick={() => handleActionWithAuth(() => setIsProductModalOpen(true), 'Please sign in as Admin or Inventory Officer to add stock.')}
+                  className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/20 hover:border-white/40 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Package className="w-4 h-4 text-emerald-300" /> + Add Pharmacy Product
+                </button>
+              )}
             </div>
           </div>
 
@@ -659,107 +790,104 @@ function App() {
           </div>
         </div>
 
-        {/* 4. Circular Quick-Access Service Circles (PetMart Style with Micro-Animations) */}
+        {/* 4. Circular Quick-Access Service Circles (Rebalanced to 5 Cards - Grooming Removed) */}
         <div className="space-y-3">
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Quick Access Clinical Services</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-            {/* Circle 1 */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Quick Access Clinical Services
+            </h3>
+            <span className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold">5 Core Portals</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Circle 1: Canine */}
             <div
               onClick={() => {
                 setActiveTab('pets');
                 setPetSpeciesFilter('Dog');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">🐕</span>
-              <span className="text-xs font-bold text-slate-800">Canine / Dogs</span>
-              <span className="text-[10px] text-slate-500 font-medium">Patients & Profiles</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">Canine / Dogs</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Patients & Profiles</span>
             </div>
 
-            {/* Circle 2 */}
+            {/* Circle 2: Feline */}
             <div
               onClick={() => {
                 setActiveTab('pets');
                 setPetSpeciesFilter('Cat');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">🐈</span>
-              <span className="text-xs font-bold text-slate-800">Feline / Cats</span>
-              <span className="text-[10px] text-slate-500 font-medium">Patients & Profiles</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">Feline / Cats</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Patients & Profiles</span>
             </div>
 
-            {/* Circle 3 */}
+            {/* Circle 3: Pharmacy */}
             <div
               onClick={() => {
                 setActiveTab('pharmacy');
                 setProductCategoryFilter('Healthcare');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">💊</span>
-              <span className="text-xs font-bold text-slate-800">Pet Pharmacy</span>
-              <span className="text-[10px] text-slate-500 font-medium">Meds & Stock</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">Pet Pharmacy</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Meds & Stock</span>
             </div>
 
-            {/* Circle 4 */}
+            {/* Circle 4: Consultations */}
             <div
               onClick={() => {
                 setActiveTab('appointments');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
-            >
-              <span className="text-2xl">✂️</span>
-              <span className="text-xs font-bold text-slate-800">Grooming & Spa</span>
-              <span className="text-[10px] text-slate-500 font-medium">Appointments</span>
-            </div>
-
-            {/* Circle 5 */}
-            <div
-              onClick={() => {
-                setActiveTab('appointments');
-                scrollToContent();
-              }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">🩺</span>
-              <span className="text-xs font-bold text-slate-800">Consultations</span>
-              <span className="text-[10px] text-slate-500 font-medium">Vet Clinical Slots</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">Consultations</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Vet Clinical Slots</span>
             </div>
 
-            {/* Circle 6 */}
+            {/* Circle 5: POS & Retail */}
             <div
               onClick={() => {
                 setActiveTab('pos');
                 scrollToContent();
               }}
-              className="bg-amber-100/90 hover:bg-amber-200 border-2 border-amber-300 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              className="bg-amber-100/90 hover:bg-amber-200 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700/60 transform transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
             >
               <span className="text-2xl">🏷️</span>
-              <span className="text-xs font-bold text-slate-800">POS & Retail</span>
-              <span className="text-[10px] text-slate-500 font-medium">Checkout Sales</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-amber-200">POS & Retail</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Checkout Sales</span>
             </div>
           </div>
         </div>
 
-        {/* 5. TOP KPI METRICS BAR (Hover Border Glow) */}
+        {/* 5. TOP KPI METRICS BAR (Dark / Light Mode Responsive) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div
             onClick={() => {
               setActiveTab('pets');
               scrollToContent();
             }}
-            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
+            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
           >
             <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Registered Patients</span>
-              <span className="text-2xl font-black text-slate-800 font-mono mt-1 block">{totalPatientsCount}</span>
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                {role === 'customer' ? 'My Registered Pets' : 'Registered Patients'}
+              </span>
+              <span className="text-2xl font-black text-slate-800 dark:text-white font-mono mt-1 block">
+                {totalPatientsCount}
+              </span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 border border-teal-100 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-100 dark:border-teal-800 flex items-center justify-center font-bold">
               <PawPrint className="w-5 h-5" />
             </div>
           </div>
@@ -769,18 +897,18 @@ function App() {
               setActiveTab('pharmacy');
               scrollToContent();
             }}
-            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
+            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
           >
             <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Low Stock Warnings</span>
-              <span className={`text-2xl font-black font-mono mt-1 block ${lowStockCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
-                {lowStockCount} items
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                {role === 'customer' ? 'Catalog Medications' : 'Low Stock Items'}
+              </span>
+              <span className={`text-2xl font-black font-mono mt-1 block ${lowStockCount > 0 ? 'text-amber-500' : 'text-slate-800 dark:text-white'}`}>
+                {role === 'customer' ? products.length : lowStockCount}
               </span>
             </div>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold border ${
-              lowStockCount > 0 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-            }`}>
-              <AlertTriangle className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 border border-amber-100 dark:border-amber-800 flex items-center justify-center font-bold">
+              <Package className="w-5 h-5" />
             </div>
           </div>
 
@@ -789,13 +917,17 @@ function App() {
               setActiveTab('appointments');
               scrollToContent();
             }}
-            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
+            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
           >
             <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Active Appointments</span>
-              <span className="text-2xl font-black text-slate-800 font-mono mt-1 block">{activeBookingsCount}</span>
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                {role === 'customer' ? 'My Appointments' : 'Active Appointments'}
+              </span>
+              <span className="text-2xl font-black text-slate-800 dark:text-white font-mono mt-1 block">
+                {activeBookingsCount}
+              </span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-100 dark:border-blue-800 flex items-center justify-center font-bold">
               <Calendar className="w-5 h-5" />
             </div>
           </div>
@@ -805,13 +937,17 @@ function App() {
               setActiveTab('pos');
               scrollToContent();
             }}
-            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
+            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-teal-500/40 cursor-pointer flex items-center justify-between"
           >
             <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Sales Revenue</span>
-              <span className="text-2xl font-black text-purple-700 font-mono mt-1 block">Rs. {totalRevenue.toFixed(2)}</span>
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                {role === 'customer' ? 'Orders Placed' : 'Total Sales Revenue'}
+              </span>
+              <span className="text-2xl font-black text-purple-600 dark:text-purple-400 font-mono mt-1 block">
+                {role === 'customer' ? `${invoices.length} Orders` : `Rs. ${totalRevenue.toFixed(2)}`}
+              </span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-100 dark:border-purple-800 flex items-center justify-center font-bold">
               <TrendingUp className="w-5 h-5" />
             </div>
           </div>
@@ -819,235 +955,247 @@ function App() {
 
         {/* 6. MAIN CONTENT PANELS */}
         <div ref={mainContentRef} className="pt-2">
-
-        {/* PATIENTS & PET PROFILES */}
-        {activeTab === 'pets' && (
-          <div className="space-y-8 animate-fadeIn">
-            <PetList
-              pets={pets}
-              onDelete={handleDeletePet}
-              onArchivePet={handleArchivePet}
-              onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
-              onUpdateClinicStatus={handleUpdateClinicStatus}
-              onAddMedicalLog={handleAddMedicalLog}
-              searchTerm={petSearch}
-              setSearchTerm={setPetSearch}
-              speciesFilter={petSpeciesFilter}
-              setSpeciesFilter={setPetSpeciesFilter}
-              includeArchived={includeArchivedPets}
-              setIncludeArchived={setIncludeArchivedPets}
-            />
-          </div>
-        )}
-
-        {/* PHARMACY & INVENTORY */}
-        {activeTab === 'pharmacy' && (
-          <div className="space-y-6 animate-fadeIn">
-            {/* Pharmacy Sub-Navigation Switcher */}
-            <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex gap-2 w-fit flex-wrap">
-              <button
-                onClick={() => setPharmacySubTab('inventory')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
-                  pharmacySubTab === 'inventory'
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <span>📦</span> Medicine & Stock Directory
-              </button>
-
-              <button
-                onClick={() => setPharmacySubTab('suppliers')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
-                  pharmacySubTab === 'suppliers'
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <span>🏢</span> Supplier Directory
-              </button>
-
-              <button
-                onClick={() => setPharmacySubTab('expiry')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
-                  pharmacySubTab === 'expiry'
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <span>⚠️</span> Expiry Alerts
-                {expiringProducts.length > 0 && (
-                  <span className="bg-rose-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-full ml-1 animate-pulse">
-                    {expiringProducts.length}
-                  </span>
-                )}
-              </button>
+          {/* PATIENTS & PET PROFILES */}
+          {activeTab === 'pets' && (
+            <div className="space-y-8 animate-fadeIn">
+              <PetList
+                pets={pets}
+                onDelete={handleDeletePet}
+                onArchivePet={handleArchivePet}
+                onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
+                onUpdateClinicStatus={handleUpdateClinicStatus}
+                onAddMedicalLog={handleAddMedicalLog}
+                searchTerm={petSearch}
+                setSearchTerm={setPetSearch}
+                speciesFilter={petSpeciesFilter}
+                setSpeciesFilter={setPetSpeciesFilter}
+                includeArchived={includeArchivedPets}
+                setIncludeArchived={setIncludeArchivedPets}
+              />
             </div>
+          )}
 
-            {pharmacySubTab === 'inventory' && (
-              <InventoryList
-                products={products}
-                onDelete={handleDeleteProduct}
-                onEdit={(prod) => alert(`Editing pharmacy product ${prod.itemName}`)}
-                onAdjustStock={handleAdjustStock}
-                searchTerm={productSearch}
-                setSearchTerm={setProductSearch}
-                categoryFilter={productCategoryFilter}
-                setCategoryFilter={setProductCategoryFilter}
-              />
-            )}
+          {/* PHARMACY & INVENTORY */}
+          {activeTab === 'pharmacy' && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Subtabs for Staff/Admin/Inventory Officer */}
+              {role !== 'customer' && (
+                <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex gap-2 w-fit flex-wrap">
+                  <button
+                    onClick={() => setPharmacySubTab('inventory')}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                      pharmacySubTab === 'inventory'
+                        ? 'bg-teal-700 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>📦</span> Medicine & Stock Directory
+                  </button>
 
-            {pharmacySubTab === 'suppliers' && (
-              <SupplierDirectory
-                suppliers={suppliers}
-                onAddSupplier={handleAddSupplier}
-                onUpdateSupplier={handleUpdateSupplier}
-                onDeleteSupplier={handleDeleteSupplier}
-              />
-            )}
+                  {(role === 'admin' || role === 'inventory_officer') && (
+                    <>
+                      <button
+                        onClick={() => setPharmacySubTab('suppliers')}
+                        className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                          pharmacySubTab === 'suppliers'
+                            ? 'bg-teal-700 text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span>🏢</span> Supplier Directory ({suppliers.length})
+                      </button>
 
-            {pharmacySubTab === 'expiry' && (
-              <ExpiryTracker
-                expiringProducts={expiringProducts}
-                onDisposeBatch={handleDisposeBatch}
-                onRefresh={loadExpiringProducts}
-              />
-            )}
-          </div>
-        )}
+                      <button
+                        onClick={() => setPharmacySubTab('expiry')}
+                        className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                          pharmacySubTab === 'expiry'
+                            ? 'bg-teal-700 text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span>⚠️</span> Expiry & Batch Tracker ({expiringProducts.length})
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
 
-        {/* APPOINTMENT SCHEDULING */}
-        {activeTab === 'appointments' && (
-          <div className="space-y-6 animate-fadeIn">
-            {/* Appointments Sub-Navigation Switcher */}
-            <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex gap-2 w-fit">
-              <button
-                onClick={() => setBookingSubTab('directory')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
-                  bookingSubTab === 'directory'
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <span>📋</span> Bookings Directory
-              </button>
-
-              <button
-                onClick={() => setBookingSubTab('calendar')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
-                  bookingSubTab === 'calendar'
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <span>📅</span> Doctor Day Calendar
-              </button>
-            </div>
-
-            {bookingSubTab === 'directory' ? (
-              <BookingList
-                bookings={bookings}
-                onUpdateStatus={handleUpdateBookingStatus}
-                onCancel={handleCancelBooking}
-                onReschedule={handleRescheduleBooking}
-                statusFilter={bookingStatusFilter}
-                setStatusFilter={setBookingStatusFilter}
-              />
-            ) : (
-              <DoctorCalendarView
-                onBookSlot={(slotData) => {
-                  setPrefilledBookingData(slotData);
-                  setIsBookingModalOpen(true);
-                }}
-              />
-            )}
-          </div>
-        )}
-
-        {/* POS & INVOICING */}
-        {activeTab === 'pos' && (
-          <div className="space-y-6 animate-fadeIn">
-            {/* POS Sub-Navigation Switcher */}
-            <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex gap-2 w-fit">
-              <button
-                onClick={() => setPosSubTab('terminal')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
-                  posSubTab === 'terminal'
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <span>🛒</span> POS Terminal & Invoices
-              </button>
-
-              <button
-                onClick={() => setPosSubTab('analytics')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
-                  posSubTab === 'analytics'
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <span>📊</span> Sales Analytics & Reports
-              </button>
-            </div>
-
-            {posSubTab === 'terminal' ? (
-              <div className="space-y-8">
-                <POSBilling products={products} onSubmitOrder={handleCheckoutPOS} isLoading={isBillingLoading} />
-                <InvoiceList
-                  invoices={invoices}
-                  onVoidInvoice={handleVoidInvoice}
-                  paymentFilter={paymentFilter}
-                  setPaymentFilter={setPaymentFilter}
+              {pharmacySubTab === 'inventory' && (
+                <InventoryList
+                  products={products}
+                  onDelete={handleDeleteProduct}
+                  onEdit={(item) => alert(`Edit ${item.itemName}`)}
+                  onAdjustStock={handleAdjustStock}
+                  searchTerm={productSearch}
+                  setSearchTerm={setProductSearch}
+                  categoryFilter={productCategoryFilter}
+                  setCategoryFilter={setProductCategoryFilter}
                 />
-              </div>
-            ) : (
-              <SalesAnalytics />
-            )}
-          </div>
-        )}
+              )}
+
+              {pharmacySubTab === 'suppliers' && (
+                <SupplierDirectory
+                  suppliers={suppliers}
+                  onAddSupplier={handleAddSupplier}
+                  onUpdateSupplier={handleUpdateSupplier}
+                  onDeleteSupplier={handleDeleteSupplier}
+                />
+              )}
+
+              {pharmacySubTab === 'expiry' && (
+                <ExpiryTracker
+                  expiringProducts={expiringProducts}
+                  onDisposeBatch={handleDisposeBatch}
+                  onRefresh={loadExpiringProducts}
+                />
+              )}
+            </div>
+          )}
+
+          {/* APPOINTMENT SCHEDULING */}
+          {activeTab === 'appointments' && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Doctor Day Calendar Subtab (for Admin & Staff) */}
+              {role !== 'customer' && (
+                <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex gap-2 w-fit">
+                  <button
+                    onClick={() => setBookingSubTab('directory')}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                      bookingSubTab === 'directory'
+                        ? 'bg-teal-700 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>📋</span> Bookings Directory
+                  </button>
+
+                  <button
+                    onClick={() => setBookingSubTab('calendar')}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                      bookingSubTab === 'calendar'
+                        ? 'bg-teal-700 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>📅</span> Doctor Day Calendar
+                  </button>
+                </div>
+              )}
+
+              {bookingSubTab === 'directory' ? (
+                <BookingList
+                  bookings={bookings}
+                  onUpdateStatus={handleUpdateBookingStatus}
+                  onCancel={handleCancelBooking}
+                  onReschedule={handleRescheduleBooking}
+                  statusFilter={bookingStatusFilter}
+                  setStatusFilter={setBookingStatusFilter}
+                />
+              ) : (
+                <DoctorCalendarView
+                  onBookSlot={(slotData) => {
+                    setPrefilledBookingData(slotData);
+                    setIsBookingModalOpen(true);
+                  }}
+                />
+              )}
+            </div>
+          )}
+
+          {/* POS & INVOICING */}
+          {activeTab === 'pos' && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* POS Sub-Navigation Switcher (Analytics hidden for Customer) */}
+              {role === 'admin' && (
+                <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex gap-2 w-fit">
+                  <button
+                    onClick={() => setPosSubTab('terminal')}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                      posSubTab === 'terminal'
+                        ? 'bg-teal-700 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>🛒</span> POS Terminal & Invoices
+                  </button>
+
+                  <button
+                    onClick={() => setPosSubTab('analytics')}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                      posSubTab === 'analytics'
+                        ? 'bg-teal-700 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>📊</span> Sales Analytics & Reports
+                  </button>
+                </div>
+              )}
+
+              {posSubTab === 'terminal' ? (
+                <div className="space-y-8">
+                  <POSBilling products={products} onSubmitOrder={handleCheckoutPOS} isLoading={isBillingLoading} />
+                  <InvoiceList
+                    invoices={invoices}
+                    onVoidInvoice={handleVoidInvoice}
+                  />
+                </div>
+              ) : (
+                <SalesAnalytics />
+              )}
+            </div>
+          )}
         </div>
       </main>
 
-      {/* REGISTRATION POPUP MODALS */}
+      {/* POPUP MODALS */}
+      {/* 1. Pet Registration Modal */}
       {isPetModalOpen && (
         <PetForm
+          onSubmit={handleCreatePet}
+          isLoading={isPetLoading}
           isModal={true}
           onClose={() => setIsPetModalOpen(false)}
-          onSubmit={handleAddPet}
-          isLoading={isPetLoading}
         />
       )}
 
+      {/* 2. Product Registration Modal */}
       {isProductModalOpen && (
         <ProductForm
+          onSubmit={handleCreateProduct}
+          isLoading={isProductLoading}
           isModal={true}
           onClose={() => setIsProductModalOpen(false)}
-          onSubmit={handleAddProduct}
-          isLoading={isProductLoading}
         />
       )}
 
+      {/* 3. Appointment Booking Modal */}
       {isBookingModalOpen && (
         <BookingForm
+          pets={pets}
+          onSubmit={handleCreateBooking}
+          isLoading={isBookingLoading}
           isModal={true}
+          prefilledData={prefilledBookingData}
           onClose={() => {
             setIsBookingModalOpen(false);
             setPrefilledBookingData(null);
           }}
-          pets={pets}
-          onSubmit={handleAddBooking}
-          isLoading={isBookingLoading}
-          initialData={prefilledBookingData}
         />
       )}
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200/80 py-6 mt-16 text-center text-xs text-slate-400 space-y-1">
-        <p className="font-semibold text-slate-600">4 Paw Animal Clinic • Enterprise Pet Care Platform</p>
-        <p className="text-[11px] text-slate-400">Decoupled Modular Architecture • Node.js + Express + MongoDB + React + Tailwind CSS</p>
-      </footer>
+      {/* 4. RBAC Authentication Modal */}
+      {isAuthModalOpen && (
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          initialMessage={authModalMessage}
+          onClose={() => {
+            setIsAuthModalOpen(false);
+            setPendingAction(null);
+          }}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )}
     </div>
   );
 }
