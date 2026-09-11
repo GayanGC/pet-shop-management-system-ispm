@@ -118,7 +118,7 @@ const createInvoice = async (req, res) => {
 
 const getAllInvoices = async (req, res) => {
   try {
-    const { paymentStatus, paymentMethod } = req.query;
+    const { paymentStatus, paymentMethod, customerId } = req.query;
 
     let query = { isVoided: false };
 
@@ -130,8 +130,19 @@ const getAllInvoices = async (req, res) => {
       query.paymentMethod = paymentMethod;
     }
 
+    // Private Scoping for Customer Role: only see own order receipts
+    const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
+    if (isCustomer) {
+      const orList = [{ customerId: req.user._id }];
+      if (req.user.name) orList.push({ customerName: new RegExp(`^${req.user.name}$`, 'i') });
+      if (req.user.phone) orList.push({ customerPhone: req.user.phone });
+      query.$or = orList;
+    } else if (customerId) {
+      query.customerId = customerId;
+    }
+
     const invoices = await Invoice.find(query)
-      .populate('customerId', 'name email role')
+      .populate('customerId', 'name email phone role')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({

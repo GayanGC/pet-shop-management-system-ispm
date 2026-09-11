@@ -20,8 +20,20 @@ const medicalLogSchema = new mongoose.Schema({
   },
   treatment: {
     type: String,
-    required: true,
+    default: '',
     trim: true
+  },
+  treatmentNotes: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  medicinesPrescribed: {
+    type: [String],
+    default: []
+  },
+  nextVisitDate: {
+    type: Date
   },
   vaccineName: {
     type: String,
@@ -29,6 +41,11 @@ const medicalLogSchema = new mongoose.Schema({
     trim: true
   },
   vetDoctor: {
+    type: String,
+    default: 'Dr. Perera (Senior Vet)',
+    trim: true
+  },
+  vetName: {
     type: String,
     default: 'Dr. Perera (Senior Vet)',
     trim: true

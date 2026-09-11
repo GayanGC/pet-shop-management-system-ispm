@@ -9,7 +9,7 @@
  * and financial CSV streaming against live backend server (http://localhost:5000).
  */
 
-const BASE_URL = process.env.TEST_API_URL || 'http://localhost:5000/api';
+const BASE_URL = process.env.TEST_API_URL || 'http://127.0.0.1:5000/api';
 
 // ANSI Terminal Colors
 const colors = {

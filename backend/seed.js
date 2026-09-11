@@ -92,15 +92,23 @@ const seedDatabase = async () => {
             date: new Date('2026-02-15'),
             diagnosis: 'Annual Health Checkup & Parasite Screen',
             treatment: 'Administered Rabies Vaccine Booster & Oral Dewormer',
+            treatmentNotes: 'Routine wellness clearance. Next Rabies booster due in 12 months. Administer heartworm preventative monthly.',
+            medicinesPrescribed: ['Rabisin Booster 1ml', 'NexGard Spectra Chewable'],
+            nextVisitDate: new Date('2027-02-15'),
             vaccineName: 'Rabisin Rabies Booster',
-            vetDoctor: 'Dr. Perera (Senior Vet)'
+            vetDoctor: 'Dr. Perera (Senior Vet)',
+            vetName: 'Dr. Perera (Senior Vet)'
           },
           {
             date: new Date('2026-03-01'),
-            diagnosis: 'Mild Skin Allergy / Hotspot',
+            diagnosis: 'Mild Skin Allergy / Hotspot Reaction',
             treatment: 'Topical Antiseptic Spray & Medicated Shampoo Bath',
+            treatmentNotes: 'Apply topical antiseptic spray twice daily to affected flank. Avoid bathing with commercial soap for 5 days. Monitor for itching.',
+            medicinesPrescribed: ['Chlorhexidine 2% Spray', 'Dermotic Soothing Foam'],
+            nextVisitDate: new Date('2026-03-22'),
             vaccineName: '',
-            vetDoctor: 'Dr. Fernando (Vet Surgeon)'
+            vetDoctor: 'Dr. Fernando (Vet Surgeon)',
+            vetName: 'Dr. Fernando (Vet Surgeon)'
           }
         ]
       },
@@ -119,8 +127,12 @@ const seedDatabase = async () => {
             date: new Date('2026-03-05'),
             diagnosis: 'Ear Mite Infection (Otitis Externa)',
             treatment: 'Ear Canal Cleansing & Antibacterial Ear Drops (7 Days)',
+            treatmentNotes: 'Clean outer ear with warm cotton swab before instilling 3 drops in each ear morning and evening for 7 days. Keep indoors.',
+            medicinesPrescribed: ['Otic Clear Auricular Drops 15ml'],
+            nextVisitDate: new Date('2026-03-20'),
             vaccineName: '',
-            vetDoctor: 'Dr. Perera (Senior Vet)'
+            vetDoctor: 'Dr. Perera (Senior Vet)',
+            vetName: 'Dr. Perera (Senior Vet)'
           }
         ]
       },

@@ -43,6 +43,7 @@ import InvoiceList from './components/billing/InvoiceList';
 import SalesAnalytics from './components/billing/SalesAnalytics';
 import AuthModal from './components/auth/AuthModal';
 import CustomerCheckoutModal from './components/store/CustomerCheckoutModal';
+import CustomerPortal from './components/customer/CustomerPortal';
 
 import { getCurrentUser, logout } from './services/authService';
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
@@ -1075,8 +1076,8 @@ function App() {
           </div>
         </div>
 
-        {/* 6. EYE-CATCHING E-COMMERCE PRODUCTS SHOWCASE */}
-        {(role === 'customer' || role === 'guest') && (
+        {/* 6. EYE-CATCHING E-COMMERCE PRODUCTS SHOWCASE (GUEST VIEW ONLY) */}
+        {(role === 'guest' || !currentUser) && (
           <ProductShowcase
             products={products}
             onAddToCart={handleAddToCart}
@@ -1090,8 +1091,26 @@ function App() {
 
         {/* 7. MAIN CONTENT PANELS */}
         <div ref={mainContentRef} className="pt-2">
-          
-          {/* TAB: PATIENTS & PET PROFILES */}
+          {role === 'customer' && currentUser ? (
+            <CustomerPortal
+              currentUser={currentUser}
+              pets={customerPets}
+              products={products}
+              bookings={bookings}
+              invoices={invoices}
+              cartItems={cartItems}
+              onAddToCart={handleAddToCart}
+              onQuickBuy={handleQuickBuy}
+              onOpenCheckout={() => setIsCheckoutModalOpen(true)}
+              onOpenRegisterPetModal={() => setIsPetModalOpen(true)}
+              onRefreshData={fetchInitialData}
+              onShowToast={(msg, type) => showToast(msg, type)}
+              currentTab={activeTab}
+              onTabChange={(tab) => setActiveTab(tab)}
+            />
+          ) : (
+            <>
+              {/* TAB: PATIENTS & PET PROFILES */}
           {activeTab === 'pets' && (
             <div className="space-y-6 animate-fadeIn">
               {/* Customer Top Bar */}
@@ -1399,6 +1418,8 @@ function App() {
                 <SalesAnalytics />
               )}
             </div>
+          )}
+            </>
           )}
         </div>
       </main>

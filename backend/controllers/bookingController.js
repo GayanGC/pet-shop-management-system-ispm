@@ -103,13 +103,23 @@ const getAllBookings = async (req, res) => {
       query.status = status;
     }
 
-    if (customerId) {
+    // Private Scoping for Customer Role: only see own appointments
+    const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
+    if (isCustomer) {
+      const userPets = await Pet.find({ ownerId: req.user._id }, '_id');
+      const userPetIds = userPets.map((p) => p._id);
+
+      query.$or = [
+        { customerId: req.user._id },
+        { petId: { $in: userPetIds } }
+      ];
+    } else if (customerId) {
       query.customerId = customerId;
     }
 
     const bookings = await Appointment.find(query)
       .populate('petId', 'petName species breed uniquePin ownerId')
-      .populate('customerId', 'name email role')
+      .populate('customerId', 'name email phone role')
       .sort({ appointmentDate: 1, timeSlot: 1 });
 
     return res.status(200).json({

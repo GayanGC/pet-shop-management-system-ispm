@@ -92,7 +92,7 @@ const createPet = async (req, res) => {
 
 const getAllPets = async (req, res) => {
   try {
-    const { species, search, ownerId, includeArchived } = req.query;
+    const { species, search, ownerId, customerId, includeArchived } = req.query;
 
     let query = {};
     if (includeArchived !== 'true') {
@@ -103,20 +103,32 @@ const getAllPets = async (req, res) => {
       query.species = species;
     }
 
-    if (ownerId) {
-      query.ownerId = ownerId;
+    // Private Scoping for Customer Role: only see own pets
+    const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
+    if (isCustomer) {
+      query.ownerId = req.user._id;
+    } else if (customerId || ownerId) {
+      query.ownerId = customerId || ownerId;
     }
 
     if (search) {
-      query.$or = [
+      const searchConditions = [
         { petName: { $regex: search, $options: 'i' } },
         { uniquePin: { $regex: search, $options: 'i' } },
         { breed: { $regex: search, $options: 'i' } }
       ];
+      if (query.ownerId) {
+        query = {
+          ...query,
+          $and: [{ $or: searchConditions }]
+        };
+      } else {
+        query.$or = searchConditions;
+      }
     }
 
     const pets = await Pet.find(query)
-      .populate('ownerId', 'name email role')
+      .populate('ownerId', 'name email phone role')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -231,12 +243,22 @@ const deletePet = async (req, res) => {
  */
 const addMedicalLog = async (req, res) => {
   try {
-    const { diagnosis, treatment, vaccineName, vetDoctor } = req.body;
+    const {
+      diagnosis,
+      treatment,
+      treatmentNotes,
+      vaccineName,
+      vetDoctor,
+      vetName,
+      medicinesPrescribed,
+      nextVisitDate
+    } = req.body;
 
-    if (!diagnosis || !treatment) {
+    const finalTreatment = treatment || treatmentNotes;
+    if (!diagnosis || !finalTreatment) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide diagnosis and treatment'
+        message: 'Please provide diagnosis and treatment instructions'
       });
     }
 
@@ -248,12 +270,22 @@ const addMedicalLog = async (req, res) => {
       });
     }
 
+    const attendingVet = vetName || vetDoctor || 'Dr. Perera (Senior Vet)';
+
     pet.medicalLogs.push({
       date: new Date(),
       diagnosis,
-      treatment,
+      treatment: finalTreatment,
+      treatmentNotes: treatmentNotes || finalTreatment,
       vaccineName: vaccineName || '',
-      vetDoctor: vetDoctor || 'Dr. Perera (Senior Vet)'
+      vetDoctor: attendingVet,
+      vetName: attendingVet,
+      medicinesPrescribed: Array.isArray(medicinesPrescribed)
+        ? medicinesPrescribed
+        : medicinesPrescribed
+        ? [medicinesPrescribed]
+        : [],
+      nextVisitDate: nextVisitDate ? new Date(nextVisitDate) : undefined
     });
 
     await pet.save();
