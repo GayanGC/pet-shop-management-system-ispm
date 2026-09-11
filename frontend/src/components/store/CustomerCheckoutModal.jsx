@@ -28,6 +28,7 @@ const CustomerCheckoutModal = ({
   onClearCart,
   currentUser,
   onRequireAuth,
+  onCheckoutSuccess,
   onOrderSuccess
 }) => {
   if (!isOpen) return null;
@@ -135,6 +136,7 @@ const CustomerCheckoutModal = ({
       if (res && res.data) {
         setCompletedOrder(res.data);
         if (onClearCart) onClearCart();
+        if (onCheckoutSuccess) onCheckoutSuccess(res.data);
         if (onOrderSuccess) onOrderSuccess(res.data);
       } else {
         throw new Error(res.message || 'Failed to process order.');

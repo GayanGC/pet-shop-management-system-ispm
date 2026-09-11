@@ -50,7 +50,7 @@ import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet }
 import { fetchProducts, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
 import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
-import { fetchInvoices, createInvoice, voidInvoice } from './services/billingService';
+import { fetchInvoices as fetchInvoicesApi, createInvoice, voidInvoice } from './services/billingService';
 
 function App() {
   // 1. Theme State Management (Persisted in localStorage, defaults to 'light')
@@ -343,16 +343,18 @@ function App() {
     }
   };
 
-  const loadInvoices = async () => {
+  const fetchInvoices = async () => {
     try {
-      const data = await fetchInvoices({
+      const data = await fetchInvoicesApi({
         paymentMethod: invoicePaymentFilter !== 'All' ? invoicePaymentFilter : undefined
       });
       setInvoices(data.data || []);
+      return data;
     } catch (err) {
       console.error('Error loading invoices:', err);
     }
   };
+  const loadInvoices = fetchInvoices;
 
   useEffect(() => {
     loadPets();
@@ -1092,22 +1094,69 @@ function App() {
         {/* 7. MAIN CONTENT PANELS */}
         <div ref={mainContentRef} className="pt-2">
           {role === 'customer' && currentUser ? (
-            <CustomerPortal
-              currentUser={currentUser}
-              pets={customerPets}
-              products={products}
-              bookings={bookings}
-              invoices={invoices}
-              cartItems={cartItems}
-              onAddToCart={handleAddToCart}
-              onQuickBuy={handleQuickBuy}
-              onOpenCheckout={() => setIsCheckoutModalOpen(true)}
-              onOpenRegisterPetModal={() => setIsPetModalOpen(true)}
-              onRefreshData={fetchInitialData}
-              onShowToast={(msg, type) => showToast(msg, type)}
-              currentTab={activeTab}
-              onTabChange={(tab) => setActiveTab(tab)}
-            />
+            activeTab === 'orders' ? (
+              <div className="space-y-6 animate-fadeIn">
+                <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-6 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-700 text-white flex items-center justify-center text-xl shadow-md">
+                      🧾
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                        My Order Receipts & Clinical Invoices ({invoices.length})
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        View official clinic payment receipts, purchased medications, and transaction records.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('pharmacy')}
+                      className="flex-1 sm:flex-initial py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <span>🛒</span>
+                      <span>Return to Store</span>
+                    </button>
+                    {cartItemCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCheckoutModalOpen(true)}
+                        className="flex-1 sm:flex-initial py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        <span>Checkout ({cartItemCount})</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <InvoiceList
+                  invoices={invoices}
+                  paymentFilter={invoicePaymentFilter}
+                  setPaymentFilter={setInvoicePaymentFilter}
+                />
+              </div>
+            ) : (
+              <CustomerPortal
+                currentUser={currentUser}
+                pets={customerPets}
+                products={products}
+                bookings={bookings}
+                invoices={invoices}
+                cartItems={cartItems}
+                onAddToCart={handleAddToCart}
+                onQuickBuy={handleQuickBuy}
+                onOpenCheckout={() => setIsCheckoutModalOpen(true)}
+                onOpenRegisterPetModal={() => setIsPetModalOpen(true)}
+                onRefreshData={fetchInitialData}
+                onShowToast={(msg, type) => showToast(msg, type)}
+                currentTab={activeTab}
+                onTabChange={(tab) => setActiveTab(tab)}
+              />
+            )
           ) : (
             <>
               {/* TAB: PATIENTS & PET PROFILES */}
@@ -1482,11 +1531,12 @@ function App() {
           onUpdateQuantity={handleUpdateCartQuantity}
           onRemoveItem={handleRemoveCartItem}
           onClearCart={() => setCartItems([])}
+          onCheckoutSuccess={fetchInvoices}
           currentUser={currentUser}
           onRequireAuth={handleActionWithAuth}
           onOrderSuccess={(order) => {
-            showToast(`Order #${order.invoiceNumber} placed successfully!`);
-            loadInvoices();
+            showToast(`Order #${order?.invoiceNumber || ''} placed successfully!`);
+            fetchInvoices();
             loadProducts();
           }}
         />
