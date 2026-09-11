@@ -52,6 +52,113 @@ import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from '
 import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
 import { fetchInvoices as fetchInvoicesApi, createInvoice, voidInvoice } from './services/billingService';
 
+const DEFAULT_FALLBACK_PRODUCTS = [
+  {
+    _id: 'seed-prod-1',
+    itemName: 'Rabies Vaccine (Rabisin)',
+    category: 'Vaccines',
+    price: 2200.00,
+    stockQuantity: 15,
+    supplier: 'VetMed Lanka Ltd',
+    batchNo: 'BTH-2026-01',
+    expiryDate: '2027-03-31',
+    unit: 'Vial',
+    imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=600&q=80',
+    description: 'Certified inactivated rabies prophylactic vaccine for dogs and cats.'
+  },
+  {
+    _id: 'seed-prod-2',
+    itemName: 'Bravecto Chewable (Dogs 20-40kg)',
+    category: 'Medicines',
+    price: 6800.00,
+    stockQuantity: 4,
+    supplier: 'Ceylon Pet Supplies',
+    batchNo: 'BTH-2026-04',
+    expiryDate: '2026-09-30',
+    unit: 'Pack',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=600&q=80',
+    description: 'Long-acting chewable flea and tick preventative offering 12-week systemic protection.'
+  },
+  {
+    _id: 'seed-prod-3',
+    itemName: 'Royal Canin Maxi Adult (15kg)',
+    category: 'Nutrition',
+    price: 16500.00,
+    stockQuantity: 8,
+    supplier: 'Pet Care Importers',
+    batchNo: 'BTH-2026-02',
+    expiryDate: '2026-12-15',
+    unit: 'Bag',
+    imageUrl: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?auto=format&fit=crop&w=600&q=80',
+    description: 'Optimal nutritional kibble formulated for large breed adult dogs with high digestible proteins.'
+  },
+  {
+    _id: 'seed-prod-4',
+    itemName: 'Whiskas Ocean Fish (3kg)',
+    category: 'Nutrition',
+    price: 3200.00,
+    stockQuantity: 5,
+    supplier: 'Ceylon Pet Supplies',
+    batchNo: 'BTH-2026-05',
+    expiryDate: '2026-11-20',
+    unit: 'Bag',
+    imageUrl: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=600&q=80',
+    description: 'Wholesome adult feline dry food packed with real ocean fish, zinc, and omega fatty acids.'
+  },
+  {
+    _id: 'seed-prod-5',
+    itemName: 'Amoxicillin Clavulanate Drops (15ml)',
+    category: 'Medicines',
+    price: 1450.00,
+    stockQuantity: 12,
+    supplier: 'MediVet Supplies',
+    batchNo: 'BTH-2026-03',
+    expiryDate: '2026-08-31',
+    unit: 'Bottle',
+    imageUrl: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&w=600&q=80',
+    description: 'Broad-spectrum potentiated penicillin antibiotic drops for bacterial infections.'
+  },
+  {
+    _id: 'seed-prod-6',
+    itemName: 'Antiseptic Flea & Tick Shampoo (500ml)',
+    category: 'Medicines',
+    price: 1850.00,
+    stockQuantity: 18,
+    supplier: 'Pet Care Importers',
+    batchNo: 'BTH-2026-06',
+    expiryDate: '2027-06-30',
+    unit: 'Bottle',
+    imageUrl: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=600&q=80',
+    description: 'Medicated soothing shampoo bath providing rapid knockdown of external ectoparasites.'
+  },
+  {
+    _id: 'seed-prod-7',
+    itemName: 'Multivitamin & Mineral Chew Tablets',
+    category: 'Supplements',
+    price: 2800.00,
+    stockQuantity: 25,
+    supplier: 'VetMed Lanka Ltd',
+    batchNo: 'BTH-2026-07',
+    expiryDate: '2027-04-15',
+    unit: 'Bottle',
+    imageUrl: 'https://images.unsplash.com/photo-1608848461950-0fe51dfc41cb?auto=format&fit=crop&w=600&q=80',
+    description: 'Daily multivitamin dietary supplement with essential trace minerals for pets of all ages.'
+  },
+  {
+    _id: 'seed-prod-8',
+    itemName: 'Interactive Feather Wand Cat Toy',
+    category: 'General',
+    price: 950.00,
+    stockQuantity: 30,
+    supplier: 'Pet Care Importers',
+    batchNo: 'BTH-2026-08',
+    expiryDate: null,
+    unit: 'Piece',
+    imageUrl: 'https://images.unsplash.com/photo-1535294435445-d7249524ef2e?auto=format&fit=crop&w=600&q=80',
+    description: 'Dynamic teaser wand stimulating feline hunting instincts and active cardiovascular play.'
+  }
+];
+
 function App() {
   // 1. Theme State Management (Persisted in localStorage, defaults to 'light')
   const [theme, setTheme] = useState(() => localStorage.getItem('4paw_theme') || 'light');
@@ -256,7 +363,7 @@ function App() {
 
   // Core Data States
   const [pets, setPets] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(DEFAULT_FALLBACK_PRODUCTS);
   const [suppliers, setSuppliers] = useState([]);
   const [expiringProducts, setExpiringProducts] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -308,9 +415,16 @@ function App() {
         category: productCategoryFilter !== 'All' ? productCategoryFilter : undefined,
         search: productSearch || undefined
       });
-      setProducts(data.data || []);
+      if (data && data.data && data.data.length > 0) {
+        setProducts(data.data);
+      } else if (!productSearch && (productCategoryFilter === 'All' || !productCategoryFilter)) {
+        setProducts(DEFAULT_FALLBACK_PRODUCTS);
+      } else {
+        setProducts(data.data || []);
+      }
     } catch (err) {
-      console.error('Error loading products:', err);
+      console.error('Error loading products, using safe fallback:', err);
+      setProducts(DEFAULT_FALLBACK_PRODUCTS);
     }
   };
 
@@ -661,7 +775,7 @@ function App() {
   const navTabs = getNavTabs();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-teal-50/50 to-amber-50/40 dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-teal-950 text-slate-800 dark:text-slate-100 font-sans selection:bg-teal-600 selection:text-white transition-colors duration-500">
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
       
       {/* 1. TOP HEADER BAR */}
       <header className="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950 text-white shadow-lg border-b border-teal-600/40 dark:border-emerald-500/20 transition-colors sticky top-0 z-50 backdrop-blur-md">
@@ -690,7 +804,7 @@ function App() {
             <div className="flex items-center gap-2 md:hidden">
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-xl bg-teal-800 dark:bg-slate-800 text-amber-300 border border-teal-600/40 cursor-pointer"
+                className="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-amber-500 hover:scale-105 transition"
                 title="Toggle Theme"
               >
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -746,10 +860,10 @@ function App() {
             {/* Theme Toggler (Sun / Moon) */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-xl bg-teal-900/60 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/40 dark:border-slate-700 flex items-center justify-center shadow-xs"
-              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              className="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-amber-500 hover:scale-105 transition cursor-pointer"
+              title="Toggle Theme"
             >
-              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300 animate-spin-slow" /> : <Moon className="w-4 h-4 text-teal-100" />}
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
             {/* Live Server Status Radar Ping */}
@@ -966,7 +1080,7 @@ function App() {
             <div
               onClick={() => {
                 setActiveTab('pharmacy');
-                setProductCategoryFilter('Healthcare');
+                setProductCategoryFilter('All');
                 scrollToContent();
               }}
               className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-teal-500/20 hover:from-emerald-500/25 hover:to-teal-500/30 border-2 border-emerald-400/60 dark:border-emerald-500/40 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
@@ -1077,19 +1191,6 @@ function App() {
             </div>
           </div>
         </div>
-
-        {/* 6. EYE-CATCHING E-COMMERCE PRODUCTS SHOWCASE (GUEST VIEW ONLY) */}
-        {(role === 'guest' || !currentUser) && (
-          <ProductShowcase
-            products={products}
-            onAddToCart={handleAddToCart}
-            onQuickBuy={handleQuickBuy}
-            cartCount={cartItemCount}
-            onOpenCart={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to view your cart.')}
-            title="Featured Pet Medications & Essentials Storefront"
-            subtitle="Explore veterinary prescription pharmaceuticals, nutritional feeds & accessories. Instant purchase with LKR pricing."
-          />
-        )}
 
         {/* 7. MAIN CONTENT PANELS */}
         <div ref={mainContentRef} className="pt-2">

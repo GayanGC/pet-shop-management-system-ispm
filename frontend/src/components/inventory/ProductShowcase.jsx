@@ -16,6 +16,10 @@ import {
 } from 'lucide-react';
 
 const CATEGORY_ICONS = {
+  Medicines: '💊',
+  Vaccines: '💉',
+  Nutrition: '🍖',
+  Supplements: '✨',
   Healthcare: '💊',
   Food: '🍖',
   Toys: '🎾',
@@ -25,6 +29,10 @@ const CATEGORY_ICONS = {
 };
 
 const CATEGORY_GRADIENTS = {
+  Medicines: 'from-emerald-500/20 via-teal-500/10 to-cyan-500/20 border-emerald-400/40 text-emerald-800 dark:text-emerald-300',
+  Vaccines: 'from-cyan-500/20 via-blue-500/10 to-indigo-500/20 border-cyan-400/40 text-cyan-800 dark:text-cyan-300',
+  Nutrition: 'from-amber-500/20 via-orange-500/10 to-yellow-500/20 border-amber-400/40 text-amber-800 dark:text-amber-300',
+  Supplements: 'from-purple-500/20 via-indigo-500/10 to-pink-500/20 border-purple-400/40 text-purple-800 dark:text-purple-300',
   Healthcare: 'from-emerald-500/20 via-teal-500/10 to-cyan-500/20 border-emerald-400/40 text-emerald-800 dark:text-emerald-300',
   Food: 'from-amber-500/20 via-orange-500/10 to-yellow-500/20 border-amber-400/40 text-amber-800 dark:text-amber-300',
   Toys: 'from-purple-500/20 via-indigo-500/10 to-pink-500/20 border-purple-400/40 text-purple-800 dark:text-purple-300',
@@ -88,9 +96,51 @@ const ProductShowcase = ({
 
   const filteredProducts = products.filter((item) => {
     if (item.status === 'Disposed') return false;
-    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    const cat = item.category || 'General';
+    const name = (item.itemName || '').toLowerCase();
+
+    let matchesCategory = false;
+    if (selectedCategory === 'All') {
+      matchesCategory = true;
+    } else if (selectedCategory === 'Medicines') {
+      matchesCategory =
+        cat === 'Medicines' ||
+        cat === 'Medicine' ||
+        cat === 'Healthcare' ||
+        name.includes('antibiotic') ||
+        name.includes('spray') ||
+        name.includes('drops') ||
+        name.includes('shampoo') ||
+        name.includes('bravecto') ||
+        name.includes('amoxicillin');
+    } else if (selectedCategory === 'Vaccines') {
+      matchesCategory =
+        cat === 'Vaccines' ||
+        cat === 'Vaccine' ||
+        name.includes('vaccine') ||
+        name.includes('rabisin') ||
+        name.includes('injection');
+    } else if (selectedCategory === 'Nutrition') {
+      matchesCategory =
+        cat === 'Nutrition' ||
+        cat === 'Food' ||
+        name.includes('food') ||
+        name.includes('kibble') ||
+        name.includes('royal canin') ||
+        name.includes('whiskas');
+    } else if (selectedCategory === 'Supplements') {
+      matchesCategory =
+        cat === 'Supplements' ||
+        cat === 'Supplement' ||
+        name.includes('vitamin') ||
+        name.includes('mineral') ||
+        name.includes('chew');
+    } else {
+      matchesCategory = cat === selectedCategory;
+    }
+
     const matchesSearch =
-      item.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      name.includes(searchTerm.toLowerCase()) ||
       (item.supplier && item.supplier.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (item.batchNo && item.batchNo.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesCategory && matchesSearch;
@@ -150,9 +200,9 @@ const ProductShowcase = ({
           </div>
         </div>
 
-        {/* Category Filter Pills */}
+        {/* Category Filter Pills matching MongoDB categories */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-          {['All', 'Healthcare', 'Food', 'Toys', 'Accessories', 'Grooming Supplies'].map((cat) => (
+          {['All', 'Medicines', 'Vaccines', 'Nutrition', 'Supplements'].map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
@@ -292,7 +342,7 @@ const ProductShowcase = ({
                     ) : (
                       <>
                         <ShoppingCart className="w-3.5 h-3.5" />
-                        <span>+ Cart</span>
+                        <span>🛒 Add to Cart</span>
                       </>
                     )}
                   </button>
@@ -305,7 +355,7 @@ const ProductShowcase = ({
                     title="Instant Checkout with Diverse Payment Methods"
                   >
                     <Zap className="w-3.5 h-3.5" />
-                    <span>⚡ Quick Buy</span>
+                    <span>⚡ Buy Now</span>
                   </button>
                 </div>
               </div>
