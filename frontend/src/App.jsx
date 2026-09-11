@@ -22,8 +22,10 @@ import {
   LogOut,
   User as UserIcon,
   ShoppingBag,
+  ShoppingCart,
   Sparkles,
-  Zap
+  Zap,
+  Clock
 } from 'lucide-react';
 
 import PetForm from './components/pet/PetForm';
@@ -40,6 +42,7 @@ import POSBilling from './components/billing/POSBilling';
 import InvoiceList from './components/billing/InvoiceList';
 import SalesAnalytics from './components/billing/SalesAnalytics';
 import AuthModal from './components/auth/AuthModal';
+import CustomerCheckoutModal from './components/store/CustomerCheckoutModal';
 
 import { getCurrentUser, logout } from './services/authService';
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
@@ -49,14 +52,15 @@ import { fetchBookings, createBooking, updateBooking, cancelBooking } from './se
 import { fetchInvoices, createInvoice, voidInvoice } from './services/billingService';
 
 function App() {
-  // Theme State Management (Persisted in localStorage, defaults to 'light')
+  // 1. Theme State Management (Persisted in localStorage, defaults to 'light')
   const [theme, setTheme] = useState(() => localStorage.getItem('4paw_theme') || 'light');
 
   useEffect(() => {
+    const root = document.documentElement;
     if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
     }
     localStorage.setItem('4paw_theme', theme);
   }, [theme]);
@@ -65,16 +69,17 @@ function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // RBAC User Authentication State
+  // 2. RBAC User Authentication State
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser() || null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMessage, setAuthModalMessage] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
 
-  // Cart State (Shared between Showcase & POS)
+  // 3. Cart & Storefront Checkout State
   const [cartItems, setCartItems] = useState([]);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
 
-  // Active Tabs
+  // 4. Navigation & Subtab State
   const [activeTab, setActiveTab] = useState('pets');
   const [posSubTab, setPosSubTab] = useState('terminal');
   const [bookingSubTab, setBookingSubTab] = useState('directory');
@@ -85,18 +90,30 @@ function App() {
   // Role Auto-Landing & Active Tab Sanitization
   useEffect(() => {
     if (!currentUser) return;
-    const role = currentUser.role ? currentUser.role.toLowerCase() : 'customer';
-    if (role === 'inventory_officer') {
+    const userRole = currentUser.role ? currentUser.role.toLowerCase() : 'customer';
+    if (userRole === 'inventory_officer') {
       setActiveTab('pharmacy');
       setPharmacySubTab('inventory');
-    } else if (role === 'staff') {
+    } else if (userRole === 'staff') {
       if (activeTab !== 'pets' && activeTab !== 'appointments') {
         setActiveTab('pets');
+      }
+    } else if (userRole === 'customer') {
+      if (activeTab === 'pos') {
+        setActiveTab('orders');
       }
     }
   }, [currentUser]);
 
-  // Guest Protection Trigger
+  // Toast Notification Helper
+  const showToast = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => {
+      setNotification({ message: '', type: '' });
+    }, 4000);
+  };
+
+  // Guest Protection Interceptor
   const handleActionWithAuth = (actionCallback, message = 'Please sign in to proceed with your booking or order.') => {
     if (!currentUser) {
       setAuthModalMessage(message);
@@ -108,8 +125,12 @@ function App() {
     return true;
   };
 
+  // Login Success Handler (Executes Intercepted Action)
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
+    loadPets();
+    loadInvoices();
+    loadProducts();
     showToast(`Welcome, ${user.name}! Authenticated as ${user.role.toUpperCase()}`);
     if (pendingAction) {
       setTimeout(() => {
@@ -119,6 +140,7 @@ function App() {
     }
   };
 
+  // Logout Handler
   const handleLogout = () => {
     logout();
     setCurrentUser(null);
@@ -127,78 +149,95 @@ function App() {
     showToast('Signed out successfully. Switched to Guest View.');
   };
 
-  // Add To Cart from Showcase
+  // Cart Handlers
   const handleAddToCart = (product) => {
     handleActionWithAuth(() => {
-      const existingIdx = cartItems.findIndex((c) => c.product === product._id);
+      const existingIdx = cartItems.findIndex((c) => c._id === product._id || c.product === product._id);
       if (existingIdx > -1) {
         const updated = [...cartItems];
-        updated[existingIdx].quantity += 1;
-        updated[existingIdx].subtotal = updated[existingIdx].quantity * updated[existingIdx].unitPrice;
+        updated[existingIdx].quantity = (updated[existingIdx].quantity || 1) + 1;
+        updated[existingIdx].subtotal = updated[existingIdx].quantity * updated[existingIdx].price;
         setCartItems(updated);
       } else {
         setCartItems([
           ...cartItems,
           {
+            _id: product._id,
             product: product._id,
+            productId: product._id,
             itemName: product.itemName,
+            price: Number(product.price),
             unitPrice: Number(product.price),
             quantity: 1,
-            subtotal: Number(product.price)
+            subtotal: Number(product.price),
+            unit: product.unit || 'unit',
+            category: product.category || 'General'
           }
         ]);
       }
       showToast(`Added "${product.itemName}" to cart! (Rs. ${Number(product.price).toFixed(2)})`);
-    }, 'Please sign in to proceed with your booking or order.');
+    }, 'Please sign in or create an account to add items to your cart.');
   };
 
-  // Quick Buy: Add to Cart and jump directly to POS checkout
   const handleQuickBuy = (product) => {
     handleActionWithAuth(() => {
-      const existingIdx = cartItems.findIndex((c) => c.product === product._id);
-      if (existingIdx > -1) {
-        const updated = [...cartItems];
-        updated[existingIdx].quantity += 1;
-        updated[existingIdx].subtotal = updated[existingIdx].quantity * updated[existingIdx].unitPrice;
-        setCartItems(updated);
-      } else {
-        setCartItems([
-          ...cartItems,
+      const existingIdx = cartItems.findIndex((c) => c._id === product._id || c.product === product._id);
+      if (existingIdx === -1) {
+        setCartItems((prev) => [
+          ...prev,
           {
+            _id: product._id,
             product: product._id,
+            productId: product._id,
             itemName: product.itemName,
+            price: Number(product.price),
             unitPrice: Number(product.price),
             quantity: 1,
-            subtotal: Number(product.price)
+            subtotal: Number(product.price),
+            unit: product.unit || 'unit',
+            category: product.category || 'General'
           }
         ]);
       }
-      setActiveTab('pos');
-      setPosSubTab('terminal');
-      scrollToContent();
-      showToast(`Instant Buy: "${product.itemName}" ready for checkout!`);
-    }, 'Please sign in to proceed with your booking or order.');
+      setIsCheckoutModalOpen(true);
+      showToast(`Checkout ready for "${product.itemName}"!`);
+    }, 'Please sign in or create an account to proceed with checkout.');
+  };
+
+  const handleUpdateCartQuantity = (id, newQty) => {
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item._id === id || item.product === id
+          ? { ...item, quantity: newQty, subtotal: newQty * item.price }
+          : item
+      )
+    );
+  };
+
+  const handleRemoveCartItem = (id) => {
+    setCartItems((prev) => prev.filter((item) => item._id !== id && item.product !== id));
+    showToast('Removed item from shopping cart');
   };
 
   // Hero Carousel State
   const heroSlides = [
     {
-      image: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&w=1600&q=80',
-      tag: '✨ Enterprise Veterinary Care & Wellness',
       title: 'Compassionate Veterinary Care & Wellness',
-      subtitle: 'Complete hospital management, microchip patient registration, and expert surgical care.'
+      subtitle: 'Complete hospital management, microchip patient registration, and expert care.',
+      image: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&w=1600&q=80',
+      badge: 'Veterinary Hospital Care'
     },
     {
-      image: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=1600&q=80',
-      tag: '🐕 Dedicated Canine & Feline Health',
-      title: 'Dedicated Preventive Care for Dogs & Cats',
-      subtitle: 'Vaccination tracking, nutrition guidance, and comprehensive health passport generation.'
+      title: 'Certified In-House Pet Pharmacy & Prescriptions',
+      subtitle: 'Real-time stock deduction, Sri Lankan Rupee pricing, and batch expiry monitoring.',
+      image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=1600&q=80',
+      badge: 'Pharmaceuticals & Vaccines'
     },
     {
+      title: 'Instant Online Scheduling & Doctor Appointments',
+      subtitle: 'Book visits with Senior Vets without conflict with real-time double booking guards.',
       image: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=1600&q=80',
-      tag: '💊 Certified Pharmacy & Modern POS',
-      title: 'Fully Stocked Pet Pharmacy & POS',
-      subtitle: 'Certified medicines, real-time stock alerts, and automated thermal billing.'
+      badge: 'Consultation Calendar'
     }
   ];
 
@@ -207,157 +246,141 @@ function App() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentHeroSlide((prev) => (prev + 1) % heroSlides.length);
-    }, 5000);
+    }, 5500);
     return () => clearInterval(timer);
   }, [heroSlides.length]);
 
   const nextHeroSlide = () => setCurrentHeroSlide((prev) => (prev + 1) % heroSlides.length);
   const prevHeroSlide = () => setCurrentHeroSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
 
-  // Main content scroll ref
-  const mainContentRef = useRef(null);
-
-  const scrollToContent = () => {
-    if (mainContentRef.current) {
-      mainContentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  // Modal open states
-  const [isPetModalOpen, setIsPetModalOpen] = useState(false);
-  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-
-  // State
+  // Core Data States
   const [pets, setPets] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [expiringProducts, setExpiringProducts] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+
+  // Filter States
   const [petSearch, setPetSearch] = useState('');
   const [petSpeciesFilter, setPetSpeciesFilter] = useState('All');
   const [includeArchivedPets, setIncludeArchivedPets] = useState(false);
-  const [isPetLoading, setIsPetLoading] = useState(false);
-
-  const [products, setProducts] = useState([]);
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('All');
-  const [isProductLoading, setIsProductLoading] = useState(false);
-
-  const [suppliers, setSuppliers] = useState([]);
-  const [isSupplierLoading, setIsSupplierLoading] = useState(false);
-
-  const [expiringProducts, setExpiringProducts] = useState([]);
-  const [isExpiryLoading, setIsExpiryLoading] = useState(false);
-
-  const [bookings, setBookings] = useState([]);
   const [bookingStatusFilter, setBookingStatusFilter] = useState('All');
-  const [isBookingLoading, setIsBookingLoading] = useState(false);
+  const [invoicePaymentFilter, setInvoicePaymentFilter] = useState('All');
 
-  const [invoices, setInvoices] = useState([]);
+  // Modal Open States
+  const [isPetModalOpen, setIsPetModalOpen] = useState(false);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isPetLoading, setIsPetLoading] = useState(false);
+  const [isProductLoading, setIsProductLoading] = useState(false);
+  const [isBookingLoading, setIsBookingLoading] = useState(false);
   const [isBillingLoading, setIsBillingLoading] = useState(false);
 
-  // Notification Toast Helper
-  const showToast = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => {
-      setNotification({ message: '', type: '' });
-    }, 4000);
+  // Scroll to Content Ref
+  const mainContentRef = useRef(null);
+  const scrollToContent = () => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
-  // Data Loading
+  // Data Loading Effects
   const loadPets = async () => {
-    setIsPetLoading(true);
     try {
-      const data = await fetchPets({ search: petSearch, species: petSpeciesFilter, includeArchived: includeArchivedPets });
+      const data = await fetchPets({
+        species: petSpeciesFilter !== 'All' ? petSpeciesFilter : undefined,
+        search: petSearch || undefined,
+        includeArchived: includeArchivedPets
+      });
       setPets(data.data || []);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setIsPetLoading(false);
+      console.error('Error loading pets:', err);
     }
   };
 
   const loadProducts = async () => {
-    setIsProductLoading(true);
     try {
-      const data = await fetchProducts({ search: productSearch, category: productCategoryFilter });
+      const data = await fetchProducts({
+        category: productCategoryFilter !== 'All' ? productCategoryFilter : undefined,
+        search: productSearch || undefined
+      });
       setProducts(data.data || []);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setIsProductLoading(false);
+      console.error('Error loading products:', err);
     }
   };
 
   const loadSuppliers = async () => {
-    setIsSupplierLoading(true);
     try {
       const data = await fetchSuppliers();
       setSuppliers(data.data || []);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSupplierLoading(false);
+      console.error('Error loading suppliers:', err);
     }
   };
 
   const loadExpiringProducts = async () => {
-    setIsExpiryLoading(true);
     try {
       const data = await fetchExpiringProducts(30);
       setExpiringProducts(data.data || []);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setIsExpiryLoading(false);
+      console.error('Error loading expiring products:', err);
     }
   };
 
   const loadBookings = async () => {
-    setIsBookingLoading(true);
     try {
-      const data = await fetchBookings({ status: bookingStatusFilter });
+      const data = await fetchBookings({
+        status: bookingStatusFilter !== 'All' ? bookingStatusFilter : undefined
+      });
       setBookings(data.data || []);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setIsBookingLoading(false);
+      console.error('Error loading bookings:', err);
     }
   };
 
   const loadInvoices = async () => {
-    setIsBillingLoading(true);
     try {
-      const data = await fetchInvoices();
+      const data = await fetchInvoices({
+        paymentMethod: invoicePaymentFilter !== 'All' ? invoicePaymentFilter : undefined
+      });
       setInvoices(data.data || []);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setIsBillingLoading(false);
+      console.error('Error loading invoices:', err);
     }
   };
 
   useEffect(() => {
     loadPets();
-  }, [petSearch, petSpeciesFilter, includeArchivedPets]);
+  }, [petSpeciesFilter, petSearch, includeArchivedPets]);
 
   useEffect(() => {
     loadProducts();
-  }, [productSearch, productCategoryFilter]);
+    loadExpiringProducts();
+    loadSuppliers();
+  }, [productCategoryFilter, productSearch]);
 
   useEffect(() => {
     loadBookings();
   }, [bookingStatusFilter]);
 
   useEffect(() => {
-    loadSuppliers();
-    loadExpiringProducts();
     loadInvoices();
-  }, []);
+  }, [invoicePaymentFilter]);
 
-  // Handlers - Pets
+  // CRUD Handlers - Pets
   const handleCreatePet = async (petData) => {
     setIsPetLoading(true);
     try {
-      const res = await createPet(petData);
-      showToast(`Patient ${res.data.petName} registered successfully! (PIN: ${res.data.uniquePin})`);
+      const payload = {
+        ...petData,
+        ownerId: petData.ownerId || (currentUser ? currentUser._id : undefined)
+      };
+      const res = await createPet(payload);
+      showToast(`Patient ${res.data.petName} (PIN: ${res.data.uniquePin}) registered successfully!`);
       setIsPetModalOpen(false);
       loadPets();
     } catch (err) {
@@ -368,7 +391,7 @@ function App() {
   };
 
   const handleDeletePet = async (id) => {
-    if (!window.confirm('Are you sure you want to remove this pet patient record?')) return;
+    if (!window.confirm('Are you sure you want to delete this patient record?')) return;
     try {
       const res = await deletePet(id);
       showToast(res.message);
@@ -378,9 +401,9 @@ function App() {
     }
   };
 
-  const handleArchivePet = async (id, reason) => {
+  const handleArchivePet = async (id) => {
     try {
-      const res = await archivePet(id, reason);
+      const res = await archivePet(id, { reason: 'Status Archived' });
       showToast(res.message);
       loadPets();
     } catch (err) {
@@ -391,7 +414,7 @@ function App() {
   const handleUpdateClinicStatus = async (id, clinicStatus) => {
     try {
       const res = await updatePet(id, { clinicStatus });
-      showToast(`Clinic status updated to ${clinicStatus}`);
+      showToast(`Patient clinic status updated to ${clinicStatus}`);
       loadPets();
     } catch (err) {
       showToast(err.message, 'error');
@@ -408,7 +431,7 @@ function App() {
     }
   };
 
-  // Handlers - Products & Pharmacy
+  // CRUD Handlers - Products & Pharmacy
   const handleCreateProduct = async (productData) => {
     setIsProductLoading(true);
     try {
@@ -436,20 +459,9 @@ function App() {
     }
   };
 
-  const handleAdjustStock = async (id, delta, reason) => {
+  const handleAdjustStock = async (id, adjustmentData) => {
     try {
-      const res = await adjustStock(id, delta, reason);
-      showToast(`Stock updated for ${res.data.itemName}. New quantity: ${res.data.stockQuantity}`);
-      loadProducts();
-      loadExpiringProducts();
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
-
-  const handleDisposeBatch = async (id, auditReason) => {
-    try {
-      const res = await disposeBatch(id, auditReason);
+      const res = await adjustStock(id, adjustmentData);
       showToast(res.message);
       loadProducts();
       loadExpiringProducts();
@@ -458,21 +470,32 @@ function App() {
     }
   };
 
-  // Handlers - Suppliers
-  const handleAddSupplier = async (data) => {
+  const handleDisposeBatch = async (id, reason) => {
     try {
-      const res = await createSupplier(data);
-      showToast(`Supplier ${res.data.name} added!`);
+      const res = await disposeBatch(id, reason);
+      showToast(res.message);
+      loadProducts();
+      loadExpiringProducts();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  // CRUD Handlers - Suppliers
+  const handleCreateSupplier = async (supplierData) => {
+    try {
+      const res = await createSupplier(supplierData);
+      showToast(`Supplier "${res.data.name}" added successfully!`);
       loadSuppliers();
     } catch (err) {
       showToast(err.message, 'error');
     }
   };
 
-  const handleUpdateSupplier = async (id, data) => {
+  const handleUpdateSupplier = async (id, supplierData) => {
     try {
-      const res = await updateSupplier(id, data);
-      showToast(`Supplier ${res.data.name} updated!`);
+      const res = await updateSupplier(id, supplierData);
+      showToast(`Supplier updated successfully!`);
       loadSuppliers();
     } catch (err) {
       showToast(err.message, 'error');
@@ -480,7 +503,7 @@ function App() {
   };
 
   const handleDeleteSupplier = async (id) => {
-    if (!window.confirm('Remove this supplier from directory?')) return;
+    if (!window.confirm('Delete this supplier record?')) return;
     try {
       const res = await deleteSupplier(id);
       showToast(res.message);
@@ -490,12 +513,12 @@ function App() {
     }
   };
 
-  // Handlers - Appointments
+  // CRUD Handlers - Bookings
   const handleCreateBooking = async (bookingData) => {
     setIsBookingLoading(true);
     try {
       const res = await createBooking(bookingData);
-      showToast('Appointment scheduled successfully! Slot confirmed.');
+      showToast(`Appointment confirmed for ${res.data.assignedStaff} on ${new Date(res.data.appointmentDate).toLocaleDateString()} at ${res.data.timeSlot}!`);
       setIsBookingModalOpen(false);
       setPrefilledBookingData(null);
       loadBookings();
@@ -503,6 +526,27 @@ function App() {
       showToast(err.message, 'error');
     } finally {
       setIsBookingLoading(false);
+    }
+  };
+
+  const handleCancelBooking = async (id) => {
+    if (!window.confirm('Cancel this consultation appointment?')) return;
+    try {
+      const res = await cancelBooking(id);
+      showToast(res.message);
+      loadBookings();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleRescheduleBooking = async (id, updateData) => {
+    try {
+      const res = await updateBooking(id, updateData);
+      showToast(`Appointment rescheduled to ${new Date(res.data.appointmentDate).toLocaleDateString()} at ${res.data.timeSlot}!`);
+      loadBookings();
+    } catch (err) {
+      showToast(err.message, 'error');
     }
   };
 
@@ -516,37 +560,12 @@ function App() {
     }
   };
 
-  const handleRescheduleBooking = async (id, data) => {
-    try {
-      const res = await updateBooking(id, data);
-      showToast('Appointment rescheduled successfully!');
-      loadBookings();
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
-
-  const handleCancelBooking = async (id) => {
-    if (!window.confirm('Cancel this service appointment?')) return;
-    try {
-      const res = await cancelBooking(id);
-      showToast(res.message);
-      loadBookings();
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
-
-  // Handlers - POS & Invoicing
-  const handleCheckoutPOS = async (orderData) => {
-    if (!currentUser) {
-      handleActionWithAuth(() => handleCheckoutPOS(orderData), 'Please sign in to complete checkout and purchase.');
-      return;
-    }
+  // POS Checkout Handler
+  const handleCheckoutPOS = async (invoiceData) => {
     setIsBillingLoading(true);
     try {
-      const res = await createInvoice(orderData);
-      showToast(`Invoice ${res.data.invoiceNo} issued & inventory deducted!`);
+      const res = await createInvoice(invoiceData);
+      showToast(`Invoice #${res.data.invoiceNumber} processed! Total: Rs. ${Number(res.data.finalTotal || res.data.totalAmount).toFixed(2)}`);
       setCartItems([]);
       loadInvoices();
       loadProducts();
@@ -569,8 +588,21 @@ function App() {
     }
   };
 
-  // Compute KPI Stats
-  const totalPatientsCount = pets.length;
+  // Role resolution
+  const role = currentUser?.role ? currentUser.role.toLowerCase() : 'guest';
+
+  // Customer Filtered Pets
+  const customerPets = role === 'customer' && currentUser
+    ? pets.filter((p) => {
+        const ownerMatch = p.ownerId && (p.ownerId === currentUser._id || p.ownerId._id === currentUser._id);
+        const nameMatch = p.ownerName && currentUser.name && p.ownerName.toLowerCase() === currentUser.name.toLowerCase();
+        const phoneMatch = p.ownerPhone && currentUser.phone && p.ownerPhone === currentUser.phone;
+        return ownerMatch || nameMatch || phoneMatch;
+      })
+    : pets;
+
+  // KPI Metrics
+  const totalPatientsCount = role === 'customer' ? customerPets.length : pets.length;
   const lowStockCount = products.filter((p) => p.stockQuantity <= 5).length;
   const activeBookingsCount = bookings.filter((b) => b.status !== 'Cancelled').length;
   const totalRevenue = invoices.reduce((acc, inv) => acc + (inv.finalTotal || inv.totalAmount || 0), 0);
@@ -583,35 +615,43 @@ function App() {
     if (activeTab === 'pharmacy') setProductSearch(productSearch);
   };
 
-  // Dynamic Navigation Tabs Based on RBAC Role
-  const role = currentUser?.role ? currentUser.role.toLowerCase() : 'guest';
-
+  // Dynamic Navigation Tabs Based on Role (POS eliminated from Customer)
   const getNavTabs = () => {
     if (role === 'customer') {
       return [
         { id: 'pets', label: '🐾 My Pets', count: totalPatientsCount },
         { id: 'appointments', label: '📅 Book Appointment', count: activeBookingsCount },
-        { id: 'pharmacy', label: '🛒 Pet Pharmacy Store', count: products.length },
-        { id: 'pos', label: `🧾 My Orders & Cart (${cartItemCount})`, count: invoices.length }
+        { id: 'pharmacy', label: '🛒 Pet Store & Pharmacy', count: products.length },
+        { id: 'orders', label: `🧾 My Invoices & Orders (${invoices.length})`, count: invoices.length }
       ];
     }
     if (role === 'inventory_officer') {
       return [
-        { id: 'pharmacy', label: '💊 Pharmacy & Stock Management', count: products.length }
+        { id: 'pharmacy', label: '💊 Pharmacy & Stock Management', count: products.length },
+        { id: 'pos', label: '💳 Inventory POS & Invoices' }
       ];
     }
     if (role === 'staff') {
       return [
         { id: 'pets', label: '🐕 Patients & Medical Records', count: totalPatientsCount },
-        { id: 'appointments', label: '📅 Appointments & Calendar', count: activeBookingsCount }
+        { id: 'appointments', label: '📅 Appointments & Calendar', count: activeBookingsCount },
+        { id: 'pharmacy', label: '💊 Pharmacy Catalog', count: products.length }
       ];
     }
-    // Admin & Guest default view
+    if (role === 'admin') {
+      return [
+        { id: 'pets', label: `🐕 Patients & Pets (${totalPatientsCount})` },
+        { id: 'pharmacy', label: `💊 Pharmacy & Stock (${products.length})` },
+        { id: 'appointments', label: `📅 Appointments (${activeBookingsCount})` },
+        { id: 'pos', label: `💳 POS Cashier Terminal` }
+      ];
+    }
+    // Guest Default
     return [
       { id: 'pets', label: `🐕 Patients & Pets (${totalPatientsCount})` },
-      { id: 'pharmacy', label: `💊 Pharmacy & Stock (${products.length})` },
+      { id: 'pharmacy', label: `🛒 Pet Store & Pharmacy (${products.length})` },
       { id: 'appointments', label: `📅 Appointments (${activeBookingsCount})` },
-      { id: 'pos', label: `💳 POS Terminal (Cart: ${cartItemCount})` }
+      { id: 'orders', label: `🛍️ Storefront Cart (${cartItemCount})` }
     ];
   };
 
@@ -619,9 +659,11 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-teal-50/50 to-amber-50/40 dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-teal-950 text-slate-800 dark:text-slate-100 font-sans selection:bg-teal-600 selection:text-white transition-colors duration-500">
-      {/* 1. Ocean Teal Top Header Bar */}
+      
+      {/* 1. TOP HEADER BAR */}
       <header className="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950 text-white shadow-lg border-b border-teal-600/40 dark:border-emerald-500/20 transition-colors sticky top-0 z-50 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-3">
+          
           {/* Logo & Brand Identity */}
           <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
             <div className="flex items-center gap-2.5">
@@ -635,7 +677,9 @@ function App() {
                     PRO
                   </span>
                 </h1>
-                <p className="text-xs text-teal-100 dark:text-slate-400 font-medium">Veterinary Hospital & E-Commerce Care Platform</p>
+                <p className="text-xs text-teal-100 dark:text-slate-400 font-medium">
+                  Veterinary Hospital & Multi-Species E-Commerce Platform
+                </p>
               </div>
             </div>
 
@@ -643,7 +687,7 @@ function App() {
             <div className="flex items-center gap-2 md:hidden">
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-xl bg-teal-800 dark:bg-slate-800 text-amber-300 border border-teal-600/40"
+                className="p-2 rounded-xl bg-teal-800 dark:bg-slate-800 text-amber-300 border border-teal-600/40 cursor-pointer"
                 title="Toggle Theme"
               >
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -651,7 +695,7 @@ function App() {
             </div>
           </div>
 
-          {/* Central Search Bar with Warm Yellow Button */}
+          {/* Central Search Bar */}
           <form onSubmit={handleGlobalSearchSubmit} className="flex items-center gap-2 w-full md:w-auto max-w-md">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -668,30 +712,45 @@ function App() {
             </div>
             <button
               type="submit"
-              className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1 transition-all shadow-md shadow-amber-400/20 cursor-pointer"
+              className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-all duration-200 shadow-md shadow-amber-400/20 active:scale-95 cursor-pointer shrink-0"
             >
               Search
             </button>
           </form>
 
-          {/* Top Right Header Controls & Authentication */}
-          <div className="hidden lg:flex items-center gap-3 text-xs">
-            <div className="flex items-center gap-1.5 bg-teal-900/60 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/40 dark:border-slate-700 shadow-xs">
+          {/* Right Header Controls */}
+          <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
+            {/* Phone Hot-line */}
+            <div className="hidden xl:flex items-center gap-1.5 bg-teal-900/60 dark:bg-slate-800 px-3 py-1.5 rounded-full text-xs font-bold text-teal-100 dark:text-slate-300 border border-teal-600/40 dark:border-slate-700 shadow-xs">
               <Phone className="w-3.5 h-3.5 text-amber-300" />
               <span>+94 11 234 5678</span>
             </div>
 
+            {/* Shopping Cart Shortcut Button */}
+            <button
+              onClick={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to view your cart and checkout.')}
+              className="relative p-2 rounded-xl bg-teal-900/60 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/40 dark:border-slate-700 flex items-center gap-1.5 shadow-xs"
+              title="Shopping Bag & Checkout"
+            >
+              <ShoppingCart className="w-4 h-4 text-amber-300" />
+              {cartItemCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-mono font-black text-[10px]">
+                  {cartItemCount}
+                </span>
+              )}
+            </button>
+
             {/* Theme Toggler (Sun / Moon) */}
             <button
               onClick={toggleTheme}
-              className="p-1.5 rounded-full bg-teal-900/60 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/40 dark:border-slate-700 flex items-center justify-center shadow-xs"
+              className="p-2 rounded-xl bg-teal-900/60 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/40 dark:border-slate-700 flex items-center justify-center shadow-xs"
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300 animate-spin-slow" /> : <Moon className="w-4 h-4 text-teal-100" />}
             </button>
 
             {/* Live Server Status Radar Ping */}
-            <div className="flex items-center gap-1.5 bg-teal-900/60 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/40 dark:border-slate-700 shadow-xs">
+            <div className="hidden sm:flex items-center gap-1.5 bg-teal-900/60 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/40 dark:border-slate-700 shadow-xs">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -706,7 +765,7 @@ function App() {
                   <span className="text-sm">
                     {role === 'admin' ? '👑' : role === 'staff' ? '🩺' : role === 'inventory_officer' ? '📦' : '👤'}
                   </span>
-                  <span className="font-bold text-xs truncate max-w-[110px]">{currentUser.name || currentUser.email}</span>
+                  <span className="font-bold text-xs truncate max-w-[110px]">{currentUser.name || currentUser.email || currentUser.phone}</span>
                   <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-300 uppercase font-mono font-bold">
                     {role === 'inventory_officer' ? 'INVENTORY' : role}
                   </span>
@@ -733,7 +792,7 @@ function App() {
         </div>
       </header>
 
-      {/* 2. Secondary Navigation Bar (Role-Adaptive Module Tabs) */}
+      {/* 2. SECONDARY NAVIGATION BAR (ROLE-ADAPTIVE TABS) */}
       <nav className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-teal-100/80 dark:border-slate-800 shadow-sm sticky top-[61px] z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto py-2.5 gap-2 text-xs font-semibold">
           {navTabs.map((tab) => (
@@ -767,6 +826,7 @@ function App() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+        
         {/* 3. DYNAMIC HERO PHOTO CAROUSEL BANNER */}
         <div className="relative rounded-3xl overflow-hidden shadow-2xl min-h-[320px] md:min-h-[360px] flex items-center border border-teal-100/50 dark:border-emerald-500/20">
           {heroSlides.map((slide, index) => (
@@ -785,38 +845,42 @@ function App() {
             </div>
           ))}
 
-          {/* Carousel Left / Right Navigation Chevrons */}
+          {/* Chevrons */}
           <button
             onClick={prevHeroSlide}
-            className="absolute left-3 md:left-5 z-20 hover:scale-110 transition-all bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-xs cursor-pointer border border-white/20"
-            title="Previous Slide"
+            className="absolute left-4 z-20 p-2.5 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white backdrop-blur-md border border-white/20 transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
+            title="Previous slide"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={nextHeroSlide}
-            className="absolute right-3 md:right-5 z-20 hover:scale-110 transition-all bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-xs cursor-pointer border border-white/20"
-            title="Next Slide"
+            className="absolute right-4 z-20 p-2.5 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white backdrop-blur-md border border-white/20 transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
+            title="Next slide"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
 
           {/* Hero Content Overlay */}
-          <div className="relative z-20 p-6 md:p-10 max-w-2xl text-white space-y-3">
-            <span className="inline-block bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-[10px] px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
-              {heroSlides[currentHeroSlide].tag}
+          <div className="relative z-20 max-w-2xl px-6 md:px-12 py-8 space-y-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-400 text-slate-950 shadow-md">
+              <Sparkles className="w-3.5 h-3.5" />
+              {heroSlides[currentHeroSlide].badge}
             </span>
-            <h2 className="text-2xl md:text-3xl font-black leading-tight drop-shadow-sm">
+
+            <h2 className="text-2xl md:text-4xl font-black text-white leading-tight tracking-tight drop-shadow-md">
               {heroSlides[currentHeroSlide].title}
             </h2>
-            <p className="text-xs md:text-sm text-teal-100 max-w-lg font-medium drop-shadow-xs">
+
+            <p className="text-xs md:text-sm text-teal-100 font-medium leading-relaxed drop-shadow-sm max-w-xl">
               {heroSlides[currentHeroSlide].subtitle}
             </p>
 
-            <div className="pt-2 flex flex-wrap gap-2.5">
+            {/* Quick Action Action Buttons with Guest Protection */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={() => handleActionWithAuth(() => setIsPetModalOpen(true), 'Please sign in to register a pet patient.')}
-                className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black py-2.5 px-5 rounded-2xl text-xs shadow-lg shadow-amber-500/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-extrabold py-2.5 px-5 rounded-2xl text-xs transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-400/30"
               >
                 <Plus className="w-4 h-4" /> + Register New Patient
               </button>
@@ -839,7 +903,7 @@ function App() {
             </div>
           </div>
 
-          {/* Bottom Slide Indicator Dots */}
+          {/* Dots */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
             {heroSlides.map((_, idx) => (
               <button
@@ -856,7 +920,7 @@ function App() {
           </div>
         </div>
 
-        {/* 4. Circular Quick-Access Service Circles (Rebalanced to 5 Cards with Vibrant Distinct Glows) */}
+        {/* 4. 5 CORE SERVICE HUBS (POS ELIMINATED FROM CUSTOMER VIEW) */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -867,7 +931,7 @@ function App() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {/* Circle 1: Canine (Sunset Amber Glow) */}
+            {/* Hub 1: Canine */}
             <div
               onClick={() => {
                 setActiveTab('pets');
@@ -881,7 +945,7 @@ function App() {
               <span className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-medium">Patients & Profiles</span>
             </div>
 
-            {/* Circle 2: Feline (Coral Rose Glow) */}
+            {/* Hub 2: Feline */}
             <div
               onClick={() => {
                 setActiveTab('pets');
@@ -895,7 +959,7 @@ function App() {
               <span className="text-[10px] text-rose-800/80 dark:text-rose-400/80 font-medium">Patients & Profiles</span>
             </div>
 
-            {/* Circle 3: Pharmacy (Neon Emerald Glow) */}
+            {/* Hub 3: Pet Pharmacy */}
             <div
               onClick={() => {
                 setActiveTab('pharmacy');
@@ -906,10 +970,10 @@ function App() {
             >
               <span className="text-3xl drop-shadow-sm">💊</span>
               <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Pet Pharmacy</span>
-              <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Meds & Stock</span>
+              <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Meds & Vaccines</span>
             </div>
 
-            {/* Circle 4: Consultations (Cyan Blue Glow) */}
+            {/* Hub 4: Consultations */}
             <div
               onClick={() => {
                 setActiveTab('appointments');
@@ -919,145 +983,189 @@ function App() {
             >
               <span className="text-3xl drop-shadow-sm">🩺</span>
               <span className="text-xs font-black text-cyan-950 dark:text-cyan-200">Consultations</span>
-              <span className="text-[10px] text-cyan-800/80 dark:text-cyan-400/80 font-medium">Vet Clinical Slots</span>
+              <span className="text-[10px] text-cyan-800/80 dark:text-cyan-400/80 font-medium">Doctor Calendar</span>
             </div>
 
-            {/* Circle 5: POS & Retail (Violet Purple Glow) */}
-            <div
-              onClick={() => {
-                setActiveTab('pos');
-                scrollToContent();
-              }}
-              className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
-            >
-              <span className="text-3xl drop-shadow-sm">🏷️</span>
-              <span className="text-xs font-black text-purple-950 dark:text-purple-200">POS & Retail</span>
-              <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Checkout Sales</span>
-            </div>
+            {/* Hub 5: Storefront / Orders for Customer; POS for Admin */}
+            {role === 'customer' || role === 'guest' ? (
+              <div
+                onClick={() => {
+                  setActiveTab('pharmacy');
+                  setPharmacySubTab('showcase');
+                  scrollToContent();
+                }}
+                className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              >
+                <span className="text-3xl drop-shadow-sm">🛍️</span>
+                <span className="text-xs font-black text-purple-950 dark:text-purple-200">Pet Store & Cart</span>
+                <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Shop Medicines & Care</span>
+              </div>
+            ) : (
+              <div
+                onClick={() => {
+                  setActiveTab('pos');
+                  scrollToContent();
+                }}
+                className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+              >
+                <span className="text-3xl drop-shadow-sm">🏷️</span>
+                <span className="text-xs font-black text-purple-950 dark:text-purple-200">POS & Retail</span>
+                <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Checkout Cashier</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* 5. TOP KPI METRICS BAR (Vibrant Colored Glass Surfaces) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div
-            onClick={() => {
-              setActiveTab('pets');
-              scrollToContent();
-            }}
-            className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-teal-100/80 dark:border-slate-800 shadow-md hover:shadow-xl hover:border-teal-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex items-center justify-between"
-          >
+        {/* 5. KPI METRICS RIBBON */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">
+              🐕
+            </div>
             <div>
-              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+              <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
                 {role === 'customer' ? 'My Registered Pets' : 'Registered Patients'}
-              </span>
-              <span className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-1 block">
+              </p>
+              <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">
                 {totalPatientsCount}
-              </span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500/20 to-emerald-500/20 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 flex items-center justify-center font-bold">
-              <PawPrint className="w-5 h-5" />
+              </h4>
             </div>
           </div>
 
-          <div
-            onClick={() => {
-              setActiveTab('pharmacy');
-              setPharmacySubTab('inventory');
-              scrollToContent();
-            }}
-            className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-amber-100/80 dark:border-slate-800 shadow-md hover:shadow-xl hover:border-amber-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex items-center justify-between"
-          >
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">
+              💊
+            </div>
             <div>
-              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+              <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
                 {role === 'customer' ? 'Catalog Medications' : 'Low Stock Items'}
-              </span>
-              <span className={`text-2xl font-black font-mono mt-1 block ${lowStockCount > 0 ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>
+              </p>
+              <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">
                 {role === 'customer' ? products.length : lowStockCount}
-              </span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center font-bold">
-              <Package className="w-5 h-5" />
+              </h4>
             </div>
           </div>
 
-          <div
-            onClick={() => {
-              setActiveTab('appointments');
-              scrollToContent();
-            }}
-            className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-blue-100/80 dark:border-slate-800 shadow-md hover:shadow-xl hover:border-blue-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex items-center justify-between"
-          >
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 flex items-center justify-center text-xl shadow-xs">
+              📅
+            </div>
             <div>
-              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+              <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
                 {role === 'customer' ? 'My Appointments' : 'Active Appointments'}
-              </span>
-              <span className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-1 block">
+              </p>
+              <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">
                 {activeBookingsCount}
-              </span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-cyan-500/20 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center font-bold">
-              <Calendar className="w-5 h-5" />
+              </h4>
             </div>
           </div>
 
-          <div
-            onClick={() => {
-              setActiveTab('pos');
-              scrollToContent();
-            }}
-            className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-purple-100/80 dark:border-slate-800 shadow-md hover:shadow-xl hover:border-purple-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex items-center justify-between"
-          >
-            <div>
-              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
-                {role === 'customer' ? 'Orders Placed' : 'Total Sales Revenue'}
-              </span>
-              <span className="text-2xl font-black text-purple-600 dark:text-purple-400 font-mono mt-1 block">
-                {role === 'customer' ? `${invoices.length} Orders` : `Rs. ${totalRevenue.toFixed(2)}`}
-              </span>
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 flex items-center justify-center text-xl shadow-xs">
+              🧾
             </div>
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-500/20 to-pink-500/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 flex items-center justify-center font-bold">
-              <TrendingUp className="w-5 h-5" />
+            <div>
+              <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
+                {role === 'customer' ? 'Orders Placed' : 'Total Clinic Revenue'}
+              </p>
+              <h4 className="text-xl font-black text-slate-800 dark:text-white font-mono">
+                {role === 'customer' ? `${invoices.length} Orders` : `Rs. ${totalRevenue.toFixed(2)}`}
+              </h4>
             </div>
           </div>
         </div>
 
-        {/* 6. EYE-CATCHING E-COMMERCE PRODUCTS SHOWCASE (PROMINENT STOREFRONT) */}
+        {/* 6. EYE-CATCHING E-COMMERCE PRODUCTS SHOWCASE */}
         {(role === 'customer' || role === 'guest') && (
           <ProductShowcase
             products={products}
             onAddToCart={handleAddToCart}
             onQuickBuy={handleQuickBuy}
-            title="Featured Pet Medications & Essentials Store"
-            subtitle="Browse authentic veterinary pharmaceuticals, nutritional feeds & accessories. Instant purchase with LKR pricing."
+            cartCount={cartItemCount}
+            onOpenCart={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to view your cart.')}
+            title="Featured Pet Medications & Essentials Storefront"
+            subtitle="Explore veterinary prescription pharmaceuticals, nutritional feeds & accessories. Instant purchase with LKR pricing."
           />
         )}
 
         {/* 7. MAIN CONTENT PANELS */}
         <div ref={mainContentRef} className="pt-2">
-          {/* PATIENTS & PET PROFILES */}
+          
+          {/* TAB: PATIENTS & PET PROFILES */}
           {activeTab === 'pets' && (
-            <div className="space-y-8 animate-fadeIn">
-              <PetList
-                pets={pets}
-                onDelete={handleDeletePet}
-                onArchivePet={handleArchivePet}
-                onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
-                onUpdateClinicStatus={handleUpdateClinicStatus}
-                onAddMedicalLog={handleAddMedicalLog}
-                searchTerm={petSearch}
-                setSearchTerm={setPetSearch}
-                speciesFilter={petSpeciesFilter}
-                setSpeciesFilter={setPetSpeciesFilter}
-                includeArchived={includeArchivedPets}
-                setIncludeArchived={setIncludeArchivedPets}
-              />
+            <div className="space-y-6 animate-fadeIn">
+              {/* Customer Top Bar */}
+              {role === 'customer' && (
+                <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center text-2xl shadow-md">
+                      🐾
+                    </div>
+                    <div>
+                      <h2 className="text-base font-black text-slate-900 dark:text-white">
+                        My Pet Patients ({customerPets.length})
+                      </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Personalized health records, vaccination schedules & printable health passports.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPetModalOpen(true)}
+                    className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Add New Pet</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Welcoming Banner for Customer with 0 pets */}
+              {role === 'customer' && customerPets.length === 0 ? (
+                <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-10 rounded-3xl border-2 border-dashed border-teal-200 dark:border-slate-800 shadow-xl text-center space-y-4 max-w-2xl mx-auto">
+                  <div className="w-16 h-16 rounded-3xl bg-teal-50 dark:bg-teal-950/80 text-teal-600 dark:text-teal-300 flex items-center justify-center mx-auto border border-teal-200 dark:border-teal-800 shadow-md">
+                    <PawPrint className="w-8 h-8 animate-bounce" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                      You haven't added any pets yet! 🐾
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                      Welcome to 4 Paw Animal Clinic! Index your dogs, cats, birds, or exotic family members to unlock digital health passports and vaccination tracking.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPetModalOpen(true)}
+                    className="py-3 px-6 rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs inline-flex items-center gap-2 shadow-lg shadow-teal-700/20 active:scale-95 cursor-pointer transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Register Your First Pet</span>
+                  </button>
+                </div>
+              ) : (
+                <PetList
+                  pets={customerPets}
+                  onDelete={handleDeletePet}
+                  onArchivePet={handleArchivePet}
+                  onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
+                  onUpdateClinicStatus={handleUpdateClinicStatus}
+                  onAddMedicalLog={handleAddMedicalLog}
+                  searchTerm={petSearch}
+                  setSearchTerm={setPetSearch}
+                  speciesFilter={petSpeciesFilter}
+                  setSpeciesFilter={setPetSpeciesFilter}
+                  includeArchived={includeArchivedPets}
+                  setIncludeArchived={setIncludeArchivedPets}
+                />
+              )}
             </div>
           )}
 
-          {/* PHARMACY & INVENTORY */}
+          {/* TAB: PHARMACY & INVENTORY */}
           {activeTab === 'pharmacy' && (
             <div className="space-y-6 animate-fadeIn">
-              {/* Subtabs for Staff/Admin/Inventory Officer */}
               {role !== 'customer' && (
                 <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit flex-wrap">
                   <button
@@ -1110,21 +1218,22 @@ function App() {
                 </div>
               )}
 
-              {/* View 1: Customer Storefront Showcase */}
+              {/* View: Customer Storefront Showcase */}
               {(pharmacySubTab === 'showcase' || role === 'customer') && (
                 <ProductShowcase
                   products={products}
                   onAddToCart={handleAddToCart}
                   onQuickBuy={handleQuickBuy}
+                  cartCount={cartItemCount}
+                  onOpenCart={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to view your cart.')}
                 />
               )}
 
-              {/* View 2: Inventory Catalog Management Table */}
+              {/* View: Internal Medicine Directory */}
               {pharmacySubTab === 'inventory' && role !== 'customer' && (
                 <InventoryList
                   products={products}
                   onDelete={handleDeleteProduct}
-                  onEdit={(item) => alert(`Edit ${item.itemName}`)}
                   onAdjustStock={handleAdjustStock}
                   searchTerm={productSearch}
                   setSearchTerm={setProductSearch}
@@ -1133,15 +1242,17 @@ function App() {
                 />
               )}
 
+              {/* View: Supplier Directory */}
               {pharmacySubTab === 'suppliers' && (
                 <SupplierDirectory
                   suppliers={suppliers}
-                  onAddSupplier={handleAddSupplier}
+                  onCreateSupplier={handleCreateSupplier}
                   onUpdateSupplier={handleUpdateSupplier}
                   onDeleteSupplier={handleDeleteSupplier}
                 />
               )}
 
+              {/* View: Expiry Tracker */}
               {pharmacySubTab === 'expiry' && (
                 <ExpiryTracker
                   expiringProducts={expiringProducts}
@@ -1152,10 +1263,9 @@ function App() {
             </div>
           )}
 
-          {/* APPOINTMENT SCHEDULING */}
+          {/* TAB: APPOINTMENT SCHEDULING */}
           {activeTab === 'appointments' && (
             <div className="space-y-6 animate-fadeIn">
-              {/* Doctor Day Calendar Subtab (for Admin & Staff) */}
               {role !== 'customer' && (
                 <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
                   <button
@@ -1202,10 +1312,45 @@ function App() {
             </div>
           )}
 
-          {/* POS & INVOICING */}
-          {activeTab === 'pos' && (
+          {/* TAB: CUSTOMER ORDERS & INVOICES (CUSTOMER & GUEST VIEW) */}
+          {(activeTab === 'orders' || (activeTab === 'pos' && role === 'customer')) && (
             <div className="space-y-6 animate-fadeIn">
-              {/* POS Sub-Navigation Switcher (Analytics hidden for Customer) */}
+              <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-6 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-700 text-white flex items-center justify-center text-xl shadow-md">
+                    🛍️
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                      My Clinical Invoices & Shopping Cart
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      You currently have <span className="font-bold text-teal-600 dark:text-teal-400">{cartItemCount} item(s)</span> in your shopping bag.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to proceed with checkout.')}
+                  className="w-full sm:w-auto py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 active:scale-95 transition-all cursor-pointer"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>Proceed to Storefront Checkout ({cartItemCount})</span>
+                </button>
+              </div>
+
+              <InvoiceList
+                invoices={invoices}
+                paymentFilter={invoicePaymentFilter}
+                setPaymentFilter={setInvoicePaymentFilter}
+              />
+            </div>
+          )}
+
+          {/* TAB: POS CASHIER TERMINAL (ADMIN / STAFF / INVENTORY OFFICER ONLY) */}
+          {activeTab === 'pos' && role !== 'customer' && (
+            <div className="space-y-6 animate-fadeIn">
               {role === 'admin' && (
                 <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
                   <button
@@ -1216,7 +1361,7 @@ function App() {
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
-                    <span>🛒</span> POS Terminal & Cart ({cartItemCount})
+                    <span>🛒</span> POS Cashier Register ({cartItemCount})
                   </button>
 
                   <button
@@ -1246,6 +1391,8 @@ function App() {
                   <InvoiceList
                     invoices={invoices}
                     onVoidInvoice={handleVoidInvoice}
+                    paymentFilter={invoicePaymentFilter}
+                    setPaymentFilter={setInvoicePaymentFilter}
                   />
                 </div>
               ) : (
@@ -1280,7 +1427,7 @@ function App() {
       {/* 3. Appointment Booking Modal */}
       {isBookingModalOpen && (
         <BookingForm
-          pets={pets}
+          pets={customerPets}
           onSubmit={handleCreateBooking}
           isLoading={isBookingLoading}
           isModal={true}
@@ -1292,7 +1439,7 @@ function App() {
         />
       )}
 
-      {/* 4. RBAC Authentication Modal */}
+      {/* 4. RBAC & Dual-Identifier Multi-Pet Authentication Modal */}
       {isAuthModalOpen && (
         <AuthModal
           isOpen={isAuthModalOpen}
@@ -1302,6 +1449,25 @@ function App() {
             setPendingAction(null);
           }}
           onLoginSuccess={handleLoginSuccess}
+        />
+      )}
+
+      {/* 5. Customer Storefront Checkout Modal */}
+      {isCheckoutModalOpen && (
+        <CustomerCheckoutModal
+          isOpen={isCheckoutModalOpen}
+          onClose={() => setIsCheckoutModalOpen(false)}
+          cartItems={cartItems}
+          onUpdateQuantity={handleUpdateCartQuantity}
+          onRemoveItem={handleRemoveCartItem}
+          onClearCart={() => setCartItems([])}
+          currentUser={currentUser}
+          onRequireAuth={handleActionWithAuth}
+          onOrderSuccess={(order) => {
+            showToast(`Order #${order.invoiceNumber} placed successfully!`);
+            loadInvoices();
+            loadProducts();
+          }}
         />
       )}
     </div>

@@ -68,6 +68,11 @@ const petSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Weight cannot be negative']
     },
+    gender: {
+      type: String,
+      enum: ['Male', 'Female', 'Unknown'],
+      default: 'Male'
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

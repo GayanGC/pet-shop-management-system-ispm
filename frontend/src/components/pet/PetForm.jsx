@@ -83,12 +83,14 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
             onChange={handleChange}
             className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all"
           >
-            <option value="Dog">Canine / Dog 🐶</option>
-            <option value="Cat">Feline / Cat 🐱</option>
+            <option value="Dog">Canine / Dog 🐕</option>
+            <option value="Cat">Feline / Cat 🐈</option>
             <option value="Bird">Avian / Bird 🦜</option>
-            <option value="Fish">Aquatic / Fish 🐠</option>
-            <option value="Reptile">Reptile 🦎</option>
-            <option value="Small Animal">Small Mammal / Rodent 🐹</option>
+            <option value="Small Mammal">Small Mammal / Rabbit 🐇</option>
+            <option value="Primate">Primate / Monkey 🐒</option>
+            <option value="Reptile">Reptile / Amphibian 🐢</option>
+            <option value="Aquatic">Aquatic / Fish 🐠</option>
+            <option value="Farm">Farm & Other 🐐</option>
           </select>
         </div>
 

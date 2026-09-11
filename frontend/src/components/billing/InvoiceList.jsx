@@ -96,13 +96,15 @@ const InvoiceList = ({ invoices = [], onVoidInvoice, paymentFilter, setPaymentFi
                       >
                         <Printer className="w-3 h-3" /> Receipt
                       </button>
-                      <button
-                        onClick={() => onVoidInvoice(inv._id)}
-                        className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
-                        title="Void Invoice & Restore Stock"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {onVoidInvoice && (
+                        <button
+                          onClick={() => onVoidInvoice(inv._id)}
+                          className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                          title="Void Invoice & Restore Stock"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

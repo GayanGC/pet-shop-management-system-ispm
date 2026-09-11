@@ -1,15 +1,16 @@
 /**
  * Authentication Service
  * Communicates with /api/auth endpoints and manages local storage for JWT & active user profile
+ * Supports Dual-Identifier (Email OR Phone Number) and Multi-Pet Registration
  */
 
 import API_BASE_URL, { handleResponse } from './api';
 
-export const login = async (email, password) => {
+export const login = async (identifier, password) => {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ identifier, email: identifier, phone: identifier, password })
   });
   const data = await handleResponse(response);
   const token = data.token || (data.data && data.data.token);
@@ -17,7 +18,9 @@ export const login = async (email, password) => {
     _id: data.data._id,
     name: data.data.name,
     email: data.data.email,
-    role: data.data.role
+    phone: data.data.phone,
+    role: data.data.role,
+    petsCount: data.data.petsCount || 0
   });
 
   if (token) {
@@ -26,14 +29,14 @@ export const login = async (email, password) => {
   if (user) {
     localStorage.setItem('pet_shop_user', JSON.stringify(user));
   }
-  return { token, user };
+  return { token, user, data };
 };
 
-export const register = async (name, email, password, role = 'customer') => {
+export const register = async ({ name, email, phone, password, role = 'customer', initialPets = [] }) => {
   const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password, role })
+    body: JSON.stringify({ name, email, phone, password, role, initialPets })
   });
   const data = await handleResponse(response);
   const token = data.token || (data.data && data.data.token);
@@ -41,7 +44,9 @@ export const register = async (name, email, password, role = 'customer') => {
     _id: data.data._id,
     name: data.data.name,
     email: data.data.email,
-    role: data.data.role
+    phone: data.data.phone,
+    role: data.data.role,
+    petsCount: data.data.petsCount || 0
   });
 
   if (token) {
@@ -50,7 +55,7 @@ export const register = async (name, email, password, role = 'customer') => {
   if (user) {
     localStorage.setItem('pet_shop_user', JSON.stringify(user));
   }
-  return { token, user };
+  return { token, user, createdPets: data.createdPets || [], data };
 };
 
 export const logout = () => {
