@@ -70,3 +70,18 @@ export const fetchPetHealthPassport = async (id) => {
   });
   return handleResponse(res);
 };
+
+export const getAllPets = fetchPets;
+
+const petService = {
+  getAllPets,
+  fetchPets,
+  createPet,
+  updatePet,
+  deletePet,
+  addMedicalLog,
+  archivePet,
+  fetchPetHealthPassport
+};
+
+export default petService;

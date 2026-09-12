@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, UserCheck, FileText, Plus, User, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { fetchDoctorDaySchedule } from '../../services/bookingService';
+import petService, { getAllPets } from '../../services/petService';
 
-const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose, initialData }) => {
+const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose, initialData, prefilledData }) => {
+  const [availablePets, setAvailablePets] = useState(() => {
+    if (Array.isArray(pets) && pets.length > 0) {
+      return pets.filter((p) => !p.isArchived);
+    }
+    return [];
+  });
+
   const [formData, setFormData] = useState({
-    petId: initialData?.petId || '',
-    serviceType: initialData?.serviceType || 'Veterinary Checkup',
-    assignedStaff: initialData?.assignedStaff || 'Dr. Perera (Senior Vet)',
-    appointmentDate: initialData?.appointmentDate || '',
-    timeSlot: initialData?.timeSlot || '09:00 AM',
-    notes: initialData?.notes || ''
+    petId: initialData?.petId || prefilledData?.petId || '',
+    serviceType: initialData?.serviceType || prefilledData?.serviceType || 'Veterinary Checkup',
+    assignedStaff: initialData?.assignedStaff || prefilledData?.assignedStaff || 'Dr. Perera (Senior Vet)',
+    appointmentDate: initialData?.appointmentDate || prefilledData?.appointmentDate || '',
+    timeSlot: initialData?.timeSlot || prefilledData?.timeSlot || '09:00 AM',
+    notes: initialData?.notes || prefilledData?.notes || ''
   });
 
   const [slotSchedule, setSlotSchedule] = useState([]);
@@ -18,13 +26,40 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose, initial
   const workingSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
 
   useEffect(() => {
-    if (initialData) {
+    const loadPetsForBooking = async () => {
+      try {
+        // If pets prop exists and has items, use it
+        if (Array.isArray(pets) && pets.length > 0) {
+          setAvailablePets(pets.filter((p) => !p.isArchived));
+          return;
+        }
+        // Direct fallback fetch
+        const res = await petService.getAllPets();
+        const list = Array.isArray(res) ? res : (res?.data || res?.pets || []);
+        setAvailablePets(list.filter((p) => !p.isArchived));
+      } catch (err) {
+        console.error('Failed to load pets in booking form:', err);
+      }
+    };
+    loadPetsForBooking();
+  }, [pets, isOpen, isModal]);
+
+  useEffect(() => {
+    const data = initialData || prefilledData;
+    if (data) {
       setFormData((prev) => ({
         ...prev,
-        ...initialData
+        ...data,
+        petId: data.petId || prev.petId || ''
       }));
     }
-  }, [initialData]);
+  }, [initialData, prefilledData]);
+
+  const handlePetSelect = (e) => {
+    const selectedId = e.target.value;
+    setFormData((prev) => ({ ...prev, petId: selectedId }));
+    setConflictError('');
+  };
 
   useEffect(() => {
     if (formData.assignedStaff && formData.appointmentDate) {
@@ -107,14 +142,14 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose, initial
           <select
             name="petId"
             value={formData.petId}
-            onChange={handleChange}
+            onChange={handlePetSelect}
             required
-            className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all"
+            className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all cursor-pointer"
           >
             <option value="">-- Choose Registered Pet Patient --</option>
-            {pets.map((pet) => (
+            {availablePets.map((pet) => (
               <option key={pet._id} value={pet._id}>
-                {pet.petName} ({pet.species} - PIN: {pet.uniquePin})
+                {pet.petName} ({pet.uniquePin || pet.petId}) - {pet.species} ({pet.ownerName || pet.ownerId?.name || 'Registered Owner'})
               </option>
             ))}
           </select>
@@ -230,11 +265,11 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, onClose, initial
       <div className="pt-2">
         <button
           type="submit"
-          disabled={isLoading || pets.length === 0}
-          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-3 px-6 rounded-2xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={isLoading || availablePets.length === 0}
+          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-3 px-6 rounded-2xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          {isLoading ? 'Scheduling Appointment...' : pets.length === 0 ? 'Register a Patient First to Book' : 'Confirm & Schedule Appointment'}
+          {isLoading ? 'Scheduling Appointment...' : availablePets.length === 0 ? 'Register a Patient First to Book' : 'Confirm & Schedule Appointment'}
         </button>
       </div>
     </form>

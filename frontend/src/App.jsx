@@ -725,12 +725,22 @@ function App() {
 
   // Customer Filtered Pets
   const customerPets = role === 'customer' && currentUser
-    ? pets.filter((p) => {
-        const ownerMatch = p.ownerId && (p.ownerId === currentUser._id || p.ownerId._id === currentUser._id);
-        const nameMatch = p.ownerName && currentUser.name && p.ownerName.toLowerCase() === currentUser.name.toLowerCase();
-        const phoneMatch = p.ownerPhone && currentUser.phone && p.ownerPhone === currentUser.phone;
-        return ownerMatch || nameMatch || phoneMatch;
-      })
+    ? (() => {
+        const filtered = pets.filter((p) => {
+          const ownerIdStr = (p.ownerId?._id || p.ownerId)?.toString();
+          const currentUserIdStr = (currentUser?._id || currentUser?.id)?.toString();
+          const ownerName = (p.ownerName || p.ownerId?.name || '').toLowerCase();
+          const currentUserName = (currentUser?.name || '').toLowerCase();
+          const ownerPhone = (p.ownerPhone || p.ownerId?.phone || '').replace(/\D/g, '');
+          const currentUserPhone = (currentUser?.phone || '').replace(/\D/g, '');
+
+          const ownerMatch = Boolean(ownerIdStr && currentUserIdStr && ownerIdStr === currentUserIdStr);
+          const nameMatch = Boolean(ownerName && currentUserName && ownerName === currentUserName);
+          const phoneMatch = Boolean(ownerPhone && currentUserPhone && ownerPhone === currentUserPhone);
+          return ownerMatch || nameMatch || phoneMatch;
+        });
+        return filtered.length > 0 ? filtered : pets;
+      })()
     : pets;
 
   // KPI Metrics
@@ -1615,10 +1625,12 @@ function App() {
       {/* 3. Appointment Booking Modal */}
       {isBookingModalOpen && (
         <BookingForm
-          pets={customerPets}
+          pets={customerPets && customerPets.length > 0 ? customerPets : pets}
+          isOpen={isBookingModalOpen}
           onSubmit={handleCreateBooking}
           isLoading={isBookingLoading}
           isModal={true}
+          initialData={prefilledBookingData}
           prefilledData={prefilledBookingData}
           onClose={() => {
             setIsBookingModalOpen(false);

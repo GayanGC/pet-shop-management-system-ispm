@@ -8,6 +8,7 @@
 
 const Pet = require('../models/Pet');
 const Appointment = require('../models/Appointment');
+const User = require('../models/User');
 
 const generatePetPin = () => {
   const randomDigits = Math.floor(1000 + Math.random() * 9000);
@@ -106,7 +107,21 @@ const getAllPets = async (req, res) => {
     // Private Scoping for Customer Role: only see own pets
     const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
     if (isCustomer) {
-      query.ownerId = req.user._id;
+      const customerIds = [req.user._id];
+      if (req.user.phone || req.user.email) {
+        const matchingUsers = await User.find({
+          $or: [
+            ...(req.user.phone ? [{ phone: req.user.phone }] : []),
+            ...(req.user.email ? [{ email: req.user.email }] : [])
+          ]
+        }).select('_id');
+        matchingUsers.forEach((u) => {
+          if (!customerIds.some((cid) => cid.toString() === u._id.toString())) {
+            customerIds.push(u._id);
+          }
+        });
+      }
+      query.ownerId = { $in: customerIds };
     } else if (customerId || ownerId) {
       query.ownerId = customerId || ownerId;
     }
@@ -131,11 +146,20 @@ const getAllPets = async (req, res) => {
       .populate('ownerId', 'name email phone role')
       .sort({ createdAt: -1 });
 
+    const serializedPets = pets.map((p) => {
+      const obj = p.toObject ? p.toObject() : { ...p };
+      obj.ownerName = p.ownerId?.name || obj.ownerName || 'Registered Owner';
+      obj.ownerPhone = p.ownerId?.phone || obj.ownerPhone || '';
+      obj.petId = obj._id;
+      return obj;
+    });
+
     return res.status(200).json({
       success: true,
-      count: pets.length,
+      count: serializedPets.length,
       message: 'Pets fetched successfully',
-      data: pets
+      data: serializedPets,
+      pets: serializedPets
     });
   } catch (error) {
     return res.status(500).json({
