@@ -87,11 +87,11 @@ const CLINICAL_SERVICES = [
     emoji: '🚑'
   },
   {
-    icon: Scissors,
-    title: 'Grooming Spa & Medicated Baths',
-    description: 'Hygienic coat trims, medicated antifungal washes, nail trimming, and parasite control baths for all breeds.',
+    icon: Sparkles,
+    title: 'Veterinary Dentistry & Oral Care',
+    description: 'Ultrasonic dental scaling, tooth polishing, extractions, and periodontal prophylaxis under monitored anesthesia.',
     color: 'from-amber-500 to-orange-600',
-    emoji: '✂️'
+    emoji: '🦷'
   },
   {
     icon: ShoppingCart,
@@ -117,7 +117,7 @@ const DOCTOR_TEAM = [
     degrees: 'BVSc, MSc Clinical Pathology',
     specialty: 'Ultrasound Imaging & Oncology',
     experience: '11+ Years Experience',
-    photo: 'https://images.unsplash.com/photo-1594824813580-c11221bbef78?auto=format&fit=crop&w=400&q=80'
+    photo: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=400&q=80'
   },
   {
     name: 'Dr. Kaveen Silva',
@@ -358,6 +358,10 @@ const GuestClinicOverview = ({
                   <img
                     src={doc.photo}
                     alt={doc.name}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1594824813580-c11221bbef78?auto=format&fit=crop&w=400&q=80';
+                    }}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-white text-[10px] font-bold">

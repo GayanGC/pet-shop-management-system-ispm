@@ -345,6 +345,65 @@ async function runE2ETests() {
   }
 
   // ============================================================================
+  // TEST SUITE 6: RBAC 5-ROLE AUTHENTICATION & CUSTOMER DIRECTORY API
+  // ============================================================================
+  try {
+    info("SUITE 6: RBAC 5-Role Authentication & Customer Directory API");
+
+    // 6.1 Customer Directory Endpoint
+    const custRes = await fetch(`${BASE_URL}/users/customers`);
+    const custData = await custRes.json();
+
+    if (custRes.status === 200 && custData.success && Array.isArray(custData.data)) {
+      pass(`Customer Directory Endpoint returned ${custData.data.length} registered client profile(s) with associated pets`);
+      totalPassed++;
+    } else {
+      fail(`Customer directory endpoint failed`, JSON.stringify(custData));
+      totalFailed++;
+    }
+
+    // 6.2 5-Role Authentication Verification
+    const rolesToTest = [
+      { role: 'admin', identifier: 'admin@4paw.lk', password: 'admin123' },
+      { role: 'staff', identifier: 'staff@4paw.lk', password: 'staff123' },
+      { role: 'inventory_officer', identifier: 'inventory@4paw.lk', password: 'inv123' },
+      { role: 'customer', identifier: 'customer@gmail.com', password: 'customer123' },
+      { role: 'cashier', identifier: 'cashier@4paw.lk', password: 'cashier123' }
+    ];
+
+    let allRolesPassed = true;
+    for (const acc of rolesToTest) {
+      const loginRes = await fetch(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: acc.identifier,
+          password: acc.password
+        })
+      });
+      const loginData = await loginRes.json();
+
+      if (loginRes.status === 200 && (loginData.token || loginData.data?.token)) {
+        // ok
+      } else {
+        allRolesPassed = false;
+        fail(`Role login failed for ${acc.role} (${acc.identifier})`, JSON.stringify(loginData));
+      }
+    }
+
+    if (allRolesPassed) {
+      pass(`All 5 system roles verified (Admin, Staff, Inventory Officer, Customer, Cashier)`);
+      totalPassed++;
+    } else {
+      totalFailed++;
+    }
+
+  } catch (err) {
+    fail(`Suite 6 exception: ${err.message}`);
+    totalFailed++;
+  }
+
+  // ============================================================================
   // TEARDOWN & TEST DATA CLEANUP
   // ============================================================================
   try {

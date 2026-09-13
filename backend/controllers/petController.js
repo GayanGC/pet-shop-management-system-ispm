@@ -53,7 +53,13 @@ const createPet = async (req, res) => {
       }
     }
 
-    const targetOwner = ownerId || (req.user ? req.user._id : null);
+    let targetOwner = ownerId || (req.user ? req.user._id : null);
+    if (!targetOwner) {
+      // Fallback to customer or default user if available
+      const defaultUser = await User.findOne({ role: { $in: ['customer', 'Customer'] } }) || await User.findOne();
+      targetOwner = defaultUser ? defaultUser._id : null;
+    }
+
     if (!targetOwner) {
       return res.status(400).json({
         success: false,
@@ -75,12 +81,13 @@ const createPet = async (req, res) => {
       medicalLogs: []
     });
 
-    await pet.populate('ownerId', 'name email phone role');
+    await pet.populate('ownerId', 'name email phone address role');
 
     const petObj = pet.toObject ? pet.toObject() : { ...pet };
     petObj.ownerName = pet.ownerId?.name || 'Registered Owner';
     petObj.ownerPhone = pet.ownerId?.phone || '';
     petObj.ownerEmail = pet.ownerId?.email || '';
+    petObj.ownerAddress = pet.ownerId?.address || '';
     petObj.petId = petObj._id;
 
     return res.status(201).json({
@@ -150,13 +157,15 @@ const getAllPets = async (req, res) => {
     }
 
     const pets = await Pet.find(query)
-      .populate('ownerId', 'name email phone role')
+      .populate('ownerId', 'name email phone address role')
       .sort({ createdAt: -1 });
 
     const serializedPets = pets.map((p) => {
       const obj = p.toObject ? p.toObject() : { ...p };
       obj.ownerName = p.ownerId?.name || obj.ownerName || 'Registered Owner';
       obj.ownerPhone = p.ownerId?.phone || obj.ownerPhone || '';
+      obj.ownerEmail = p.ownerId?.email || obj.ownerEmail || '';
+      obj.ownerAddress = p.ownerId?.address || obj.ownerAddress || '';
       obj.petId = obj._id;
       return obj;
     });
@@ -180,7 +189,7 @@ const getAllPets = async (req, res) => {
 const getPetById = async (req, res) => {
   try {
     const pet = await Pet.findOne({ _id: req.params.id, isArchived: false })
-      .populate('ownerId', 'name email role');
+      .populate('ownerId', 'name email phone address role');
 
     if (!pet) {
       return res.status(404).json({
@@ -384,7 +393,7 @@ const archivePet = async (req, res) => {
  */
 const getPetHealthSummary = async (req, res) => {
   try {
-    const pet = await Pet.findById(req.params.id).populate('ownerId', 'name email phone role');
+    const pet = await Pet.findById(req.params.id).populate('ownerId', 'name email phone address role');
 
     if (!pet) {
       return res.status(404).json({

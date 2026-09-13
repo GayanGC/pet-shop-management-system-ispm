@@ -18,8 +18,10 @@ const Supplier = require('./models/Supplier');
 const Appointment = require('./models/Appointment');
 const Invoice = require('./models/Invoice');
 
-// Load environment variables
-dotenv.config();
+const path = require('path');
+
+// Load environment variables from backend/.env explicitly
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/pet_shop_db';
 

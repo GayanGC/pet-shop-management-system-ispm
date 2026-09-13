@@ -30,6 +30,8 @@ import {
 
 import PetForm from './components/pet/PetForm';
 import PetList from './components/pet/PetList';
+import ClientDirectory from './components/pet/ClientDirectory';
+import PrintableHealthPassportModal from './components/pet/PrintableHealthPassportModal';
 import ProductForm from './components/inventory/ProductForm';
 import InventoryList from './components/inventory/InventoryList';
 import ProductShowcase from './components/inventory/ProductShowcase';
@@ -48,6 +50,7 @@ import GuestClinicOverview from './components/guest/GuestClinicOverview';
 
 import { getCurrentUser, logout, login } from './services/authService';
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
+import { fetchCustomers } from './services/userService';
 import productService, { fetchProducts as fetchProductsApi, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
 import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
@@ -237,6 +240,11 @@ function App() {
   const [posSubTab, setPosSubTab] = useState('terminal');
   const [bookingSubTab, setBookingSubTab] = useState('directory');
   const [pharmacySubTab, setPharmacySubTab] = useState('showcase'); // 'showcase' | 'inventory' | 'suppliers' | 'expiry'
+  const [adminPetSubTab, setAdminPetSubTab] = useState('pets'); // 'pets' | 'clients'
+  const [customers, setCustomers] = useState([]);
+  const [isCustomersLoading, setIsCustomersLoading] = useState(false);
+  const [selectedPassportPet, setSelectedPassportPet] = useState(null);
+  const [isPassportModalOpen, setIsPassportModalOpen] = useState(false);
   const [prefilledBookingData, setPrefilledBookingData] = useState(null);
   const [notification, setNotification] = useState({ message: '', type: '' });
 
@@ -551,17 +559,36 @@ function App() {
     }
   };
   const loadInvoices = fetchInvoices;
+
+  const loadCustomers = async () => {
+    setIsCustomersLoading(true);
+    try {
+      const data = await fetchCustomers();
+      setCustomers(data.data || data.customers || []);
+    } catch (err) {
+      console.error('Error loading customers:', err);
+    } finally {
+      setIsCustomersLoading(false);
+    }
+  };
   
   const fetchInitialData = () => {
     fetchProducts();
     loadPets();
     loadBookings();
     loadInvoices();
+    loadCustomers();
   };
 
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  useEffect(() => {
+    if (role === 'admin' || role === 'staff') {
+      loadCustomers();
+    }
+  }, [role]);
 
   useEffect(() => {
     loadPets();
@@ -1755,44 +1782,90 @@ function App() {
               {/* TAB: PATIENTS & PET PROFILES (STAFF & ADMIN ONLY) */}
               {activeTab === 'pets' && (role === 'admin' || role === 'staff') && (
                 <div className="space-y-6 animate-fadeIn">
-                  <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center text-2xl shadow-md">
-                        🐾
-                      </div>
-                      <div>
-                        <h2 className="text-base font-black text-slate-900 dark:text-white">
-                          Hospital Registered Patients ({pets.length})
-                        </h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Master electronic clinical records, vaccination passports, and doctor consult notes.
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsPetModalOpen(true)}
-                      className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>+ Register New Patient</span>
-                    </button>
-                  </div>
+                  {/* View Toggler for Admin: [ 🐾 All Patients & Pets ] | [ 👥 Registered Clients & Pet Parents ] */}
+                  {role === 'admin' && (
+                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
+                      <button
+                        type="button"
+                        onClick={() => setAdminPetSubTab('pets')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          adminPetSubTab === 'pets'
+                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span>🐾</span> All Patients & Pets ({pets.length})
+                      </button>
 
-                  <PetList
-                    pets={pets}
-                    onDelete={role === 'admin' ? handleDeletePet : null}
-                    onArchivePet={handleArchivePet}
-                    onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
-                    onUpdateClinicStatus={handleUpdateClinicStatus}
-                    onAddMedicalLog={handleAddMedicalLog}
-                    searchTerm={petSearch}
-                    setSearchTerm={setPetSearch}
-                    speciesFilter={petSpeciesFilter}
-                    setSpeciesFilter={setPetSpeciesFilter}
-                    includeArchived={includeArchivedPets}
-                    setIncludeArchived={setIncludeArchivedPets}
-                  />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminPetSubTab('clients');
+                          loadCustomers();
+                        }}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          adminPetSubTab === 'clients'
+                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span>👥</span> Registered Clients & Pet Parents ({customers.length})
+                      </button>
+                    </div>
+                  )}
+
+                  {adminPetSubTab === 'clients' && role === 'admin' ? (
+                    <ClientDirectory
+                      customers={customers}
+                      onRefresh={loadCustomers}
+                      isLoading={isCustomersLoading}
+                      onOpenPassport={(pet) => {
+                        setSelectedPassportPet(pet);
+                        setIsPassportModalOpen(true);
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center text-2xl shadow-md">
+                            🐾
+                          </div>
+                          <div>
+                            <h2 className="text-base font-black text-slate-900 dark:text-white">
+                              Hospital Registered Patients ({pets.length})
+                            </h2>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Master electronic clinical records, vaccination passports, and doctor consult notes.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsPetModalOpen(true)}
+                          className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>+ Register New Patient</span>
+                        </button>
+                      </div>
+
+                      <PetList
+                        pets={pets}
+                        onDelete={role === 'admin' ? handleDeletePet : null}
+                        onArchivePet={handleArchivePet}
+                        onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
+                        onUpdateClinicStatus={handleUpdateClinicStatus}
+                        onAddMedicalLog={handleAddMedicalLog}
+                        searchTerm={petSearch}
+                        setSearchTerm={setPetSearch}
+                        speciesFilter={petSpeciesFilter}
+                        setSpeciesFilter={setPetSpeciesFilter}
+                        includeArchived={includeArchivedPets}
+                        setIncludeArchived={setIncludeArchivedPets}
+                      />
+                    </>
+                  )}
                 </div>
               )}
 
@@ -2193,6 +2266,17 @@ function App() {
             showToast(`Order #${order?.invoiceNumber || ''} placed successfully!`);
             fetchInvoices();
             loadProducts();
+          }}
+        />
+      )}
+
+      {/* 6. Printable Clinical Health Passport Modal */}
+      {isPassportModalOpen && selectedPassportPet && (
+        <PrintableHealthPassportModal
+          pet={selectedPassportPet}
+          onClose={() => {
+            setIsPassportModalOpen(false);
+            setSelectedPassportPet(null);
           }}
         />
       )}

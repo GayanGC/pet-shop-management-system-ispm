@@ -34,6 +34,11 @@ const userSchema = new mongoose.Schema(
       unique: true,
       trim: true
     },
+    address: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     password: {
       type: String,
       required: [true, 'Please provide a password'],
