@@ -16,10 +16,10 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/')
   .get(getSuppliers)
-  .post(protect, authorize('Admin', 'Staff'), createSupplier);
+  .post(protect, authorize('admin', 'Admin', 'staff', 'Staff', 'inventory_officer'), createSupplier);
 
 router.route('/:id')
-  .put(protect, authorize('Admin', 'Staff'), updateSupplier)
-  .delete(protect, authorize('Admin', 'Staff'), deleteSupplier);
+  .put(protect, authorize('admin', 'Admin', 'staff', 'Staff', 'inventory_officer'), updateSupplier)
+  .delete(protect, authorize('admin', 'Admin', 'staff', 'Staff', 'inventory_officer'), deleteSupplier);
 
 module.exports = router;

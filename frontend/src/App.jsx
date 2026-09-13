@@ -616,31 +616,48 @@ function App() {
   const handleCreateSupplier = async (supplierData) => {
     try {
       const res = await createSupplier(supplierData);
-      showToast(`Supplier "${res.data.name}" added successfully!`);
-      loadSuppliers();
+      const newSupplier = res?.data || res;
+      const supplierName = newSupplier?.name || 'New Supplier';
+      showToast(`Supplier "${supplierName}" registered successfully!`);
+      if (newSupplier && newSupplier._id) {
+        setSuppliers((prev) => [newSupplier, ...prev.filter((s) => s._id !== newSupplier._id)]);
+      }
+      await loadSuppliers();
+      return newSupplier;
     } catch (err) {
-      showToast(err.message, 'error');
+      console.error('Error creating supplier:', err);
+      showToast(err.message || 'Failed to create supplier', 'error');
+      throw err;
     }
   };
 
   const handleUpdateSupplier = async (id, supplierData) => {
     try {
       const res = await updateSupplier(id, supplierData);
-      showToast(`Supplier updated successfully!`);
-      loadSuppliers();
+      const updatedSupplier = res?.data || res;
+      const supplierName = updatedSupplier?.name || 'Supplier';
+      showToast(`Supplier "${supplierName}" updated successfully!`);
+      if (updatedSupplier && updatedSupplier._id) {
+        setSuppliers((prev) => prev.map((s) => (s._id === id ? { ...s, ...updatedSupplier } : s)));
+      }
+      await loadSuppliers();
+      return updatedSupplier;
     } catch (err) {
-      showToast(err.message, 'error');
+      console.error('Error updating supplier:', err);
+      showToast(err.message || 'Failed to update supplier', 'error');
+      throw err;
     }
   };
 
   const handleDeleteSupplier = async (id) => {
-    if (!window.confirm('Delete this supplier record?')) return;
     try {
       const res = await deleteSupplier(id);
-      showToast(res.message);
-      loadSuppliers();
+      showToast(res?.message || 'Supplier removed successfully');
+      setSuppliers((prev) => prev.filter((s) => s._id !== id));
+      await loadSuppliers();
     } catch (err) {
-      showToast(err.message, 'error');
+      console.error('Error deleting supplier:', err);
+      showToast(err.message || 'Failed to delete supplier', 'error');
     }
   };
 
@@ -766,12 +783,14 @@ function App() {
         { id: 'appointments', label: '📅 Book Appointment', count: activeBookingsCount },
         { id: 'pharmacy', label: '🛒 Pet Store & Pharmacy', count: products.length },
         { id: 'orders', label: `🧾 My Invoices & Orders (${invoices.length})`, count: invoices.length },
-        { id: 'pos', label: '💳 POS Cashier Terminal' }
+        { id: 'pos', label: '💳 POS Cashier Terminal' },
+        { id: 'suppliers', label: `🏢 Suppliers (${suppliers.length})` }
       ];
     }
     if (role === 'inventory_officer') {
       return [
         { id: 'pharmacy', label: '💊 Pharmacy & Stock Management', count: products.length },
+        { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
         { id: 'pos', label: '💳 Inventory POS & Invoices' }
       ];
     }
@@ -780,6 +799,7 @@ function App() {
         { id: 'pets', label: '🐕 Patients & Medical Records', count: totalPatientsCount },
         { id: 'appointments', label: '📅 Appointments & Calendar', count: activeBookingsCount },
         { id: 'pharmacy', label: '💊 Pharmacy Catalog', count: products.length },
+        { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
         { id: 'pos', label: '💳 POS Cashier Terminal' }
       ];
     }
@@ -787,6 +807,7 @@ function App() {
       return [
         { id: 'pets', label: `🐕 Patients & Pets (${totalPatientsCount})` },
         { id: 'pharmacy', label: `💊 Pharmacy & Stock (${products.length})` },
+        { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
         { id: 'appointments', label: `📅 Appointments (${activeBookingsCount})` },
         { id: 'pos', label: `💳 POS Cashier Terminal` }
       ];
@@ -795,6 +816,7 @@ function App() {
     return [
       { id: 'pets', label: `🐕 Patients & Pets (${totalPatientsCount})` },
       { id: 'pharmacy', label: `🛒 Pet Store & Pharmacy (${products.length})` },
+      { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
       { id: 'appointments', label: `📅 Appointments (${activeBookingsCount})` },
       { id: 'orders', label: `🛍️ Storefront Cart (${cartItemCount})` },
       { id: 'pos', label: `💳 POS Terminal` }
@@ -1225,7 +1247,7 @@ function App() {
 
         {/* 7. MAIN CONTENT PANELS */}
         <div ref={mainContentRef} className="pt-2">
-          {role === 'customer' && currentUser && activeTab !== 'pos' ? (
+          {role === 'customer' && currentUser && activeTab !== 'pos' && activeTab !== 'suppliers' ? (
             activeTab === 'orders' ? (
               <div className="space-y-6 animate-fadeIn">
                 <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-6 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -1390,7 +1412,7 @@ function App() {
                     <span>🛍️</span> Customer Storefront View
                   </button>
 
-                  {(role === 'admin' || role === 'inventory_officer') && (
+                  {(role === 'admin' || role === 'inventory_officer' || role === 'staff') && (
                     <>
                       <button
                         onClick={() => setPharmacySubTab('suppliers')}
@@ -1447,8 +1469,10 @@ function App() {
                 <SupplierDirectory
                   suppliers={suppliers}
                   onCreateSupplier={handleCreateSupplier}
+                  onAddSupplier={handleCreateSupplier}
                   onUpdateSupplier={handleUpdateSupplier}
                   onDeleteSupplier={handleDeleteSupplier}
+                  onRefresh={loadSuppliers}
                 />
               )}
 
@@ -1598,6 +1622,20 @@ function App() {
               )}
             </div>
           )}
+
+          {/* TAB: DEDICATED SUPPLIER & DISTRIBUTOR DIRECTORY */}
+          {activeTab === 'suppliers' && (
+            <div className="space-y-6 animate-fadeIn">
+              <SupplierDirectory
+                suppliers={suppliers}
+                onCreateSupplier={handleCreateSupplier}
+                onAddSupplier={handleCreateSupplier}
+                onUpdateSupplier={handleUpdateSupplier}
+                onDeleteSupplier={handleDeleteSupplier}
+                onRefresh={loadSuppliers}
+              />
+            </div>
+          )}
             </>
           )}
         </div>
@@ -1617,6 +1655,7 @@ function App() {
       {/* 2. Product Registration Modal */}
       {isProductModalOpen && (
         <ProductForm
+          suppliers={suppliers}
           onSubmit={handleCreateProduct}
           isLoading={isProductLoading}
           isModal={true}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Package, DollarSign, Layers, Truck, Tag, Plus, Calendar, X } from 'lucide-react';
 
-const ProductForm = ({ onSubmit, isLoading, isModal, onClose }) => {
+const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose }) => {
   const [formData, setFormData] = useState({
     itemName: '',
     category: 'Food',
@@ -46,28 +46,34 @@ const ProductForm = ({ onSubmit, isLoading, isModal, onClose }) => {
             <Package className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Add Pharmacy Product / Medication</h2>
-            <p className="text-xs text-slate-500">Pharmacy Catalog & Pharmaceutical Inventory</p>
+            <h3 className="text-base font-bold text-slate-800">
+              {isModal ? 'Register New Product' : 'Quick Stock Registration'}
+            </h3>
+            <p className="text-xs text-slate-500">Add medicine, diet, or clinical supplies</p>
           </div>
         </div>
         {isModal && (
-          <button type="button" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-transform duration-200 hover:rotate-90 cursor-pointer">
-            <X className="w-5 h-5" />
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
+          >
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <Package className="w-3.5 h-3.5 text-teal-600" /> Item / Drug Name <span className="text-rose-500">*</span>
+            <Tag className="w-3.5 h-3.5 text-slate-400" /> Item Name *
           </label>
           <input
             type="text"
             name="itemName"
             value={formData.itemName}
             onChange={handleChange}
-            placeholder="e.g. Amoxicillin 250mg / Royal Canin 3kg"
+            placeholder="e.g. Amoxicillin 250mg"
             required
             className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all placeholder:text-slate-400"
           />
@@ -75,43 +81,48 @@ const ProductForm = ({ onSubmit, isLoading, isModal, onClose }) => {
 
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <Tag className="w-3.5 h-3.5 text-teal-600" /> Category <span className="text-rose-500">*</span>
+            <Layers className="w-3.5 h-3.5 text-slate-400" /> Clinical Category
           </label>
           <select
             name="category"
             value={formData.category}
             onChange={handleChange}
-            className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all"
+            className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all cursor-pointer font-medium text-slate-700"
           >
-            <option value="Healthcare">Healthcare & Medication 💊</option>
-            <option value="Food">Pet Food & Nutrition 🍖</option>
-            <option value="Toys">Pet Toys & Entertainment 🎾</option>
-            <option value="Accessories">Accessories & Leashes 🦮</option>
-            <option value="Grooming Supplies">Grooming & Shampoo 🧼</option>
-            <option value="General">General Merchandise 📦</option>
+            <option value="Food">Pet Food & Nutrition</option>
+            <option value="Medicine">Prescription Medicine</option>
+            <option value="Vaccines">Vaccines & Biologics</option>
+            <option value="Healthcare">General Healthcare</option>
+            <option value="Accessories">Accessories & Gear</option>
+            <option value="Toys">Toys & Enrichment</option>
+            <option value="Supplements">Supplements & Vitamins</option>
+            <option value="Grooming">Grooming & Hygiene</option>
           </select>
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <DollarSign className="w-3.5 h-3.5 text-teal-600" /> Unit Selling Price (Rs.) <span className="text-rose-500">*</span>
+            <DollarSign className="w-3.5 h-3.5 text-slate-400" /> Retail Price (LKR - Rs.) *
           </label>
-          <input
-            type="number"
-            step="0.01"
-            name="price"
-            value={formData.price}
-            onChange={handleChange}
-            placeholder="e.g. 1500.00"
-            required
-            min="0"
-            className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all placeholder:text-slate-400 font-mono"
-          />
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rs.</span>
+            <input
+              type="number"
+              name="price"
+              value={formData.price}
+              onChange={handleChange}
+              placeholder="1200.00"
+              required
+              min="0"
+              step="0.01"
+              className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all font-mono placeholder:text-slate-400"
+            />
+          </div>
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-teal-600" /> Initial Stock Qty <span className="text-rose-500">*</span>
+            <Package className="w-3.5 h-3.5 text-slate-400" /> Stock Quantity *
           </label>
           <input
             type="number"
@@ -132,11 +143,21 @@ const ProductForm = ({ onSubmit, isLoading, isModal, onClose }) => {
           <input
             type="text"
             name="supplier"
+            list="registered-suppliers-list"
             value={formData.supplier}
             onChange={handleChange}
-            placeholder="e.g. MediPet Wholesale Distributors"
+            placeholder="e.g. VetMed Lanka or MediVet"
             className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all placeholder:text-slate-400"
           />
+          {Array.isArray(suppliers) && suppliers.length > 0 && (
+            <datalist id="registered-suppliers-list">
+              {suppliers.map((s) => (
+                <option key={s._id} value={s.name}>
+                  {s.name} ({s.phone || s.contactPerson || 'Vendor'})
+                </option>
+              ))}
+            </datalist>
+          )}
         </div>
 
         <div>
