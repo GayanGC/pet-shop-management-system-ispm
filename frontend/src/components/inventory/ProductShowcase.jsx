@@ -12,8 +12,10 @@ import {
   Star,
   ShieldCheck,
   Truck,
-  Heart
+  Heart,
+  Eye
 } from 'lucide-react';
+import ProductDetailModal from './ProductDetailModal';
 
 const CATEGORY_ICONS = {
   Medicines: '💊',
@@ -85,6 +87,7 @@ const ProductShowcase = ({
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [addedItemMap, setAddedItemMap] = useState({});
+  const [selectedDetailProduct, setSelectedDetailProduct] = useState(null);
 
   const filteredProducts = products.filter((item) => {
     if (item.status === 'Disposed') return false;
@@ -154,12 +157,18 @@ const ProductShowcase = ({
     );
   });
 
-  const handleAddWithFeedback = (item) => {
+  const handleAddWithFeedback = (item, e) => {
+    if (e) e.stopPropagation();
     if (onAddToCart) onAddToCart(item);
     setAddedItemMap((prev) => ({ ...prev, [item._id]: true }));
     setTimeout(() => {
       setAddedItemMap((prev) => ({ ...prev, [item._id]: false }));
     }, 1200);
+  };
+
+  const handleQuickBuyWithStop = (item, e) => {
+    if (e) e.stopPropagation();
+    if (onQuickBuy) onQuickBuy(item);
   };
 
   return (
@@ -242,7 +251,8 @@ const ProductShowcase = ({
             return (
               <div
                 key={item._id}
-                className="group bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-200/90 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-lg shadow-slate-900/5 dark:shadow-slate-950/50 hover:shadow-2xl hover:shadow-teal-900/15 dark:hover:shadow-teal-950/50 transform transition-all duration-300 hover:-translate-y-2 flex flex-col justify-between overflow-hidden"
+                onClick={() => setSelectedDetailProduct(item)}
+                className="group bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-200/90 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-lg shadow-slate-900/5 dark:shadow-slate-950/50 hover:shadow-2xl hover:shadow-teal-900/15 dark:hover:shadow-teal-950/50 transform transition-all duration-300 hover:-translate-y-2 flex flex-col justify-between overflow-hidden cursor-pointer"
               >
                 {/* 1. Rich Photo Container with Hover Zoom & Badges */}
                 <div className="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
@@ -253,6 +263,14 @@ const ProductShowcase = ({
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-black/20" />
+
+                  {/* Hover Quick View Badge */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/30 backdrop-blur-xs">
+                    <span className="px-3.5 py-1.5 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white font-black text-xs shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                      <Eye className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      Quick View & Clinical Specs
+                    </span>
+                  </div>
 
                   {/* Category Pill Top Left */}
                   <div className="absolute top-3 left-3">
@@ -334,7 +352,7 @@ const ProductShowcase = ({
                   <button
                     type="button"
                     disabled={isOutOfStock}
-                    onClick={() => handleAddWithFeedback(item)}
+                    onClick={(e) => handleAddWithFeedback(item, e)}
                     className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                       isJustAdded
                         ? 'bg-emerald-600 text-white shadow-emerald-600/30'
@@ -358,7 +376,7 @@ const ProductShowcase = ({
                   <button
                     type="button"
                     disabled={isOutOfStock}
-                    onClick={() => onQuickBuy && onQuickBuy(item)}
+                    onClick={(e) => handleQuickBuyWithStop(item, e)}
                     className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 hover:shadow-lg hover:shadow-amber-500/30 active:scale-95 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     title="Instant Checkout with Diverse Payment Methods"
                   >
@@ -380,6 +398,21 @@ const ProductShowcase = ({
             Try choosing a different category pill or clearing your search term.
           </p>
         </div>
+      )}
+
+      {/* Rich Product Detail Modal */}
+      {selectedDetailProduct && (
+        <ProductDetailModal
+          product={selectedDetailProduct}
+          isOpen={Boolean(selectedDetailProduct)}
+          onClose={() => setSelectedDetailProduct(null)}
+          onAddToCart={(prod, qty) => {
+            if (onAddToCart) onAddToCart(prod, qty);
+          }}
+          onQuickBuy={(prod, qty) => {
+            if (onQuickBuy) onQuickBuy(prod, qty);
+          }}
+        />
       )}
     </div>
   );

@@ -44,6 +44,7 @@ import SalesAnalytics from './components/billing/SalesAnalytics';
 import AuthModal from './components/auth/AuthModal';
 import CustomerCheckoutModal from './components/store/CustomerCheckoutModal';
 import CustomerPortal from './components/customer/CustomerPortal';
+import GuestClinicOverview from './components/guest/GuestClinicOverview';
 
 import { getCurrentUser, logout } from './services/authService';
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
@@ -188,7 +189,7 @@ function App() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
 
   // 4. Navigation & Subtab State
-  const [activeTab, setActiveTab] = useState('pets');
+  const [activeTab, setActiveTab] = useState(() => (getCurrentUser() ? 'pets' : 'overview'));
   const [posSubTab, setPosSubTab] = useState('terminal');
   const [bookingSubTab, setBookingSubTab] = useState('directory');
   const [pharmacySubTab, setPharmacySubTab] = useState('showcase'); // 'showcase' | 'inventory' | 'suppliers' | 'expiry'
@@ -197,13 +198,20 @@ function App() {
 
   // Role Auto-Landing & Active Tab Sanitization
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      if (activeTab !== 'overview' && activeTab !== 'pharmacy') {
+        setActiveTab('overview');
+      }
+      return;
+    }
     const userRole = currentUser.role ? currentUser.role.toLowerCase() : 'customer';
     if (userRole === 'inventory_officer') {
-      if (activeTab !== 'pos') {
+      if (activeTab !== 'pos' && activeTab !== 'suppliers') {
         setActiveTab('pharmacy');
         setPharmacySubTab('inventory');
       }
+    } else if (activeTab === 'overview') {
+      setActiveTab('pets');
     }
   }, [currentUser]);
 
@@ -246,18 +254,19 @@ function App() {
   const handleLogout = () => {
     logout();
     setCurrentUser(null);
-    setActiveTab('pets');
+    setActiveTab('overview');
     setCartItems([]);
-    showToast('Signed out successfully. Switched to Guest View.');
+    showToast('Signed out successfully. Switched to Public Guest View.');
   };
 
   // Cart Handlers
-  const handleAddToCart = (product) => {
+  const handleAddToCart = (product, quantityToAdd = 1) => {
     handleActionWithAuth(() => {
+      const qty = typeof quantityToAdd === 'number' && quantityToAdd > 0 ? quantityToAdd : 1;
       const existingIdx = cartItems.findIndex((c) => c._id === product._id || c.product === product._id);
       if (existingIdx > -1) {
         const updated = [...cartItems];
-        updated[existingIdx].quantity = (updated[existingIdx].quantity || 1) + 1;
+        updated[existingIdx].quantity = (updated[existingIdx].quantity || 1) + qty;
         updated[existingIdx].subtotal = updated[existingIdx].quantity * updated[existingIdx].price;
         setCartItems(updated);
       } else {
@@ -270,19 +279,20 @@ function App() {
             itemName: product.itemName,
             price: Number(product.price),
             unitPrice: Number(product.price),
-            quantity: 1,
-            subtotal: Number(product.price),
+            quantity: qty,
+            subtotal: Number(product.price) * qty,
             unit: product.unit || 'unit',
             category: product.category || 'General'
           }
         ]);
       }
-      showToast(`Added "${product.itemName}" to cart! (Rs. ${Number(product.price).toFixed(2)})`);
+      showToast(`Added ${qty}x "${product.itemName}" to cart! (Rs. ${(Number(product.price) * qty).toFixed(2)})`);
     }, 'Please sign in or create an account to add items to your cart.');
   };
 
-  const handleQuickBuy = (product) => {
+  const handleQuickBuy = (product, quantityToAdd = 1) => {
     handleActionWithAuth(() => {
+      const qty = typeof quantityToAdd === 'number' && quantityToAdd > 0 ? quantityToAdd : 1;
       const existingIdx = cartItems.findIndex((c) => c._id === product._id || c.product === product._id);
       if (existingIdx === -1) {
         setCartItems((prev) => [
@@ -294,16 +304,21 @@ function App() {
             itemName: product.itemName,
             price: Number(product.price),
             unitPrice: Number(product.price),
-            quantity: 1,
-            subtotal: Number(product.price),
+            quantity: qty,
+            subtotal: Number(product.price) * qty,
             unit: product.unit || 'unit',
             category: product.category || 'General'
           }
         ]);
+      } else {
+        const updated = [...cartItems];
+        updated[existingIdx].quantity = qty;
+        updated[existingIdx].subtotal = qty * updated[existingIdx].price;
+        setCartItems(updated);
       }
       setIsCheckoutModalOpen(true);
       showToast(`Checkout ready for "${product.itemName}"!`);
-    }, 'Please sign in or create an account to proceed with checkout.');
+    }, 'Please sign in or create an account to proceed with instant checkout.');
   };
 
   const handleUpdateCartQuantity = (id, newQty) => {
@@ -771,12 +786,21 @@ function App() {
   // Search Submit Handler
   const handleGlobalSearchSubmit = (e) => {
     e.preventDefault();
+    if (!currentUser || activeTab === 'overview') {
+      setActiveTab('pharmacy');
+    }
     if (activeTab === 'pets') setPetSearch(petSearch);
-    if (activeTab === 'pharmacy') setProductSearch(productSearch);
+    if (activeTab === 'pharmacy' || activeTab === 'overview' || !currentUser) setProductSearch(productSearch);
   };
 
   // Dynamic Navigation Tabs Based on Role
   const getNavTabs = () => {
+    if (!currentUser) {
+      return [
+        { id: 'overview', label: '🏠 Clinic Overview & Pet Care' },
+        { id: 'pharmacy', label: `🛒 Pet Pharmacy Store (${products.length})` }
+      ];
+    }
     if (role === 'customer') {
       return [
         { id: 'pets', label: '🐾 My Pets', count: totalPatientsCount },
@@ -812,14 +836,10 @@ function App() {
         { id: 'pos', label: `💳 POS Cashier Terminal` }
       ];
     }
-    // Guest Default
+    // Guest Fallback
     return [
-      { id: 'pets', label: `🐕 Patients & Pets (${totalPatientsCount})` },
-      { id: 'pharmacy', label: `🛒 Pet Store & Pharmacy (${products.length})` },
-      { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
-      { id: 'appointments', label: `📅 Appointments (${activeBookingsCount})` },
-      { id: 'orders', label: `🛍️ Storefront Cart (${cartItemCount})` },
-      { id: 'pos', label: `💳 POS Terminal` }
+      { id: 'overview', label: '🏠 Clinic Overview & Pet Care' },
+      { id: 'pharmacy', label: `🛒 Pet Pharmacy Store (${products.length})` }
     ];
   };
 
@@ -952,10 +972,10 @@ function App() {
             ) : (
               <button
                 onClick={() => { setAuthModalMessage(''); setIsAuthModalOpen(true); }}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-extrabold px-3.5 py-1.5 rounded-full text-xs transition-all shadow-md shadow-amber-400/20 cursor-pointer"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black px-4 py-2 rounded-full text-xs transition-all shadow-md shadow-amber-400/30 active:scale-95 cursor-pointer border border-amber-300"
               >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Sign In / Demo</span>
+                <LogIn className="w-4 h-4" />
+                <span>🔑 Sign In / Register</span>
               </button>
             )}
           </div>
@@ -996,9 +1016,37 @@ function App() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-        
-        {/* 3. DYNAMIC HERO PHOTO CAROUSEL BANNER */}
-        <div className="relative rounded-3xl overflow-hidden shadow-2xl min-h-[320px] md:min-h-[360px] flex items-center border border-teal-100/50 dark:border-emerald-500/20">
+        {!currentUser ? (
+          /* GUEST (LOGGED-OUT) STRICT VIEW */
+          <div ref={mainContentRef} className="pt-2">
+            {activeTab === 'pharmacy' ? (
+              <div className="space-y-6 animate-fadeIn">
+                <ProductShowcase
+                  products={products}
+                  onAddToCart={handleAddToCart}
+                  onQuickBuy={handleQuickBuy}
+                  cartCount={cartItemCount}
+                  onOpenCart={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in or register to view your shopping cart.')}
+                  title="🛒 Pet Pharmacy & Care Store"
+                  subtitle="Official hospital pharmaceuticals, prescription diets, and healthcare essentials for all pet species"
+                />
+              </div>
+            ) : (
+              <GuestClinicOverview
+                onBookAppointment={() => handleActionWithAuth(() => setIsBookingModalOpen(true), 'Please sign in or create an account to schedule a clinical appointment.')}
+                onExploreStore={() => {
+                  setActiveTab('pharmacy');
+                  scrollToContent();
+                }}
+                onOpenAuth={() => { setAuthModalMessage(''); setIsAuthModalOpen(true); }}
+                productsCount={products.length}
+              />
+            )}
+          </div>
+        ) : (
+          <>
+            {/* 3. DYNAMIC HERO PHOTO CAROUSEL BANNER */}
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl min-h-[320px] md:min-h-[360px] flex items-center border border-teal-100/50 dark:border-emerald-500/20">
           {heroSlides.map((slide, index) => (
             <div
               key={index}
@@ -1639,6 +1687,8 @@ function App() {
             </>
           )}
         </div>
+          </>
+        )}
       </main>
 
       {/* POPUP MODALS */}
