@@ -512,9 +512,14 @@ function App() {
         ownerId: petData.ownerId || (currentUser ? currentUser._id : undefined)
       };
       const res = await createPet(payload);
-      showToast(`Patient ${res.data.petName} (PIN: ${res.data.uniquePin}) registered successfully!`);
+      const createdPet = res.data || res;
+      showToast(`Patient ${createdPet.petName} (PIN: ${createdPet.uniquePin}) registered successfully!`);
       setIsPetModalOpen(false);
-      loadPets();
+      // Immediately inject into pets state for real-time reactivity
+      if (createdPet && createdPet._id) {
+        setPets((prev) => [createdPet, ...prev.filter((p) => p._id !== createdPet._id)]);
+      }
+      await loadPets();
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -739,7 +744,7 @@ function App() {
           const phoneMatch = Boolean(ownerPhone && currentUserPhone && ownerPhone === currentUserPhone);
           return ownerMatch || nameMatch || phoneMatch;
         });
-        return filtered.length > 0 ? filtered : pets;
+        return filtered;
       })()
     : pets;
 

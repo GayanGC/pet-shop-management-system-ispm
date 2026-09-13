@@ -177,13 +177,13 @@ const PrintableHealthPassportModal = ({ pet, onClose }) => {
                   <div>
                     <span className="text-slate-500 block text-[10px]">Owner Name</span>
                     <span className="font-bold text-slate-900">
-                      {currentPet.ownerId?.name || 'Nimal Perera'}
+                      {passportData?.owner?.name || currentPet.ownerId?.name || currentPet.ownerName || 'Registered Pet Parent'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[10px]">Contact Email</span>
+                    <span className="text-slate-500 block text-[10px]">Contact Info</span>
                     <span className="font-mono text-slate-700">
-                      {currentPet.ownerId?.email || 'customer@4pawclinic.lk'}
+                      {passportData?.owner?.phone || currentPet.ownerId?.phone || currentPet.ownerPhone || passportData?.owner?.email || currentPet.ownerId?.email || currentPet.ownerEmail || 'On Record with Clinic'}
                     </span>
                   </div>
                   <div>

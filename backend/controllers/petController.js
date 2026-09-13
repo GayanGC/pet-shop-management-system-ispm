@@ -68,18 +68,25 @@ const createPet = async (req, res) => {
       breed: breed || 'Unknown/Mixed',
       age: Number(age),
       weight: weight ? Number(weight) : 0,
+      gender: req.body.gender || 'Male',
       ownerId: targetOwner,
       status: status || 'Available',
       clinicStatus: clinicStatus || 'Registered',
       medicalLogs: []
     });
 
-    await pet.populate('ownerId', 'name email role');
+    await pet.populate('ownerId', 'name email phone role');
+
+    const petObj = pet.toObject ? pet.toObject() : { ...pet };
+    petObj.ownerName = pet.ownerId?.name || 'Registered Owner';
+    petObj.ownerPhone = pet.ownerId?.phone || '';
+    petObj.ownerEmail = pet.ownerId?.email || '';
+    petObj.petId = petObj._id;
 
     return res.status(201).json({
       success: true,
       message: 'Pet patient registered successfully',
-      data: pet
+      data: petObj
     });
   } catch (error) {
     console.error('[Create Pet Error]:', error.message);
@@ -377,7 +384,7 @@ const archivePet = async (req, res) => {
  */
 const getPetHealthSummary = async (req, res) => {
   try {
-    const pet = await Pet.findById(req.params.id).populate('ownerId', 'name email role');
+    const pet = await Pet.findById(req.params.id).populate('ownerId', 'name email phone role');
 
     if (!pet) {
       return res.status(404).json({
@@ -390,6 +397,20 @@ const getPetHealthSummary = async (req, res) => {
     const medicalLogs = pet.medicalLogs || [];
     const vaccinations = medicalLogs.filter(log => log.vaccineName && log.vaccineName.trim() !== '');
 
+    const intakeSummary = {
+      intakeDate: pet.createdAt || new Date(),
+      registrationPin: pet.uniquePin,
+      baselineVitals: {
+        weight: pet.weight ? `${pet.weight} kg` : 'Recorded at intake',
+        age: `${pet.age} Years`,
+        gender: pet.gender || 'Male',
+        species: pet.species,
+        breed: pet.breed || 'Unknown/Mixed'
+      },
+      intakeClearanceStatus: 'EHR Verified & Active',
+      certifiedHospital: '4 Paw Animal Clinic & Referral Center'
+    };
+
     return res.status(200).json({
       success: true,
       data: {
@@ -397,7 +418,8 @@ const getPetHealthSummary = async (req, res) => {
         owner: pet.ownerId,
         medicalLogs,
         appointments,
-        vaccinations
+        vaccinations,
+        intakeSummary
       }
     });
   } catch (error) {

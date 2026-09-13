@@ -8,6 +8,7 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
     breed: '',
     age: '',
     weight: '',
+    gender: 'Male',
     status: 'Available',
     clinicStatus: 'Registered',
     uniquePin: ''
@@ -31,6 +32,7 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
       breed: '',
       age: '',
       weight: '',
+      gender: 'Male',
       status: 'Available',
       clinicStatus: 'Registered',
       uniquePin: ''
@@ -141,7 +143,23 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
 
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 text-slate-400" /> Microchip PIN Tag (Optional)
+            <User className="w-3.5 h-3.5 text-slate-400" /> Gender
+          </label>
+          <select
+            name="gender"
+            value={formData.gender}
+            onChange={handleChange}
+            className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all"
+          >
+            <option value="Male">Male ♂️</option>
+            <option value="Female">Female ♀️</option>
+            <option value="Unknown">Unknown 🐾</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
+            <Tag className="w-3.5 h-3.5 text-slate-400" /> Microchip PIN Tag (Optional)
           </label>
           <input
             type="text"

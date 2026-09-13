@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShoppingBag,
   Stethoscope,
@@ -21,11 +21,16 @@ import {
   Tag,
   Phone,
   Mail,
-  Heart
+  Heart,
+  LayoutGrid,
+  List,
+  Filter
 } from 'lucide-react';
 import ProductShowcase from '../inventory/ProductShowcase';
 import PrintableHealthPassportModal from '../pet/PrintableHealthPassportModal';
+import PetDetailsReportModal from '../pet/PetDetailsReportModal';
 import { createBooking, cancelBooking } from '../../services/bookingService';
+import petService from '../../services/petService';
 
 const VET_DOCTORS = [
   { id: 'Dr. Perera (Senior Vet)', name: 'Dr. Perera (Senior Vet & Clinical Surgeon)', specialty: 'Senior Surgeon & General Medicine' },
@@ -70,8 +75,12 @@ const CustomerPortal = ({
   // Active Tab: 'store' | 'channeling' | 'pets'
   const [activeTab, setActiveTab] = useState('pets');
 
+  // Internal reactive pets state with auto-fallback fetch
+  const [portalPets, setPortalPets] = useState(pets || []);
+  const [isPetsLoading, setIsPetsLoading] = useState(false);
+
   // Sync external tab (e.g. from top header navigation)
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentTab) {
       if (currentTab === 'appointments') setActiveTab('channeling');
       else if (currentTab === 'pharmacy') setActiveTab('store');
@@ -79,6 +88,29 @@ const CustomerPortal = ({
       else if (currentTab === 'pets') setActiveTab('pets');
     }
   }, [currentTab]);
+
+  const loadCustomerPets = async () => {
+    setIsPetsLoading(true);
+    try {
+      const res = await petService.getAllPets();
+      const list = Array.isArray(res) ? res : (res?.data || res?.pets || []);
+      if (Array.isArray(list)) {
+        setPortalPets(list.filter((p) => !p.isArchived));
+      }
+    } catch (err) {
+      console.error('Failed to load customer pets:', err);
+    } finally {
+      setIsPetsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (Array.isArray(pets) && pets.length > 0) {
+      setPortalPets(pets);
+    } else {
+      loadCustomerPets();
+    }
+  }, [pets]);
 
   const handleTabSwitch = (newTab) => {
     setActiveTab(newTab);
@@ -89,21 +121,27 @@ const CustomerPortal = ({
     }
   };
 
-  // Selected pet for Health Passport Modal
+  // Selected pet for Health Passport Modal & Clinical Report Modal
   const [selectedPetForPassport, setSelectedPetForPassport] = useState(null);
+  const [selectedPetForReport, setSelectedPetForReport] = useState(null);
+
+  // Customer Pet View Filter & Mode States
+  const [petSearchTerm, setPetSearchTerm] = useState('');
+  const [petSpeciesFilter, setPetSpeciesFilter] = useState('All');
+  const [petViewMode, setPetViewMode] = useState('cards'); // 'cards' | 'table'
 
   // Expanded Doctor Visit Timelines map: { [petId]: boolean }
   const [expandedTimelines, setExpandedTimelines] = useState({});
 
   // Doctor Channeling Form States
-  const [selectedPetId, setSelectedPetId] = useState(pets.length > 0 ? pets[0]._id : '');
+  const [selectedPetId, setSelectedPetId] = useState(portalPets.length > 0 ? portalPets[0]._id : '');
 
   // Preselect first pet when pets load asynchronously
-  React.useEffect(() => {
-    if (!selectedPetId && pets.length > 0) {
-      setSelectedPetId(pets[0]._id);
+  useEffect(() => {
+    if (!selectedPetId && portalPets.length > 0) {
+      setSelectedPetId(portalPets[0]._id);
     }
-  }, [pets, selectedPetId]);
+  }, [portalPets, selectedPetId]);
 
   const [selectedVet, setSelectedVet] = useState(VET_DOCTORS[0].id);
   const [selectedService, setSelectedService] = useState(SERVICE_TYPES[0]);
@@ -180,6 +218,18 @@ const CustomerPortal = ({
     }
   };
 
+  // Filter portalPets by search and species
+  const filteredPets = portalPets.filter((pet) => {
+    const term = petSearchTerm.toLowerCase();
+    const matchesSearch =
+      !term ||
+      (pet.petName || '').toLowerCase().includes(term) ||
+      (pet.uniquePin || '').toLowerCase().includes(term) ||
+      (pet.breed || '').toLowerCase().includes(term);
+    const matchesSpecies = petSpeciesFilter === 'All' || pet.species === petSpeciesFilter;
+    return matchesSearch && matchesSpecies;
+  });
+
   const cartItemCount = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
   return (
@@ -212,7 +262,7 @@ const CustomerPortal = ({
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="px-4 py-2 rounded-2xl bg-white/10 dark:bg-slate-800/80 backdrop-blur-md border border-white/20 text-center flex-1 md:flex-initial">
               <span className="text-[10px] font-bold text-teal-200 uppercase block">My Pets</span>
-              <span className="text-lg font-black font-mono">{pets.length}</span>
+              <span className="text-lg font-black font-mono">{portalPets.length}</span>
             </div>
             <div className="px-4 py-2 rounded-2xl bg-white/10 dark:bg-slate-800/80 backdrop-blur-md border border-white/20 text-center flex-1 md:flex-initial">
               <span className="text-[10px] font-bold text-teal-200 uppercase block">Channelings</span>
@@ -236,7 +286,7 @@ const CustomerPortal = ({
             }`}
           >
             <PawPrint className="w-4 h-4" />
-            <span>My Pets, Medical Reports & Doctor Notes ({pets.length})</span>
+            <span>My Pets, Medical Reports & Doctor Notes ({portalPets.length})</span>
           </button>
 
           <button
@@ -322,14 +372,14 @@ const CustomerPortal = ({
                   <label className="text-xs font-black text-slate-700 dark:text-slate-300 block mb-1.5">
                     Select Your Pet Patient *
                   </label>
-                  {pets.length > 0 ? (
+                  {portalPets.length > 0 ? (
                     <select
                       required
                       value={selectedPetId}
                       onChange={(e) => setSelectedPetId(e.target.value)}
                       className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none"
                     >
-                      {pets.map((p) => (
+                      {portalPets.map((p) => (
                         <option key={p._id} value={p._id}>
                           {p.petName} ({p.species} - {p.breed}) [{p.uniquePin}]
                         </option>
@@ -436,7 +486,7 @@ const CustomerPortal = ({
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={isChannelingLoading || pets.length === 0}
+                  disabled={isChannelingLoading || portalPets.length === 0}
                   className="py-3 px-8 rounded-2xl bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-700/25 cursor-pointer disabled:opacity-50 transition-all"
                 >
                   {isChannelingLoading ? (
@@ -528,34 +578,102 @@ const CustomerPortal = ({
       {/* ========================================================================= */}
       {activeTab === 'pets' && (
         <div className="space-y-6">
-          {/* Top Bar with Add Pet Button */}
-          <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center text-2xl shadow-md">
-                🐾
+          {/* Top Header & Search Bar */}
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-5 sm:p-6 rounded-3xl border border-teal-150 dark:border-slate-800 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center text-2xl font-black shadow-md">
+                  🐾
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>My Registered Pets & Clinical Reports</span>
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+                      {portalPets.length} Patients
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Official Electronic Health Records (EHR), verified doctor prescriptions, and printable health passports.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base font-black text-slate-900 dark:text-white">
-                  My Pet Patients & Verified Health Passports ({pets.length})
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Access official clinic medical history, daily doctor visit updates, and printable passports.
-                </p>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                {/* View Mode Toggle: Cards vs Table */}
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => setPetViewMode('cards')}
+                    className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      petViewMode === 'cards'
+                        ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                    title="Card Grid View"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPetViewMode('table')}
+                    className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      petViewMode === 'table'
+                        ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                    title="Directory Table View"
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onOpenRegisterPetModal}
+                  className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Register Another Pet</span>
+                </button>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={onOpenRegisterPetModal}
-              className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Register Another Pet</span>
-            </button>
+            {/* Search & Species Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Filter your pets by name, PIN, breed..."
+                  value={petSearchTerm}
+                  onChange={(e) => setPetSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none transition-all placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Filter className="w-3.5 h-3.5 text-slate-400" />
+                <select
+                  value={petSpeciesFilter}
+                  onChange={(e) => setPetSpeciesFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none cursor-pointer"
+                >
+                  <option value="All">All Species</option>
+                  <option value="Dog">Dog 🐕</option>
+                  <option value="Cat">Cat 🐈</option>
+                  <option value="Bird">Bird 🦜</option>
+                  <option value="Small Mammal">Small Mammal 🐇</option>
+                  <option value="Primate">Primate 🐒</option>
+                  <option value="Reptile">Reptile 🐢</option>
+                  <option value="Aquatic">Aquatic 🐠</option>
+                  <option value="Farm">Farm & Other 🐐</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Empty State when 0 pets registered */}
-          {pets.length === 0 ? (
+          {portalPets.length === 0 ? (
             <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-10 rounded-3xl border-2 border-dashed border-teal-200 dark:border-slate-800 shadow-xl text-center space-y-4 max-w-2xl mx-auto">
               <div className="w-16 h-16 rounded-3xl bg-teal-50 dark:bg-teal-950/80 text-teal-600 dark:text-teal-300 flex items-center justify-center mx-auto border border-teal-200 dark:border-teal-800 shadow-md">
                 <PawPrint className="w-8 h-8 animate-bounce" />
@@ -565,7 +683,7 @@ const CustomerPortal = ({
                   You haven't added any pets yet! 🐾
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                  Register your dogs, cats, birds, or other exotic family members to activate printable digital health passports and doctor visit updates.
+                  Register your dogs, cats, birds, or other family members to activate certified electronic health reports, printable health passports, and doctor visit updates.
                 </p>
               </div>
               <button
@@ -577,10 +695,95 @@ const CustomerPortal = ({
                 <span>+ Register Your First Pet</span>
               </button>
             </div>
+          ) : filteredPets.length === 0 ? (
+            <div className="p-12 text-center text-xs font-bold text-slate-400 bg-white/80 dark:bg-slate-900/80 rounded-3xl border border-slate-200 dark:border-slate-800">
+              No pets match your search criteria. Try a different search term or species filter.
+            </div>
+          ) : petViewMode === 'table' ? (
+            /* ======================================================= */
+            /* DIRECTORY TABLE VIEW */
+            /* ======================================================= */
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="py-3.5 px-5">Microchip PIN</th>
+                      <th className="py-3.5 px-5">Patient Name</th>
+                      <th className="py-3.5 px-5">Species / Breed</th>
+                      <th className="py-3.5 px-5">Age & Weight</th>
+                      <th className="py-3.5 px-5">Gender</th>
+                      <th className="py-3.5 px-5">Clinic Status</th>
+                      <th className="py-3.5 px-5 text-right">Official Reports & Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                    {filteredPets.map((pet) => (
+                      <tr key={pet._id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3.5 px-5">
+                          <span className="bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 font-mono text-[11px] px-2.5 py-1 rounded-md border border-teal-200 dark:border-teal-800 font-black inline-block">
+                            {pet.uniquePin}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-bold text-sm shadow-xs">
+                              {pet.species === 'Dog' ? '🐕' : pet.species === 'Cat' ? '🐈' : pet.species === 'Bird' ? '🦜' : '🐾'}
+                            </div>
+                            <div>
+                              <span className="font-black text-slate-900 dark:text-white block">{pet.petName}</span>
+                              <span className="text-[10px] text-slate-400">Reg: {new Date(pet.createdAt || Date.now()).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-5">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{pet.species}</span>
+                          <span className="text-slate-400 text-[11px] block">{pet.breed || 'Mixed'}</span>
+                        </td>
+                        <td className="py-3.5 px-5 text-slate-700 dark:text-slate-300 font-medium">
+                          {pet.age} yrs • {pet.weight || 0} kg
+                        </td>
+                        <td className="py-3.5 px-5 text-slate-700 dark:text-slate-300 font-medium">
+                          {pet.gender || 'Male'}
+                        </td>
+                        <td className="py-3.5 px-5">
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                            {pet.clinicStatus || 'Registered'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-5 text-right space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPetForReport(pet)}
+                            className="py-1.5 px-3 rounded-xl bg-teal-50 dark:bg-teal-950 hover:bg-teal-100 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300 font-extrabold text-[11px] border border-teal-200 dark:border-teal-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            title="View Complete Clinical Diagnostic Report"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Clinical Report</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPetForPassport(pet)}
+                            className="py-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-[11px] border border-slate-200 dark:border-slate-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            title="View Printable Health Passport"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Passport</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
-            /* Pet Cards Grid */
+            /* ======================================================= */
+            /* CARDS GRID VIEW */
+            /* ======================================================= */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {pets.map((pet) => {
+              {filteredPets.map((pet) => {
                 const logs = pet.medicalLogs || [];
                 const isTimelineOpen = !!expandedTimelines[pet._id];
 
@@ -615,7 +818,7 @@ const CustomerPortal = ({
                       </span>
                     </div>
 
-                    {/* Pet Demographic Attributes */}
+                    {/* Pet Demographic & Vitals Grid */}
                     <div className="p-6 space-y-4">
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
@@ -632,31 +835,55 @@ const CustomerPortal = ({
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
+                      {/* Extended Details Chip */}
+                      <div className="p-2.5 rounded-xl bg-teal-50/40 dark:bg-slate-800/40 border border-teal-100 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 dark:text-slate-400 font-bold">Registration Intake:</span>
+                        <span className="font-mono font-bold text-teal-800 dark:text-teal-300">
+                          {new Date(pet.createdAt || Date.now()).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {/* Action Buttons: 3 Column Layout */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                        {/* 1. Clinical Report Button */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPetForReport(pet)}
+                          className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-teal-700/20 cursor-pointer transition-all"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>📋 Clinical Report</span>
+                        </button>
+
+                        {/* 2. Health Passport Button */}
                         <button
                           type="button"
                           onClick={() => setSelectedPetForPassport(pet)}
-                          className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-teal-700/20 cursor-pointer transition-all"
+                          className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer transition-all"
                         >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>📋 Health Passport</span>
+                          <Printer className="w-3.5 h-3.5 text-teal-600" />
+                          <span>🩺 Health Passport</span>
                         </button>
+                      </div>
 
+                      {/* Doctor Visits Accordion Toggle */}
+                      <div className="pt-1">
                         <button
                           type="button"
                           onClick={() => toggleTimeline(pet._id)}
-                          className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer transition-all"
+                          className="w-full py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-between border border-slate-200 dark:border-slate-700 cursor-pointer transition-all"
                         >
-                          <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
-                          <span>Doctor Visits ({logs.length})</span>
+                          <div className="flex items-center gap-1.5">
+                            <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+                            <span>Doctor Consultation Visits ({logs.length})</span>
+                          </div>
                           {isTimelineOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                         </button>
                       </div>
 
                       {/* 🩺 Expandable Doctor Visit Updates Timeline */}
                       {isTimelineOpen && (
-                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3 animate-fadeIn">
+                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 animate-fadeIn">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                               <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
@@ -740,8 +967,20 @@ const CustomerPortal = ({
                               })}
                             </div>
                           ) : (
-                            <div className="p-4 text-center text-slate-400 text-xs bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                              No clinical visit notes recorded yet. Schedule a consultation to add doctor notes.
+                            <div className="p-4 text-center space-y-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                              <p className="text-xs text-slate-400">
+                                No clinical consultation visit notes recorded yet. Schedule a visit to receive certified veterinary notes.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPetId(pet._id);
+                                  handleTabSwitch('channeling');
+                                }}
+                                className="text-[11px] font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 underline cursor-pointer"
+                              >
+                                + Book Consultation for {pet.petName}
+                              </button>
                             </div>
                           )}
                         </div>
@@ -760,6 +999,19 @@ const CustomerPortal = ({
         <PrintableHealthPassportModal
           pet={selectedPetForPassport}
           onClose={() => setSelectedPetForPassport(null)}
+        />
+      )}
+
+      {/* Comprehensive Clinical Report Modal */}
+      {selectedPetForReport && (
+        <PetDetailsReportModal
+          pet={selectedPetForReport}
+          currentUser={currentUser}
+          onClose={() => setSelectedPetForReport(null)}
+          onBookChanneling={(pet) => {
+            setSelectedPetId(pet._id);
+            handleTabSwitch('channeling');
+          }}
         />
       )}
     </div>
