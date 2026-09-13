@@ -95,6 +95,21 @@ const petSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Pet must belong to a registered owner']
     },
+    ownerName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    ownerPhone: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    ownerAddress: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     status: {
       type: String,
       enum: ['Available', 'Adopted', 'Medical Care'],
@@ -102,10 +117,10 @@ const petSchema = new mongoose.Schema(
     },
     clinicStatus: {
       type: String,
-      enum: ['Registered', 'Checked-In', 'In Consultation', 'Discharged'],
       default: 'Registered'
     },
     medicalLogs: [medicalLogSchema],
+    medicalHistory: [medicalLogSchema],
     isArchived: {
       type: Boolean,
       default: false

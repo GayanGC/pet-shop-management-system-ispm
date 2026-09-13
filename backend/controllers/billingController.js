@@ -24,7 +24,7 @@ const billingHealthCheck = async (req, res) => {
 
 const createInvoice = async (req, res) => {
   try {
-    const { customerId, items, paymentMethod, paymentStatus, discountRate, taxRate } = req.body;
+    const { customerId, items, paymentMethod, paymentStatus, discountRate, taxRate, tenderedAmount } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
@@ -63,15 +63,6 @@ const createInvoice = async (req, res) => {
         quantity: qty,
         subtotal: lineSubtotal
       });
-
-      // Deduct stock count if product ID is provided
-      if (item.product) {
-        const prod = await Product.findById(item.product);
-        if (prod) {
-          prod.stockQuantity = Math.max(0, prod.stockQuantity - qty);
-          await prod.save();
-        }
-      }
     }
 
     // Calculate discount and tax
@@ -83,6 +74,28 @@ const createInvoice = async (req, res) => {
     const taxAmount = amountAfterDiscount * (tRate / 100);
     const finalTotal = amountAfterDiscount + taxAmount;
 
+    // Cash Tendered validation (tenderedAmount >= finalTotal)
+    const pMethod = paymentMethod || 'Cash';
+    if (tenderedAmount !== undefined && (pMethod === 'Cash' || pMethod === 'cash')) {
+      if (Number(tenderedAmount) < finalTotal) {
+        return res.status(400).json({
+          success: false,
+          message: `Validation Error: Cash tendered (Rs. ${Number(tenderedAmount).toFixed(2)}) is less than total amount (Rs. ${finalTotal.toFixed(2)})`
+        });
+      }
+    }
+
+    // Atomic Stock Auto-Deduction Verification via $inc
+    for (const item of processedItems) {
+      if (item.product) {
+        await Product.findByIdAndUpdate(item.product, {
+          $inc: { stockQuantity: -item.quantity }
+        });
+      }
+    }
+
+    const changeAmount = tenderedAmount !== undefined ? Math.max(0, Number(tenderedAmount) - finalTotal) : 0;
+
     const invoice = await Invoice.create({
       invoiceNo,
       customerId: customerId || null,
@@ -93,8 +106,10 @@ const createInvoice = async (req, res) => {
       taxRate: tRate,
       taxAmount,
       finalTotal,
-      paymentMethod: paymentMethod || 'Cash',
-      paymentStatus: paymentStatus || 'Paid'
+      paymentMethod: pMethod,
+      paymentStatus: paymentStatus || 'Paid',
+      tenderedAmount: tenderedAmount !== undefined ? Number(tenderedAmount) : null,
+      changeAmount
     });
 
     if (customerId) {

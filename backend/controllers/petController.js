@@ -76,6 +76,9 @@ const createPet = async (req, res) => {
       weight: weight ? Number(weight) : 0,
       gender: req.body.gender || 'Male',
       ownerId: targetOwner,
+      ownerName: req.body.ownerName || '',
+      ownerPhone: req.body.ownerPhone || '',
+      ownerAddress: req.body.ownerAddress || '',
       status: status || 'Available',
       clinicStatus: clinicStatus || 'Registered',
       medicalLogs: []
@@ -312,8 +315,8 @@ const addMedicalLog = async (req, res) => {
 
     const attendingVet = vetName || vetDoctor || 'Dr. Perera (Senior Vet)';
 
-    pet.medicalLogs.push({
-      date: new Date(),
+    const logEntry = {
+      date: req.body.consultationDate ? new Date(req.body.consultationDate) : new Date(),
       diagnosis,
       treatment: finalTreatment,
       treatmentNotes: treatmentNotes || finalTreatment,
@@ -326,7 +329,13 @@ const addMedicalLog = async (req, res) => {
         ? [medicinesPrescribed]
         : [],
       nextVisitDate: nextVisitDate ? new Date(nextVisitDate) : undefined
-    });
+    };
+
+    if (!Array.isArray(pet.medicalLogs)) pet.medicalLogs = [];
+    if (!Array.isArray(pet.medicalHistory)) pet.medicalHistory = [];
+
+    pet.medicalLogs.push(logEntry);
+    pet.medicalHistory.push(logEntry);
 
     await pet.save();
     await pet.populate('ownerId', 'name email role');

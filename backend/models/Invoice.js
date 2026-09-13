@@ -83,6 +83,14 @@ const invoiceSchema = new mongoose.Schema(
       enum: ['Paid', 'Pending'],
       default: 'Paid'
     },
+    tenderedAmount: {
+      type: Number,
+      default: null
+    },
+    changeAmount: {
+      type: Number,
+      default: 0
+    },
     isVoided: {
       type: Boolean,
       default: false

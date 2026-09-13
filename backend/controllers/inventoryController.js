@@ -26,6 +26,32 @@ const createProduct = async (req, res) => {
       });
     }
 
+    if (Number(price) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Price must be greater than zero'
+      });
+    }
+
+    if (Number(stockQuantity) < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Stock quantity cannot be negative'
+      });
+    }
+
+    if (expiryDate) {
+      const exp = new Date(expiryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (exp < today) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Expiry date cannot be in the past'
+        });
+      }
+    }
+
     const product = await Product.create({
       itemName,
       category: category || 'General',
@@ -43,6 +69,13 @@ const createProduct = async (req, res) => {
       data: product
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', ')
+      });
+    }
     console.error('[Create Product Error]:', error.message);
     return res.status(500).json({
       success: false,

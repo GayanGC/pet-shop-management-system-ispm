@@ -4,6 +4,7 @@
  * ============================================================================
  */
 
+const mongoose = require('mongoose');
 const Appointment = require('../models/Appointment');
 const Pet = require('../models/Pet');
 
@@ -43,10 +44,11 @@ const createBooking = async (req, res) => {
       });
     }
 
-    const parsedDate = new Date(appointmentDate);
-    const startOfDay = new Date(new Date(parsedDate).setHours(0, 0, 0, 0));
-    const endOfDay = new Date(new Date(parsedDate).setHours(23, 59, 59, 999));
+    const dateOnly = typeof appointmentDate === 'string' ? appointmentDate.slice(0, 10) : new Date(appointmentDate).toISOString().slice(0, 10);
+    const startOfDay = new Date(`${dateOnly}T00:00:00.000Z`);
+    const endOfDay = new Date(`${dateOnly}T23:59:59.999Z`);
     const staffToUse = assignedStaff || 'Dr. Perera (Senior Vet)';
+    const targetPetId = mongoose.Types.ObjectId.isValid(petId) ? new mongoose.Types.ObjectId(petId) : petId;
 
     // 1. Strict Double Booking Guard (Doctor + Date + Slot)
     const existingConflict = await Appointment.findOne({
@@ -57,32 +59,31 @@ const createBooking = async (req, res) => {
     });
 
     if (existingConflict) {
-      const dateStr = startOfDay.toISOString().split('T')[0];
       return res.status(409).json({
         success: false,
-        message: `Slot Conflict: ${staffToUse} is already booked on ${dateStr} at ${timeSlot}. Please select a different slot.`
+        message: `Slot Conflict: ${staffToUse} is already booked on ${dateOnly} at ${timeSlot}. Please select a different slot.`
       });
     }
 
     // 2. Same-Day Duplicate Booking Guard for Same Pet (unless Emergency reason entered)
-    const isEmergency = notes && (
-      notes.toLowerCase().includes('emergency') ||
-      notes.toLowerCase().includes('urgent') ||
-      notes.toLowerCase().includes('critical')
+    const notesLower = notes ? notes.toLowerCase() : '';
+    const isEmergency = notesLower && (
+      (notesLower.includes('emergency') && !notesLower.includes('non-emergency')) ||
+      (notesLower.includes('urgent') && !notesLower.includes('non-urgent')) ||
+      notesLower.includes('critical')
     );
 
     if (!isEmergency) {
       const sameDayPetBooking = await Appointment.findOne({
-        petId,
+        petId: targetPetId,
         appointmentDate: { $gte: startOfDay, $lte: endOfDay },
         status: { $ne: 'Cancelled' }
       });
 
       if (sameDayPetBooking) {
-        const dateStr = startOfDay.toISOString().split('T')[0];
-        return res.status(409).json({
+        return res.status(400).json({
           success: false,
-          message: `Duplicate Patient Booking Conflict: This pet already has an appointment scheduled on ${dateStr} (${sameDayPetBooking.timeSlot}). To schedule another visit on the same day, please include an Emergency Reason in notes.`
+          message: `Duplicate Patient Booking: This pet already has an appointment scheduled on ${dateOnly} (${sameDayPetBooking.timeSlot}). To schedule another visit on the same day, please include an Emergency Reason in notes.`
         });
       }
     }
@@ -200,40 +201,15 @@ const updateBooking = async (req, res) => {
     }
 
     const docToUse = assignedStaff || booking.assignedStaff;
-    const dateToUse = appointmentDate ? new Date(appointmentDate) : booking.appointmentDate;
+    const dateOnly = appointmentDate 
+      ? (typeof appointmentDate === 'string' ? appointmentDate.slice(0, 10) : new Date(appointmentDate).toISOString().slice(0, 10))
+      : (typeof booking.appointmentDate === 'string' ? booking.appointmentDate.slice(0, 10) : new Date(booking.appointmentDate).toISOString().slice(0, 10));
+    const startOfDay = new Date(`${dateOnly}T00:00:00.000Z`);
+    const endOfDay = new Date(`${dateOnly}T23:59:59.999Z`);
     const slotToUse = timeSlot || booking.timeSlot;
 
-    // Duplicate same-day pet appointment guard (unless emergency)
-    const checkNotes = notes !== undefined ? notes : booking.notes;
-    const isEmergency = checkNotes && (
-      checkNotes.toLowerCase().includes('emergency') ||
-      checkNotes.toLowerCase().includes('urgent') ||
-      checkNotes.toLowerCase().includes('critical')
-    );
-
-    if (!isEmergency && (appointmentDate || booking.appointmentDate)) {
-      const startOfDay = new Date(new Date(dateToUse).setHours(0, 0, 0, 0));
-      const endOfDay = new Date(new Date(dateToUse).setHours(23, 59, 59, 999));
-      const sameDayPet = await Appointment.findOne({
-        _id: { $ne: req.params.id },
-        petId: booking.petId,
-        appointmentDate: { $gte: startOfDay, $lte: endOfDay },
-        status: { $ne: 'Cancelled' }
-      });
-      if (sameDayPet) {
-        const dateStr = startOfDay.toISOString().split('T')[0];
-        return res.status(400).json({
-          success: false,
-          message: `Duplicate Patient Booking: This pet already has another appointment on ${dateStr}. Please include an Emergency Reason in notes to proceed.`
-        });
-      }
-    }
-
-    // Strict Double Booking Guard for Updates / Rescheduling
+    // 1. Strict Double Booking Guard for Updates / Rescheduling (Doctor + Date + Slot)
     if (assignedStaff || appointmentDate || timeSlot) {
-      const startOfDay = new Date(new Date(dateToUse).setHours(0, 0, 0, 0));
-      const endOfDay = new Date(new Date(dateToUse).setHours(23, 59, 59, 999));
-
       const existingConflict = await Appointment.findOne({
         _id: { $ne: req.params.id },
         assignedStaff: docToUse,
@@ -243,10 +219,33 @@ const updateBooking = async (req, res) => {
       });
 
       if (existingConflict) {
-        const dateStr = startOfDay.toISOString().split('T')[0];
         return res.status(409).json({
           success: false,
-          message: `Slot Conflict: ${docToUse} is already booked on ${dateStr} at ${slotToUse}. Please select a different slot.`
+          message: `Slot Conflict: ${docToUse} is already booked on ${dateOnly} at ${slotToUse}. Please select a different slot.`
+        });
+      }
+    }
+
+    // 2. Duplicate same-day pet appointment guard (unless emergency)
+    const checkNotesLower = (notes !== undefined ? notes : (booking.notes || '')).toLowerCase();
+    const isEmergency = checkNotesLower && (
+      (checkNotesLower.includes('emergency') && !checkNotesLower.includes('non-emergency')) ||
+      (checkNotesLower.includes('urgent') && !checkNotesLower.includes('non-urgent')) ||
+      checkNotesLower.includes('critical')
+    );
+
+    if (!isEmergency && (appointmentDate || booking.appointmentDate)) {
+      const targetPetId = mongoose.Types.ObjectId.isValid(booking.petId) ? new mongoose.Types.ObjectId(booking.petId) : booking.petId;
+      const sameDayPet = await Appointment.findOne({
+        _id: { $ne: req.params.id },
+        petId: targetPetId,
+        appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'Cancelled' }
+      });
+      if (sameDayPet) {
+        return res.status(400).json({
+          success: false,
+          message: `Duplicate Patient Booking: This pet already has another appointment on ${dateOnly}. Please include an Emergency Reason in notes to proceed.`
         });
       }
     }

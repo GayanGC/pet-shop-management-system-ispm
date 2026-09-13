@@ -28,5 +28,6 @@ router.route('/:id')
   .delete(protect, deletePet);
 
 router.post('/:id/medical-logs', protect, addMedicalLog);
+router.post('/:id/medical-history', protect, addMedicalLog);
 
 module.exports = router;
