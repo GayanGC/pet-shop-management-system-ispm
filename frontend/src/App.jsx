@@ -46,12 +46,48 @@ import CustomerCheckoutModal from './components/store/CustomerCheckoutModal';
 import CustomerPortal from './components/customer/CustomerPortal';
 import GuestClinicOverview from './components/guest/GuestClinicOverview';
 
-import { getCurrentUser, logout } from './services/authService';
+import { getCurrentUser, logout, login } from './services/authService';
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
 import productService, { fetchProducts as fetchProductsApi, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
 import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
 import { fetchInvoices as fetchInvoicesApi, createInvoice, voidInvoice } from './services/billingService';
+
+// 1-Click Fast Role Switcher Configuration for Rapid Viva Testing
+const DEMO_ROLES = [
+  {
+    role: 'admin',
+    label: 'Admin',
+    icon: '👑',
+    identifier: 'admin@4paw.lk',
+    password: 'admin123',
+    badge: 'Master Control'
+  },
+  {
+    role: 'staff',
+    label: 'Doctor / Staff',
+    icon: '🩺',
+    identifier: 'staff@4paw.lk',
+    password: 'staff123',
+    badge: 'Vets & Clinical'
+  },
+  {
+    role: 'inventory_officer',
+    label: 'Inventory Officer',
+    icon: '📦',
+    identifier: 'inventory@4paw.lk',
+    password: 'inv123',
+    badge: 'Supply & Stock'
+  },
+  {
+    role: 'customer',
+    label: 'Customer',
+    icon: '👤',
+    identifier: 'customer@gmail.com',
+    password: 'customer123',
+    badge: 'Pet Owner'
+  }
+];
 
 const DEFAULT_FALLBACK_PRODUCTS = [
   {
@@ -257,6 +293,29 @@ function App() {
     setActiveTab('overview');
     setCartItems([]);
     showToast('Signed out successfully. Switched to Public Guest View.');
+  };
+
+  // 1-Click Fast Role Switcher Handler (Instantly morphs dashboard view)
+  const handleFastRoleSwitch = async (account) => {
+    try {
+      const res = await login(account.identifier, account.password);
+      if (res.user) {
+        setCurrentUser(res.user);
+        if (account.role === 'customer') {
+          setActiveTab('pets');
+        } else if (account.role === 'inventory_officer') {
+          setActiveTab('pharmacy');
+        } else if (account.role === 'staff') {
+          setActiveTab('pets');
+        } else if (account.role === 'admin') {
+          setActiveTab('pets');
+        }
+        await fetchInitialData();
+        showToast(`⚡ Switched to ${account.label} Portal (${account.role.toUpperCase()})`);
+      }
+    } catch (err) {
+      showToast(`Role switch error: ${err.message}`, 'error');
+    }
   };
 
   // Cart Handlers
@@ -793,7 +852,7 @@ function App() {
     if (activeTab === 'pharmacy' || activeTab === 'overview' || !currentUser) setProductSearch(productSearch);
   };
 
-  // Dynamic Navigation Tabs Based on Role
+  // Dynamic Navigation Tabs Strictly Isolated Based on Role
   const getNavTabs = () => {
     if (!currentUser) {
       return [
@@ -803,37 +862,33 @@ function App() {
     }
     if (role === 'customer') {
       return [
-        { id: 'pets', label: '🐾 My Pets', count: totalPatientsCount },
-        { id: 'appointments', label: '📅 Book Appointment', count: activeBookingsCount },
-        { id: 'pharmacy', label: '🛒 Pet Store & Pharmacy', count: products.length },
-        { id: 'orders', label: `🧾 My Invoices & Orders (${invoices.length})`, count: invoices.length },
-        { id: 'pos', label: '💳 POS Cashier Terminal' },
-        { id: 'suppliers', label: `🏢 Suppliers (${suppliers.length})` }
-      ];
-    }
-    if (role === 'inventory_officer') {
-      return [
-        { id: 'pharmacy', label: '💊 Pharmacy & Stock Management', count: products.length },
-        { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
-        { id: 'pos', label: '💳 Inventory POS & Invoices' }
+        { id: 'pets', label: `🐾 My Pets (${customerPets.length})` },
+        { id: 'appointments', label: `📅 Clinical Channeling (${bookings.length})` },
+        { id: 'pharmacy', label: `🛒 Pharmacy Store (${products.length})` },
+        { id: 'orders', label: `🧾 My Orders (${invoices.length})` }
       ];
     }
     if (role === 'staff') {
       return [
-        { id: 'pets', label: '🐕 Patients & Medical Records', count: totalPatientsCount },
-        { id: 'appointments', label: '📅 Appointments & Calendar', count: activeBookingsCount },
-        { id: 'pharmacy', label: '💊 Pharmacy Catalog', count: products.length },
+        { id: 'pets', label: `🐕 Patients & Passports (${pets.length})` },
+        { id: 'appointments', label: `📅 Doctor Day Calendar (${activeBookingsCount})` },
+        { id: 'pharmacy', label: `💊 Clinic Pharmacy Catalog (${products.length})` }
+      ];
+    }
+    if (role === 'inventory_officer') {
+      return [
+        { id: 'pharmacy', label: `📦 Pharmacy & Stock (${products.length})` },
         { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
-        { id: 'pos', label: '💳 POS Cashier Terminal' }
+        { id: 'expiry', label: `⚠️ Expiry Tracker & Disposal (${expiringProducts.length})` }
       ];
     }
     if (role === 'admin') {
       return [
-        { id: 'pets', label: `🐕 Patients & Pets (${totalPatientsCount})` },
+        { id: 'pets', label: `🐕 Patients & Pets (${pets.length})` },
         { id: 'pharmacy', label: `💊 Pharmacy & Stock (${products.length})` },
+        { id: 'appointments', label: `📅 Appointments & Calendar (${activeBookingsCount})` },
         { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
-        { id: 'appointments', label: `📅 Appointments (${activeBookingsCount})` },
-        { id: 'pos', label: `💳 POS Cashier Terminal` }
+        { id: 'pos', label: `💳 POS Cashier & Analytics` }
       ];
     }
     // Guest Fallback
@@ -844,6 +899,26 @@ function App() {
   };
 
   const navTabs = getNavTabs();
+
+  // Strict Tab Validation Guard: Instantly redirect if current tab is disallowed for role
+  useEffect(() => {
+    const validTabs = getNavTabs().map((t) => t.id);
+    if (!validTabs.includes(activeTab)) {
+      if (!currentUser) {
+        setActiveTab('overview');
+      } else if (role === 'customer') {
+        setActiveTab('pets');
+      } else if (role === 'inventory_officer') {
+        setActiveTab('pharmacy');
+      } else if (role === 'staff') {
+        setActiveTab('pets');
+      } else if (role === 'admin') {
+        setActiveTab('pets');
+      } else {
+        setActiveTab(validTabs[0] || 'pets');
+      }
+    }
+  }, [role, currentUser]);
 
   return (
     <div className={theme === 'dark' 
@@ -916,19 +991,21 @@ function App() {
               <span>+94 11 234 5678</span>
             </div>
 
-            {/* Shopping Cart Shortcut Button */}
-            <button
-              onClick={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to view your cart and checkout.')}
-              className="relative p-2 rounded-xl bg-teal-900/60 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/40 dark:border-slate-700 flex items-center gap-1.5 shadow-xs"
-              title="Shopping Bag & Checkout"
-            >
-              <ShoppingCart className="w-4 h-4 text-amber-300" />
-              {cartItemCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-mono font-black text-[10px]">
-                  {cartItemCount}
-                </span>
-              )}
-            </button>
+            {/* Shopping Cart Shortcut Button (Customer & Guest Only) */}
+            {(!currentUser || role === 'customer') && (
+              <button
+                onClick={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to view your cart and checkout.')}
+                className="relative p-2 rounded-xl bg-teal-900/60 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/40 dark:border-slate-700 flex items-center gap-1.5 shadow-xs"
+                title="Shopping Bag & Checkout"
+              >
+                <ShoppingCart className="w-4 h-4 text-amber-300" />
+                {cartItemCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-mono font-black text-[10px]">
+                    {cartItemCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* Theme Toggler (Sun / Moon) */}
             <button
@@ -981,6 +1058,51 @@ function App() {
           </div>
         </div>
       </header>
+
+      {/* 1.5. 1-CLICK DEMO ROLE SWITCHER (INSTANT VIVA EVALUATION & DASHBOARD TRANSFORMATION) */}
+      <div className="bg-slate-900/95 dark:bg-slate-950 text-white text-xs px-4 sm:px-6 lg:px-8 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 shadow-inner z-40">
+        <div className="flex items-center gap-2">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
+          <span className="font-black text-amber-400 uppercase tracking-wider text-[10px]">
+            ⚡ 1-Click Role Switcher:
+          </span>
+          <span className="text-[11px] text-slate-300 hidden sm:inline">
+            Active: <strong className="text-white capitalize">{currentUser ? `${role.replace('_', ' ')} (${currentUser.name})` : 'Public Guest View'}</strong>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {DEMO_ROLES.map((acc) => (
+            <button
+              key={acc.role}
+              onClick={() => handleFastRoleSwitch(acc)}
+              className={`px-3 py-1 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1.5 cursor-pointer border ${
+                currentUser && role === acc.role
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30 scale-105 ring-2 ring-amber-400/50'
+                  : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-slate-700 hover:border-slate-500'
+              }`}
+              title={`Switch instantly to ${acc.label} (${acc.identifier})`}
+            >
+              <span>{acc.icon}</span>
+              <span>{acc.label}</span>
+            </button>
+          ))}
+
+          {currentUser && (
+            <button
+              onClick={handleLogout}
+              className="px-2.5 py-1 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-300 hover:text-white border border-rose-800/60 font-bold text-[11px] transition-all flex items-center gap-1 cursor-pointer"
+              title="Switch to Public Guest (Logged Out)"
+            >
+              <span>🌐</span>
+              <span>Public Guest</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* 2. SECONDARY NAVIGATION BAR (ROLE-ADAPTIVE TABS) */}
       <nav className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-teal-100/80 dark:border-slate-800 shadow-sm sticky top-[61px] z-40 transition-colors">
@@ -1138,159 +1260,365 @@ function App() {
           </div>
         </div>
 
-        {/* 4. 5 CORE SERVICE HUBS (POS ELIMINATED FROM CUSTOMER VIEW) */}
+        {/* 4. ROLE-ADAPTIVE QUICK ACCESS HUBS */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              Quick Access Clinical Services
+              {role === 'inventory_officer' ? 'Inventory & Supply Chain Hubs' : role === 'staff' ? 'Clinical Care & Doctor Hubs' : 'Quick Access Clinical Services'}
             </h3>
-            <span className="text-[11px] text-teal-700 dark:text-teal-400 font-bold">5 Core Clinical Hubs</span>
+            <span className="text-[11px] text-teal-700 dark:text-teal-400 font-bold">
+              {role === 'inventory_officer' ? 'Supply Operations' : role === 'staff' ? 'Doctor Operations' : '5 Core Clinical Hubs'}
+            </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {/* Hub 1: Canine */}
-            <div
-              onClick={() => {
-                setActiveTab('pets');
-                setPetSpeciesFilter('Dog');
-                scrollToContent();
-              }}
-              className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/20 hover:from-amber-500/25 hover:to-orange-500/30 border-2 border-amber-400/60 dark:border-amber-500/40 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
-            >
-              <span className="text-3xl drop-shadow-sm">🐕</span>
-              <span className="text-xs font-black text-amber-950 dark:text-amber-200">Canine / Dogs</span>
-              <span className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-medium">Patients & Profiles</span>
-            </div>
+            {role === 'inventory_officer' ? (
+              <>
+                {/* Hub 1: Pharmacy Catalog */}
+                <div
+                  onClick={() => {
+                    setActiveTab('pharmacy');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-teal-500/20 hover:from-emerald-500/25 hover:to-teal-500/30 border-2 border-emerald-400/60 dark:border-emerald-500/40 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">📦</span>
+                  <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Pharmacy & Stock</span>
+                  <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Manage Formulations</span>
+                </div>
 
-            {/* Hub 2: Feline */}
-            <div
-              onClick={() => {
-                setActiveTab('pets');
-                setPetSpeciesFilter('Cat');
-                scrollToContent();
-              }}
-              className="bg-gradient-to-br from-rose-500/15 via-rose-500/5 to-pink-500/20 hover:from-rose-500/25 hover:to-pink-500/30 border-2 border-rose-400/60 dark:border-rose-500/40 shadow-lg shadow-rose-500/10 hover:shadow-rose-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
-            >
-              <span className="text-3xl drop-shadow-sm">🐈</span>
-              <span className="text-xs font-black text-rose-950 dark:text-rose-200">Feline / Cats</span>
-              <span className="text-[10px] text-rose-800/80 dark:text-rose-400/80 font-medium">Patients & Profiles</span>
-            </div>
+                {/* Hub 2: Low Stock */}
+                <div
+                  onClick={() => {
+                    setActiveTab('pharmacy');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/20 hover:from-amber-500/25 hover:to-orange-500/30 border-2 border-amber-400/60 dark:border-amber-500/40 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">⚠️</span>
+                  <span className="text-xs font-black text-amber-950 dark:text-amber-200">Low Stock Radar</span>
+                  <span className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-medium">{lowStockCount} Items Low</span>
+                </div>
 
-            {/* Hub 3: Pet Pharmacy */}
-            <div
-              onClick={() => {
-                setActiveTab('pharmacy');
-                setProductCategoryFilter('All');
-                scrollToContent();
-              }}
-              className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-teal-500/20 hover:from-emerald-500/25 hover:to-teal-500/30 border-2 border-emerald-400/60 dark:border-emerald-500/40 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
-            >
-              <span className="text-3xl drop-shadow-sm">💊</span>
-              <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Pet Pharmacy</span>
-              <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Meds & Vaccines</span>
-            </div>
+                {/* Hub 3: Suppliers */}
+                <div
+                  onClick={() => {
+                    setActiveTab('suppliers');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-blue-500/15 via-blue-500/5 to-indigo-500/20 hover:from-blue-500/25 hover:to-indigo-500/30 border-2 border-blue-400/60 dark:border-blue-500/40 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">🏢</span>
+                  <span className="text-xs font-black text-blue-950 dark:text-blue-200">Supplier Directory</span>
+                  <span className="text-[10px] text-blue-800/80 dark:text-blue-400/80 font-medium">{suppliers.length} Distributors</span>
+                </div>
 
-            {/* Hub 4: Consultations */}
-            <div
-              onClick={() => {
-                setActiveTab('appointments');
-                scrollToContent();
-              }}
-              className="bg-gradient-to-br from-cyan-500/15 via-cyan-500/5 to-blue-500/20 hover:from-cyan-500/25 hover:to-blue-500/30 border-2 border-cyan-400/60 dark:border-cyan-500/40 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
-            >
-              <span className="text-3xl drop-shadow-sm">🩺</span>
-              <span className="text-xs font-black text-cyan-950 dark:text-cyan-200">Consultations</span>
-              <span className="text-[10px] text-cyan-800/80 dark:text-cyan-400/80 font-medium">Doctor Calendar</span>
-            </div>
+                {/* Hub 4: Expiry Tracker */}
+                <div
+                  onClick={() => {
+                    setActiveTab('expiry');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-rose-500/15 via-rose-500/5 to-pink-500/20 hover:from-rose-500/25 hover:to-pink-500/30 border-2 border-rose-400/60 dark:border-rose-500/40 shadow-lg shadow-rose-500/10 hover:shadow-rose-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">⏳</span>
+                  <span className="text-xs font-black text-rose-950 dark:text-rose-200">Expiry Tracker</span>
+                  <span className="text-[10px] text-rose-800/80 dark:text-rose-400/80 font-medium">{expiringProducts.length} Batches</span>
+                </div>
 
-            {/* Hub 5: Storefront / Orders for Customer; POS for Admin */}
-            {role === 'customer' || role === 'guest' ? (
-              <div
-                onClick={() => {
-                  setActiveTab('pharmacy');
-                  setPharmacySubTab('showcase');
-                  scrollToContent();
-                }}
-                className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
-              >
-                <span className="text-3xl drop-shadow-sm">🛍️</span>
-                <span className="text-xs font-black text-purple-950 dark:text-purple-200">Pet Store & Cart</span>
-                <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Shop Medicines & Care</span>
-              </div>
+                {/* Hub 5: Add Medication */}
+                <div
+                  onClick={() => setIsProductModalOpen(true)}
+                  className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">➕</span>
+                  <span className="text-xs font-black text-purple-950 dark:text-purple-200">+ Register Drug</span>
+                  <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">New Batch & Stock</span>
+                </div>
+              </>
+            ) : role === 'staff' ? (
+              <>
+                {/* Hub 1: Canine */}
+                <div
+                  onClick={() => {
+                    setActiveTab('pets');
+                    setPetSpeciesFilter('Dog');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/20 hover:from-amber-500/25 hover:to-orange-500/30 border-2 border-amber-400/60 dark:border-amber-500/40 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">🐕</span>
+                  <span className="text-xs font-black text-amber-950 dark:text-amber-200">Canine Patients</span>
+                  <span className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-medium">Passports & Vitals</span>
+                </div>
+
+                {/* Hub 2: Feline */}
+                <div
+                  onClick={() => {
+                    setActiveTab('pets');
+                    setPetSpeciesFilter('Cat');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-rose-500/15 via-rose-500/5 to-pink-500/20 hover:from-rose-500/25 hover:to-pink-500/30 border-2 border-rose-400/60 dark:border-rose-500/40 shadow-lg shadow-rose-500/10 hover:shadow-rose-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">🐈</span>
+                  <span className="text-xs font-black text-rose-950 dark:text-rose-200">Feline Patients</span>
+                  <span className="text-[10px] text-rose-800/80 dark:text-rose-400/80 font-medium">Passports & Vitals</span>
+                </div>
+
+                {/* Hub 3: Doctor Calendar */}
+                <div
+                  onClick={() => {
+                    setActiveTab('appointments');
+                    setBookingSubTab('calendar');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-cyan-500/15 via-cyan-500/5 to-blue-500/20 hover:from-cyan-500/25 hover:to-blue-500/30 border-2 border-cyan-400/60 dark:border-cyan-500/40 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">📅</span>
+                  <span className="text-xs font-black text-cyan-950 dark:text-cyan-200">Doctor Calendar</span>
+                  <span className="text-[10px] text-cyan-800/80 dark:text-cyan-400/80 font-medium">Day Slots & Roster</span>
+                </div>
+
+                {/* Hub 4: Clinical Pharmacy */}
+                <div
+                  onClick={() => {
+                    setActiveTab('pharmacy');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-teal-500/20 hover:from-emerald-500/25 hover:to-teal-500/30 border-2 border-emerald-400/60 dark:border-emerald-500/40 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">💊</span>
+                  <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Clinic Formulary</span>
+                  <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Meds & Vaccines</span>
+                </div>
+
+                {/* Hub 5: Register Patient */}
+                <div
+                  onClick={() => setIsPetModalOpen(true)}
+                  className="bg-gradient-to-br from-teal-500/15 via-teal-500/5 to-emerald-500/20 hover:from-teal-500/25 hover:to-emerald-500/30 border-2 border-teal-400/60 dark:border-teal-500/40 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">🐾</span>
+                  <span className="text-xs font-black text-teal-950 dark:text-teal-200">+ Register Patient</span>
+                  <span className="text-[10px] text-teal-800/80 dark:text-teal-400/80 font-medium">Issue Microchip PIN</span>
+                </div>
+              </>
             ) : (
-              <div
-                onClick={() => {
-                  setActiveTab('pos');
-                  scrollToContent();
-                }}
-                className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
-              >
-                <span className="text-3xl drop-shadow-sm">🏷️</span>
-                <span className="text-xs font-black text-purple-950 dark:text-purple-200">POS & Retail</span>
-                <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Checkout Cashier</span>
-              </div>
+              <>
+                {/* Hub 1: Canine */}
+                <div
+                  onClick={() => {
+                    setActiveTab('pets');
+                    setPetSpeciesFilter('Dog');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/20 hover:from-amber-500/25 hover:to-orange-500/30 border-2 border-amber-400/60 dark:border-amber-500/40 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">🐕</span>
+                  <span className="text-xs font-black text-amber-950 dark:text-amber-200">Canine / Dogs</span>
+                  <span className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-medium">Patients & Profiles</span>
+                </div>
+
+                {/* Hub 2: Feline */}
+                <div
+                  onClick={() => {
+                    setActiveTab('pets');
+                    setPetSpeciesFilter('Cat');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-rose-500/15 via-rose-500/5 to-pink-500/20 hover:from-rose-500/25 hover:to-pink-500/30 border-2 border-rose-400/60 dark:border-rose-500/40 shadow-lg shadow-rose-500/10 hover:shadow-rose-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">🐈</span>
+                  <span className="text-xs font-black text-rose-950 dark:text-rose-200">Feline / Cats</span>
+                  <span className="text-[10px] text-rose-800/80 dark:text-rose-400/80 font-medium">Patients & Profiles</span>
+                </div>
+
+                {/* Hub 3: Pet Pharmacy */}
+                <div
+                  onClick={() => {
+                    setActiveTab('pharmacy');
+                    setProductCategoryFilter('All');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-teal-500/20 hover:from-emerald-500/25 hover:to-teal-500/30 border-2 border-emerald-400/60 dark:border-emerald-500/40 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">💊</span>
+                  <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Pet Pharmacy</span>
+                  <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Meds & Vaccines</span>
+                </div>
+
+                {/* Hub 4: Consultations */}
+                <div
+                  onClick={() => {
+                    setActiveTab('appointments');
+                    scrollToContent();
+                  }}
+                  className="bg-gradient-to-br from-cyan-500/15 via-cyan-500/5 to-blue-500/20 hover:from-cyan-500/25 hover:to-blue-500/30 border-2 border-cyan-400/60 dark:border-cyan-500/40 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                >
+                  <span className="text-3xl drop-shadow-sm">🩺</span>
+                  <span className="text-xs font-black text-cyan-950 dark:text-cyan-200">Consultations</span>
+                  <span className="text-[10px] text-cyan-800/80 dark:text-cyan-400/80 font-medium">Doctor Calendar</span>
+                </div>
+
+                {/* Hub 5: Storefront for Customer vs POS for Admin */}
+                {role === 'customer' || role === 'guest' ? (
+                  <div
+                    onClick={() => {
+                      setActiveTab('pharmacy');
+                      scrollToContent();
+                    }}
+                    className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  >
+                    <span className="text-3xl drop-shadow-sm">🛍️</span>
+                    <span className="text-xs font-black text-purple-950 dark:text-purple-200">Pet Store & Cart</span>
+                    <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Shop Medicines & Care</span>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => {
+                      setActiveTab('pos');
+                      scrollToContent();
+                    }}
+                    className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  >
+                    <span className="text-3xl drop-shadow-sm">🏷️</span>
+                    <span className="text-xs font-black text-purple-950 dark:text-purple-200">POS & Retail</span>
+                    <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Checkout Cashier</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        {/* 5. KPI METRICS RIBBON */}
+        {/* 5. ROLE-ISOLATED KPI METRICS RIBBON */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">
-              🐕
-            </div>
-            <div>
-              <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
-                {role === 'customer' ? 'My Registered Pets' : 'Registered Patients'}
-              </p>
-              <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">
-                {totalPatientsCount}
-              </h4>
-            </div>
-          </div>
-
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">
-              💊
-            </div>
-            <div>
-              <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
-                {role === 'customer' ? 'Catalog Medications' : 'Low Stock Items'}
-              </p>
-              <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">
-                {role === 'customer' ? products.length : lowStockCount}
-              </h4>
-            </div>
-          </div>
-
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 flex items-center justify-center text-xl shadow-xs">
-              📅
-            </div>
-            <div>
-              <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
-                {role === 'customer' ? 'My Appointments' : 'Active Appointments'}
-              </p>
-              <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">
-                {activeBookingsCount}
-              </h4>
-            </div>
-          </div>
-
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 flex items-center justify-center text-xl shadow-xs">
-              🧾
-            </div>
-            <div>
-              <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
-                {role === 'customer' ? 'Orders Placed' : 'Total Clinic Revenue'}
-              </p>
-              <h4 className="text-xl font-black text-slate-800 dark:text-white font-mono">
-                {role === 'customer' ? `${invoices.length} Orders` : `Rs. ${totalRevenue.toFixed(2)}`}
-              </h4>
-            </div>
-          </div>
+          {role === 'customer' ? (
+            <>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">🐾</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">My Registered Pets</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{customerPets.length}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">💊</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Available Medications</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{products.length}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 flex items-center justify-center text-xl shadow-xs">📅</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">My Channeling</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{bookings.length}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 flex items-center justify-center text-xl shadow-xs">🧾</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">My Orders Placed</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{invoices.length}</h4>
+                </div>
+              </div>
+            </>
+          ) : role === 'staff' ? (
+            <>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">🐕</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Total Clinic Patients</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{pets.length}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 flex items-center justify-center text-xl shadow-xs">📅</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Active Consultations</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{activeBookingsCount}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">💊</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Formulary Drugs</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{products.length}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 flex items-center justify-center text-xl shadow-xs">⚠️</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Low Stock Alerts</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{lowStockCount}</h4>
+                </div>
+              </div>
+            </>
+          ) : role === 'inventory_officer' ? (
+            <>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">📦</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Stock Products</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{products.length}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">⚠️</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Low Stock Radar</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{lowStockCount}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 flex items-center justify-center text-xl shadow-xs">⏳</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Expiring Batches</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{expiringProducts.length}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center text-xl shadow-xs">🏢</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Active Suppliers</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{suppliers.length}</h4>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">🐕</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Registered Patients</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{pets.length}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">💊</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Low Stock Items</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{lowStockCount}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 flex items-center justify-center text-xl shadow-xs">📅</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Active Bookings</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{activeBookingsCount}</h4>
+                </div>
+              </div>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 flex items-center justify-center text-xl shadow-xs">🧾</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Total Clinic Revenue</p>
+                  <h4 className="text-xl font-black text-slate-800 dark:text-white font-mono">Rs. {totalRevenue.toFixed(2)}</h4>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* 7. MAIN CONTENT PANELS */}
@@ -1361,329 +1689,320 @@ function App() {
             )
           ) : (
             <>
-              {/* TAB: PATIENTS & PET PROFILES */}
-          {activeTab === 'pets' && (
-            <div className="space-y-6 animate-fadeIn">
-              {/* Customer Top Bar */}
-              {role === 'customer' && (
-                <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center text-2xl shadow-md">
-                      🐾
+              {/* TAB: PATIENTS & PET PROFILES (STAFF & ADMIN ONLY) */}
+              {activeTab === 'pets' && (role === 'admin' || role === 'staff') && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center text-2xl shadow-md">
+                        🐾
+                      </div>
+                      <div>
+                        <h2 className="text-base font-black text-slate-900 dark:text-white">
+                          Hospital Registered Patients ({pets.length})
+                        </h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Master electronic clinical records, vaccination passports, and doctor consult notes.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-base font-black text-slate-900 dark:text-white">
-                        My Pet Patients ({customerPets.length})
-                      </h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Personalized health records, vaccination schedules & printable health passports.
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsPetModalOpen(true)}
+                      className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>+ Register New Patient</span>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsPetModalOpen(true)}
-                    className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>+ Add New Pet</span>
-                  </button>
+
+                  <PetList
+                    pets={pets}
+                    onDelete={role === 'admin' ? handleDeletePet : null}
+                    onArchivePet={handleArchivePet}
+                    onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
+                    onUpdateClinicStatus={handleUpdateClinicStatus}
+                    onAddMedicalLog={handleAddMedicalLog}
+                    searchTerm={petSearch}
+                    setSearchTerm={setPetSearch}
+                    speciesFilter={petSpeciesFilter}
+                    setSpeciesFilter={setPetSpeciesFilter}
+                    includeArchived={includeArchivedPets}
+                    setIncludeArchived={setIncludeArchivedPets}
+                  />
                 </div>
               )}
 
-              {/* Welcoming Banner for Customer with 0 pets */}
-              {role === 'customer' && customerPets.length === 0 ? (
-                <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-10 rounded-3xl border-2 border-dashed border-teal-200 dark:border-slate-800 shadow-xl text-center space-y-4 max-w-2xl mx-auto">
-                  <div className="w-16 h-16 rounded-3xl bg-teal-50 dark:bg-teal-950/80 text-teal-600 dark:text-teal-300 flex items-center justify-center mx-auto border border-teal-200 dark:border-teal-800 shadow-md">
-                    <PawPrint className="w-8 h-8 animate-bounce" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-xl font-black text-slate-900 dark:text-white">
-                      You haven't added any pets yet! 🐾
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                      Welcome to 4 Paw Animal Clinic! Index your dogs, cats, birds, or exotic family members to unlock digital health passports and vaccination tracking.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsPetModalOpen(true)}
-                    className="py-3 px-6 rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs inline-flex items-center gap-2 shadow-lg shadow-teal-700/20 active:scale-95 cursor-pointer transition-all"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>+ Register Your First Pet</span>
-                  </button>
-                </div>
-              ) : (
-                <PetList
-                  pets={customerPets}
-                  onDelete={handleDeletePet}
-                  onArchivePet={handleArchivePet}
-                  onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
-                  onUpdateClinicStatus={handleUpdateClinicStatus}
-                  onAddMedicalLog={handleAddMedicalLog}
-                  searchTerm={petSearch}
-                  setSearchTerm={setPetSearch}
-                  speciesFilter={petSpeciesFilter}
-                  setSpeciesFilter={setPetSpeciesFilter}
-                  includeArchived={includeArchivedPets}
-                  setIncludeArchived={setIncludeArchivedPets}
-                />
-              )}
-            </div>
-          )}
-
-          {/* TAB: PHARMACY & INVENTORY */}
-          {activeTab === 'pharmacy' && (
-            <div className="space-y-6 animate-fadeIn">
-              {role !== 'customer' && (
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit flex-wrap">
-                  <button
-                    onClick={() => setPharmacySubTab('inventory')}
-                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                      pharmacySubTab === 'inventory'
-                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <span>📦</span> Medicine & Stock Directory
-                  </button>
-
-                  <button
-                    onClick={() => setPharmacySubTab('showcase')}
-                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                      pharmacySubTab === 'showcase'
-                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <span>🛍️</span> Customer Storefront View
-                  </button>
-
-                  {(role === 'admin' || role === 'inventory_officer' || role === 'staff') && (
+              {/* TAB: PHARMACY & INVENTORY */}
+              {activeTab === 'pharmacy' && (
+                <div className="space-y-6 animate-fadeIn">
+                  {role === 'staff' ? (
+                    /* Staff View: Pure Read-Only Clinical Formulary (No Storefront, No Cart, No Modals) */
+                    <InventoryList
+                      products={products}
+                      readOnly={true}
+                      searchTerm={productSearch}
+                      setSearchTerm={setProductSearch}
+                      categoryFilter={productCategoryFilter}
+                      setCategoryFilter={setProductCategoryFilter}
+                    />
+                  ) : role === 'inventory_officer' ? (
+                    /* Inventory Officer View: Full Medication Stock Control & Batch Reorders */
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white/85 dark:bg-slate-900/85 p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-md">
+                        <div>
+                          <h3 className="text-base font-black text-slate-900 dark:text-white">
+                            Pharmacy Stock Control Desk
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Manage batch numbers, unit pricing, reorder thresholds, and drug catalog entries.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setIsProductModalOpen(true)}
+                          className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                        >
+                          <Plus className="w-4 h-4" /> + Add New Medication
+                        </button>
+                      </div>
+                      <InventoryList
+                        products={products}
+                        onDelete={handleDeleteProduct}
+                        onAdjustStock={handleAdjustStock}
+                        searchTerm={productSearch}
+                        setSearchTerm={setProductSearch}
+                        categoryFilter={productCategoryFilter}
+                        setCategoryFilter={setProductCategoryFilter}
+                        readOnly={false}
+                      />
+                    </div>
+                  ) : role === 'admin' ? (
+                    /* Admin View: Master Inventory Control with Sub-tab Switches */
                     <>
-                      <button
-                        onClick={() => setPharmacySubTab('suppliers')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                          pharmacySubTab === 'suppliers'
-                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        <span>🏢</span> Supplier Directory ({suppliers.length})
-                      </button>
+                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit flex-wrap">
+                        <button
+                          onClick={() => setPharmacySubTab('inventory')}
+                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                            pharmacySubTab === 'inventory'
+                              ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <span>📦</span> Medicine & Stock Directory
+                        </button>
 
-                      <button
-                        onClick={() => setPharmacySubTab('expiry')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                          pharmacySubTab === 'expiry'
-                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        <span>⚠️</span> Expiry & Batch Tracker ({expiringProducts.length})
-                      </button>
+                        <button
+                          onClick={() => setPharmacySubTab('showcase')}
+                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                            pharmacySubTab === 'showcase'
+                              ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <span>🛍️</span> Storefront Catalog View
+                        </button>
+
+                        <button
+                          onClick={() => setPharmacySubTab('suppliers')}
+                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                            pharmacySubTab === 'suppliers'
+                              ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <span>🏢</span> Supplier Directory ({suppliers.length})
+                        </button>
+
+                        <button
+                          onClick={() => setPharmacySubTab('expiry')}
+                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                            pharmacySubTab === 'expiry'
+                              ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <span>⚠️</span> Expiry Tracker ({expiringProducts.length})
+                        </button>
+                      </div>
+
+                      {pharmacySubTab === 'inventory' && (
+                        <div className="space-y-4">
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => setIsProductModalOpen(true)}
+                              className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md cursor-pointer"
+                            >
+                              <Plus className="w-4 h-4" /> + Add New Product
+                            </button>
+                          </div>
+                          <InventoryList
+                            products={products}
+                            onDelete={handleDeleteProduct}
+                            onAdjustStock={handleAdjustStock}
+                            searchTerm={productSearch}
+                            setSearchTerm={setProductSearch}
+                            categoryFilter={productCategoryFilter}
+                            setCategoryFilter={setProductCategoryFilter}
+                            readOnly={false}
+                          />
+                        </div>
+                      )}
+
+                      {pharmacySubTab === 'showcase' && (
+                        <ProductShowcase
+                          products={products}
+                          onAddToCart={handleAddToCart}
+                          onQuickBuy={handleQuickBuy}
+                          cartCount={cartItemCount}
+                          onOpenCart={() => setIsCheckoutModalOpen(true)}
+                        />
+                      )}
+
+                      {pharmacySubTab === 'suppliers' && (
+                        <SupplierDirectory
+                          suppliers={suppliers}
+                          onCreateSupplier={handleCreateSupplier}
+                          onAddSupplier={handleCreateSupplier}
+                          onUpdateSupplier={handleUpdateSupplier}
+                          onDeleteSupplier={handleDeleteSupplier}
+                          onRefresh={loadSuppliers}
+                        />
+                      )}
+
+                      {pharmacySubTab === 'expiry' && (
+                        <ExpiryTracker
+                          expiringProducts={expiringProducts}
+                          onDisposeBatch={handleDisposeBatch}
+                          onRefresh={loadExpiringProducts}
+                        />
+                      )}
                     </>
+                  ) : null}
+                </div>
+              )}
+
+              {/* TAB: APPOINTMENT SCHEDULING (STAFF & ADMIN ONLY) */}
+              {activeTab === 'appointments' && (role === 'admin' || role === 'staff') && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
+                    <button
+                      onClick={() => setBookingSubTab('calendar')}
+                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                        bookingSubTab === 'calendar'
+                          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>📅</span> Doctor Day Calendar
+                    </button>
+
+                    <button
+                      onClick={() => setBookingSubTab('directory')}
+                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                        bookingSubTab === 'directory'
+                          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>📋</span> Bookings Directory ({bookings.length})
+                    </button>
+                  </div>
+
+                  {bookingSubTab === 'directory' ? (
+                    <BookingList
+                      bookings={bookings}
+                      onUpdateStatus={handleUpdateBookingStatus}
+                      onCancel={handleCancelBooking}
+                      onReschedule={handleRescheduleBooking}
+                      statusFilter={bookingStatusFilter}
+                      setStatusFilter={setBookingStatusFilter}
+                    />
+                  ) : (
+                    <DoctorCalendarView
+                      onBookSlot={(slotData) => {
+                        setPrefilledBookingData(slotData);
+                        setIsBookingModalOpen(true);
+                      }}
+                    />
                   )}
                 </div>
               )}
 
-              {/* View: Customer Storefront Showcase */}
-              {(pharmacySubTab === 'showcase' || role === 'customer') && (
-                <ProductShowcase
-                  products={products}
-                  onAddToCart={handleAddToCart}
-                  onQuickBuy={handleQuickBuy}
-                  cartCount={cartItemCount}
-                  onOpenCart={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to view your cart.')}
-                />
-              )}
+              {/* TAB: POS CASHIER TERMINAL (ADMIN ONLY) */}
+              {activeTab === 'pos' && role === 'admin' && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
+                    <button
+                      onClick={() => setPosSubTab('terminal')}
+                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                        posSubTab === 'terminal'
+                          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>🛒</span> POS Cashier Register ({cartItemCount})
+                    </button>
 
-              {/* View: Internal Medicine Directory */}
-              {pharmacySubTab === 'inventory' && role !== 'customer' && (
-                <InventoryList
-                  products={products}
-                  onDelete={handleDeleteProduct}
-                  onAdjustStock={handleAdjustStock}
-                  searchTerm={productSearch}
-                  setSearchTerm={setProductSearch}
-                  categoryFilter={productCategoryFilter}
-                  setCategoryFilter={setProductCategoryFilter}
-                />
-              )}
+                    <button
+                      onClick={() => setPosSubTab('analytics')}
+                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                        posSubTab === 'analytics'
+                          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>📊</span> Sales Analytics & Reports
+                    </button>
+                  </div>
 
-              {/* View: Supplier Directory */}
-              {pharmacySubTab === 'suppliers' && (
-                <SupplierDirectory
-                  suppliers={suppliers}
-                  onCreateSupplier={handleCreateSupplier}
-                  onAddSupplier={handleCreateSupplier}
-                  onUpdateSupplier={handleUpdateSupplier}
-                  onDeleteSupplier={handleDeleteSupplier}
-                  onRefresh={loadSuppliers}
-                />
-              )}
-
-              {/* View: Expiry Tracker */}
-              {pharmacySubTab === 'expiry' && (
-                <ExpiryTracker
-                  expiringProducts={expiringProducts}
-                  onDisposeBatch={handleDisposeBatch}
-                  onRefresh={loadExpiringProducts}
-                />
-              )}
-            </div>
-          )}
-
-          {/* TAB: APPOINTMENT SCHEDULING */}
-          {activeTab === 'appointments' && (
-            <div className="space-y-6 animate-fadeIn">
-              {role !== 'customer' && (
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
-                  <button
-                    onClick={() => setBookingSubTab('directory')}
-                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                      bookingSubTab === 'directory'
-                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <span>📋</span> Bookings Directory
-                  </button>
-
-                  <button
-                    onClick={() => setBookingSubTab('calendar')}
-                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                      bookingSubTab === 'calendar'
-                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <span>📅</span> Doctor Day Calendar
-                  </button>
+                  {posSubTab === 'terminal' ? (
+                    <div className="space-y-8">
+                      <POSBilling
+                        products={products}
+                        onSubmitOrder={handleCheckoutPOS}
+                        isLoading={isBillingLoading}
+                        cartItems={cartItems}
+                        setCartItems={setCartItems}
+                        currentUser={currentUser}
+                        onRequireAuth={handleActionWithAuth}
+                      />
+                      <InvoiceList
+                        invoices={invoices}
+                        onVoidInvoice={handleVoidInvoice}
+                        paymentFilter={invoicePaymentFilter}
+                        setPaymentFilter={setInvoicePaymentFilter}
+                      />
+                    </div>
+                  ) : (
+                    <SalesAnalytics />
+                  )}
                 </div>
               )}
 
-              {bookingSubTab === 'directory' ? (
-                <BookingList
-                  bookings={bookings}
-                  onUpdateStatus={handleUpdateBookingStatus}
-                  onCancel={handleCancelBooking}
-                  onReschedule={handleRescheduleBooking}
-                  statusFilter={bookingStatusFilter}
-                  setStatusFilter={setBookingStatusFilter}
-                />
-              ) : (
-                <DoctorCalendarView
-                  onBookSlot={(slotData) => {
-                    setPrefilledBookingData(slotData);
-                    setIsBookingModalOpen(true);
-                  }}
-                />
-              )}
-            </div>
-          )}
-
-          {/* TAB: CUSTOMER ORDERS & INVOICES (CUSTOMER & GUEST VIEW) */}
-          {(activeTab === 'orders' || (activeTab === 'pos' && role === 'customer')) && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-6 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-700 text-white flex items-center justify-center text-xl shadow-md">
-                    🛍️
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                      My Clinical Invoices & Shopping Cart
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      You currently have <span className="font-bold text-teal-600 dark:text-teal-400">{cartItemCount} item(s)</span> in your shopping bag.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to proceed with checkout.')}
-                  className="w-full sm:w-auto py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 active:scale-95 transition-all cursor-pointer"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  <span>Proceed to Storefront Checkout ({cartItemCount})</span>
-                </button>
-              </div>
-
-              <InvoiceList
-                invoices={invoices}
-                paymentFilter={invoicePaymentFilter}
-                setPaymentFilter={setInvoicePaymentFilter}
-              />
-            </div>
-          )}
-
-          {/* TAB: POS CASHIER TERMINAL (ALL ROLES) */}
-          {activeTab === 'pos' && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
-                <button
-                  onClick={() => setPosSubTab('terminal')}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                    posSubTab === 'terminal'
-                      ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>🛒</span> POS Cashier Register ({cartItemCount})
-                </button>
-
-                <button
-                  onClick={() => setPosSubTab('analytics')}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                    posSubTab === 'analytics'
-                      ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>📊</span> Sales Analytics & Reports
-                </button>
-              </div>
-
-              {posSubTab === 'terminal' ? (
-                <div className="space-y-8">
-                  <POSBilling
-                    products={products}
-                    onSubmitOrder={handleCheckoutPOS}
-                    isLoading={isBillingLoading}
-                    cartItems={cartItems}
-                    setCartItems={setCartItems}
-                    currentUser={currentUser}
-                    onRequireAuth={handleActionWithAuth}
-                  />
-                  <InvoiceList
-                    invoices={invoices}
-                    onVoidInvoice={handleVoidInvoice}
-                    paymentFilter={invoicePaymentFilter}
-                    setPaymentFilter={setInvoicePaymentFilter}
+              {/* TAB: DEDICATED SUPPLIER & DISTRIBUTOR DIRECTORY (ADMIN & INVENTORY ONLY) */}
+              {activeTab === 'suppliers' && (role === 'admin' || role === 'inventory_officer') && (
+                <div className="space-y-6 animate-fadeIn">
+                  <SupplierDirectory
+                    suppliers={suppliers}
+                    onCreateSupplier={handleCreateSupplier}
+                    onAddSupplier={handleCreateSupplier}
+                    onUpdateSupplier={handleUpdateSupplier}
+                    onDeleteSupplier={handleDeleteSupplier}
+                    onRefresh={loadSuppliers}
                   />
                 </div>
-              ) : (
-                <SalesAnalytics />
               )}
-            </div>
-          )}
 
-          {/* TAB: DEDICATED SUPPLIER & DISTRIBUTOR DIRECTORY */}
-          {activeTab === 'suppliers' && (
-            <div className="space-y-6 animate-fadeIn">
-              <SupplierDirectory
-                suppliers={suppliers}
-                onCreateSupplier={handleCreateSupplier}
-                onAddSupplier={handleCreateSupplier}
-                onUpdateSupplier={handleUpdateSupplier}
-                onDeleteSupplier={handleDeleteSupplier}
-                onRefresh={loadSuppliers}
-              />
-            </div>
-          )}
+              {/* TAB: EXPIRY TRACKER & DISPOSAL (ADMIN & INVENTORY ONLY) */}
+              {activeTab === 'expiry' && (role === 'admin' || role === 'inventory_officer') && (
+                <div className="space-y-6 animate-fadeIn">
+                  <ExpiryTracker
+                    expiringProducts={expiringProducts}
+                    onDisposeBatch={handleDisposeBatch}
+                    onRefresh={loadExpiringProducts}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>
