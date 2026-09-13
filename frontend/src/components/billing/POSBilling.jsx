@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Plus, Trash2, CreditCard, DollarSign, Receipt, Percent } from 'lucide-react';
+import productService from '../../services/inventoryService';
 
 const POSBilling = ({
   products = [],
@@ -14,6 +15,21 @@ const POSBilling = ({
   const cartItems = externalCartItems !== undefined ? externalCartItems : internalCartItems;
   const setCartItems = externalSetCartItems !== undefined ? externalSetCartItems : setInternalCartItems;
 
+  const [internalProducts, setInternalProducts] = useState(products || []);
+
+  useEffect(() => {
+    if (Array.isArray(products) && products.length > 0) {
+      setInternalProducts(products);
+    } else {
+      productService.getAllProducts().then((res) => {
+        const items = Array.isArray(res) ? res : (res?.data || res?.products || []);
+        if (items.length > 0) setInternalProducts(items);
+      }).catch(console.error);
+    }
+  }, [products]);
+
+  const availableProducts = internalProducts.length > 0 ? internalProducts : products;
+
   const [selectedProductId, setSelectedProductId] = useState('');
   const [itemQty, setItemQty] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
@@ -24,7 +40,7 @@ const POSBilling = ({
 
   const handleAddToCart = () => {
     if (selectedProductId) {
-      const prod = products.find((p) => p._id === selectedProductId);
+      const prod = availableProducts.find((p) => p._id === selectedProductId);
       if (!prod) return;
 
       const existingIndex = cartItems.findIndex((item) => item.product === prod._id);
@@ -89,6 +105,7 @@ const POSBilling = ({
     const tax = calculateTax();
     return Math.max(0, subtotal - discount + tax);
   };
+  const calculateFinalTotal = calculateGrandTotal;
 
   const handleCheckout = (e) => {
     e.preventDefault();
@@ -150,7 +167,7 @@ const POSBilling = ({
               className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 focus:outline-none transition-all"
             >
               <option value="">-- Choose Stock Product --</option>
-              {products.map((prod) => (
+              {availableProducts.map((prod) => (
                 <option key={prod._id} value={prod._id}>
                   {prod.itemName} - Rs. {prod.price} (Stock: {prod.stockQuantity})
                 </option>

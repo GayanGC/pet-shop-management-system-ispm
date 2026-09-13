@@ -200,15 +200,9 @@ function App() {
     if (!currentUser) return;
     const userRole = currentUser.role ? currentUser.role.toLowerCase() : 'customer';
     if (userRole === 'inventory_officer') {
-      setActiveTab('pharmacy');
-      setPharmacySubTab('inventory');
-    } else if (userRole === 'staff') {
-      if (activeTab !== 'pets' && activeTab !== 'appointments') {
-        setActiveTab('pets');
-      }
-    } else if (userRole === 'customer') {
-      if (activeTab === 'pos') {
-        setActiveTab('orders');
+      if (activeTab !== 'pos') {
+        setActiveTab('pharmacy');
+        setPharmacySubTab('inventory');
       }
     }
   }, [currentUser]);
@@ -702,7 +696,9 @@ function App() {
     setIsBillingLoading(true);
     try {
       const res = await createInvoice(invoiceData);
-      showToast(`Invoice #${res.data.invoiceNumber} processed! Total: Rs. ${Number(res.data.finalTotal || res.data.totalAmount).toFixed(2)}`);
+      const invNumber = res.data?.invoiceNo || res.data?.invoiceNumber || 'INV-2026';
+      const invTotal = Number(res.data?.finalTotal || res.data?.totalAmount || invoiceData.totalAmount || 0).toFixed(2);
+      showToast(`Invoice #${invNumber} processed! Total: Rs. ${invTotal}`);
       setCartItems([]);
       loadInvoices();
       loadProducts();
@@ -762,14 +758,15 @@ function App() {
     if (activeTab === 'pharmacy') setProductSearch(productSearch);
   };
 
-  // Dynamic Navigation Tabs Based on Role (POS eliminated from Customer)
+  // Dynamic Navigation Tabs Based on Role
   const getNavTabs = () => {
     if (role === 'customer') {
       return [
         { id: 'pets', label: '🐾 My Pets', count: totalPatientsCount },
         { id: 'appointments', label: '📅 Book Appointment', count: activeBookingsCount },
         { id: 'pharmacy', label: '🛒 Pet Store & Pharmacy', count: products.length },
-        { id: 'orders', label: `🧾 My Invoices & Orders (${invoices.length})`, count: invoices.length }
+        { id: 'orders', label: `🧾 My Invoices & Orders (${invoices.length})`, count: invoices.length },
+        { id: 'pos', label: '💳 POS Cashier Terminal' }
       ];
     }
     if (role === 'inventory_officer') {
@@ -782,7 +779,8 @@ function App() {
       return [
         { id: 'pets', label: '🐕 Patients & Medical Records', count: totalPatientsCount },
         { id: 'appointments', label: '📅 Appointments & Calendar', count: activeBookingsCount },
-        { id: 'pharmacy', label: '💊 Pharmacy Catalog', count: products.length }
+        { id: 'pharmacy', label: '💊 Pharmacy Catalog', count: products.length },
+        { id: 'pos', label: '💳 POS Cashier Terminal' }
       ];
     }
     if (role === 'admin') {
@@ -798,7 +796,8 @@ function App() {
       { id: 'pets', label: `🐕 Patients & Pets (${totalPatientsCount})` },
       { id: 'pharmacy', label: `🛒 Pet Store & Pharmacy (${products.length})` },
       { id: 'appointments', label: `📅 Appointments (${activeBookingsCount})` },
-      { id: 'orders', label: `🛍️ Storefront Cart (${cartItemCount})` }
+      { id: 'orders', label: `🛍️ Storefront Cart (${cartItemCount})` },
+      { id: 'pos', label: `💳 POS Terminal` }
     ];
   };
 
@@ -1226,7 +1225,7 @@ function App() {
 
         {/* 7. MAIN CONTENT PANELS */}
         <div ref={mainContentRef} className="pt-2">
-          {role === 'customer' && currentUser ? (
+          {role === 'customer' && currentUser && activeTab !== 'pos' ? (
             activeTab === 'orders' ? (
               <div className="space-y-6 animate-fadeIn">
                 <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-6 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -1549,34 +1548,32 @@ function App() {
             </div>
           )}
 
-          {/* TAB: POS CASHIER TERMINAL (ADMIN / STAFF / INVENTORY OFFICER ONLY) */}
-          {activeTab === 'pos' && role !== 'customer' && (
+          {/* TAB: POS CASHIER TERMINAL (ALL ROLES) */}
+          {activeTab === 'pos' && (
             <div className="space-y-6 animate-fadeIn">
-              {role === 'admin' && (
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
-                  <button
-                    onClick={() => setPosSubTab('terminal')}
-                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                      posSubTab === 'terminal'
-                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <span>🛒</span> POS Cashier Register ({cartItemCount})
-                  </button>
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
+                <button
+                  onClick={() => setPosSubTab('terminal')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                    posSubTab === 'terminal'
+                      ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>🛒</span> POS Cashier Register ({cartItemCount})
+                </button>
 
-                  <button
-                    onClick={() => setPosSubTab('analytics')}
-                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                      posSubTab === 'analytics'
-                        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <span>📊</span> Sales Analytics & Reports
-                  </button>
-                </div>
-              )}
+                <button
+                  onClick={() => setPosSubTab('analytics')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                    posSubTab === 'analytics'
+                      ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>📊</span> Sales Analytics & Reports
+                </button>
+              </div>
 
               {posSubTab === 'terminal' ? (
                 <div className="space-y-8">
