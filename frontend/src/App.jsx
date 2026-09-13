@@ -227,6 +227,7 @@ function App() {
 
   // 2. RBAC User Authentication State
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser() || null);
+  const role = currentUser?.role ? currentUser.role.toLowerCase() : 'guest';
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMessage, setAuthModalMessage] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
@@ -866,9 +867,6 @@ function App() {
       showToast(err.message, 'error');
     }
   };
-
-  // Role resolution
-  const role = currentUser?.role ? currentUser.role.toLowerCase() : 'guest';
 
   // Customer Filtered Pets
   const customerPets = role === 'customer' && currentUser
