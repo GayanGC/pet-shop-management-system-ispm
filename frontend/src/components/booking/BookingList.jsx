@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Calendar, Filter, Clock, Edit3 } from 'lucide-react';
+import { Calendar, Filter, Clock, Edit3, Trash2 } from 'lucide-react';
 import RescheduleModal from './RescheduleModal';
 
-const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, statusFilter, setStatusFilter }) => {
+const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, onEditBooking, statusFilter, setStatusFilter }) => {
   const [selectedBookingForReschedule, setSelectedBookingForReschedule] = useState(null);
 
   return (
@@ -99,16 +99,18 @@ const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, st
                     <td className="py-3.5 px-5 text-right space-x-1">
                       {item.status === 'Pending' && (
                         <button
+                          type="button"
                           onClick={() => onUpdateStatus(item._id, 'Confirmed')}
-                          className="px-2 py-1 text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg border border-blue-200/60 transition-all"
+                          className="px-2 py-1 text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg border border-blue-200/60 transition-all cursor-pointer"
                         >
                           Confirm
                         </button>
                       )}
                       {item.status === 'Confirmed' && (
                         <button
+                          type="button"
                           onClick={() => onUpdateStatus(item._id, 'Completed')}
-                          className="px-2 py-1 text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded-lg border border-emerald-200/60 transition-all"
+                          className="px-2 py-1 text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded-lg border border-emerald-200/60 transition-all cursor-pointer"
                         >
                           Complete
                         </button>
@@ -116,17 +118,42 @@ const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, st
                       {item.status !== 'Cancelled' && item.status !== 'Completed' && (
                         <>
                           <button
+                            type="button"
+                            onClick={() => {
+                              if (onEditBooking) {
+                                onEditBooking(item);
+                              } else {
+                                setSelectedBookingForReschedule(item);
+                              }
+                            }}
+                            className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg border border-blue-200/50 transition-all cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold"
+                            title="Edit Booking (✏️)"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Edit</span>
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => setSelectedBookingForReschedule(item)}
-                            className="px-2 py-1 text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg border border-slate-200 transition-all"
+                            className="px-2 py-1 text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg border border-slate-200 transition-all cursor-pointer"
                             title="Reschedule Slot"
                           >
                             Reschedule
                           </button>
+
                           <button
-                            onClick={() => onCancel(item._id)}
-                            className="px-2 py-1 text-[11px] bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-lg border border-rose-200/60 transition-all"
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to cancel the appointment for ${petName} on ${formattedDate} at ${item.timeSlot}? This will immediately release the clinical slot.`)) {
+                                onCancel(item._id);
+                              }
+                            }}
+                            className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg border border-rose-200/60 transition-all cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold"
+                            title="Cancel Booking (🗑️)"
                           >
-                            Cancel
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Cancel</span>
                           </button>
                         </>
                       )}

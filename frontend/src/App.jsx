@@ -643,11 +643,13 @@ function App() {
     }
   };
 
-  const handleArchivePet = async (id) => {
+  const handleArchivePet = async (id, payload) => {
     try {
-      const res = await archivePet(id, { reason: 'Status Archived' });
+      const dataToSend = typeof payload === 'object' ? payload : { isArchived: payload !== false };
+      const res = await archivePet(id, dataToSend);
       showToast(res.message);
       loadPets();
+      loadCustomers();
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -773,16 +775,22 @@ function App() {
   };
 
   // CRUD Handlers - Bookings
-  const handleCreateBooking = async (bookingData) => {
+  const handleCreateBooking = async (bookingData, bookingIdToUpdate) => {
     setIsBookingLoading(true);
     try {
-      const res = await createBooking(bookingData);
-      showToast(`Appointment confirmed for ${res.data.assignedStaff} on ${new Date(res.data.appointmentDate).toLocaleDateString()} at ${res.data.timeSlot}!`);
+      if (bookingIdToUpdate) {
+        const res = await updateBooking(bookingIdToUpdate, bookingData);
+        showToast(`Appointment updated for ${res.data.assignedStaff} on ${new Date(res.data.appointmentDate).toLocaleDateString()} at ${res.data.timeSlot}!`);
+      } else {
+        const res = await createBooking(bookingData);
+        showToast(`Appointment confirmed for ${res.data.assignedStaff} on ${new Date(res.data.appointmentDate).toLocaleDateString()} at ${res.data.timeSlot}!`);
+      }
       setIsBookingModalOpen(false);
       setPrefilledBookingData(null);
       loadBookings();
     } catch (err) {
       showToast(err.message, 'error');
+      throw err;
     } finally {
       setIsBookingLoading(false);
     }
@@ -2050,6 +2058,10 @@ function App() {
                       onUpdateStatus={handleUpdateBookingStatus}
                       onCancel={handleCancelBooking}
                       onReschedule={handleRescheduleBooking}
+                      onEditBooking={(booking) => {
+                        setPrefilledBookingData(booking);
+                        setIsBookingModalOpen(true);
+                      }}
                       statusFilter={bookingStatusFilter}
                       setStatusFilter={setBookingStatusFilter}
                     />

@@ -48,7 +48,7 @@ const createBooking = async (req, res) => {
     const endOfDay = new Date(new Date(parsedDate).setHours(23, 59, 59, 999));
     const staffToUse = assignedStaff || 'Dr. Perera (Senior Vet)';
 
-    // Strict Double Booking Guard (Doctor + Date + Slot)
+    // 1. Strict Double Booking Guard (Doctor + Date + Slot)
     const existingConflict = await Appointment.findOne({
       assignedStaff: staffToUse,
       appointmentDate: { $gte: startOfDay, $lte: endOfDay },
@@ -62,6 +62,29 @@ const createBooking = async (req, res) => {
         success: false,
         message: `Slot Conflict: ${staffToUse} is already booked on ${dateStr} at ${timeSlot}. Please select a different slot.`
       });
+    }
+
+    // 2. Same-Day Duplicate Booking Guard for Same Pet (unless Emergency reason entered)
+    const isEmergency = notes && (
+      notes.toLowerCase().includes('emergency') ||
+      notes.toLowerCase().includes('urgent') ||
+      notes.toLowerCase().includes('critical')
+    );
+
+    if (!isEmergency) {
+      const sameDayPetBooking = await Appointment.findOne({
+        petId,
+        appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'Cancelled' }
+      });
+
+      if (sameDayPetBooking) {
+        const dateStr = startOfDay.toISOString().split('T')[0];
+        return res.status(409).json({
+          success: false,
+          message: `Duplicate Patient Booking Conflict: This pet already has an appointment scheduled on ${dateStr} (${sameDayPetBooking.timeSlot}). To schedule another visit on the same day, please include an Emergency Reason in notes.`
+        });
+      }
     }
 
     const appointment = await Appointment.create({
@@ -180,6 +203,32 @@ const updateBooking = async (req, res) => {
     const dateToUse = appointmentDate ? new Date(appointmentDate) : booking.appointmentDate;
     const slotToUse = timeSlot || booking.timeSlot;
 
+    // Duplicate same-day pet appointment guard (unless emergency)
+    const checkNotes = notes !== undefined ? notes : booking.notes;
+    const isEmergency = checkNotes && (
+      checkNotes.toLowerCase().includes('emergency') ||
+      checkNotes.toLowerCase().includes('urgent') ||
+      checkNotes.toLowerCase().includes('critical')
+    );
+
+    if (!isEmergency && (appointmentDate || booking.appointmentDate)) {
+      const startOfDay = new Date(new Date(dateToUse).setHours(0, 0, 0, 0));
+      const endOfDay = new Date(new Date(dateToUse).setHours(23, 59, 59, 999));
+      const sameDayPet = await Appointment.findOne({
+        _id: { $ne: req.params.id },
+        petId: booking.petId,
+        appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'Cancelled' }
+      });
+      if (sameDayPet) {
+        const dateStr = startOfDay.toISOString().split('T')[0];
+        return res.status(400).json({
+          success: false,
+          message: `Duplicate Patient Booking: This pet already has another appointment on ${dateStr}. Please include an Emergency Reason in notes to proceed.`
+        });
+      }
+    }
+
     // Strict Double Booking Guard for Updates / Rescheduling
     if (assignedStaff || appointmentDate || timeSlot) {
       const startOfDay = new Date(new Date(dateToUse).setHours(0, 0, 0, 0));
@@ -243,7 +292,7 @@ const deleteBooking = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Appointment successfully cancelled',
+      message: 'Appointment successfully cancelled and slot released',
       data: { _id: booking._id, status: 'Cancelled' }
     });
   } catch (error) {
@@ -276,7 +325,7 @@ const getDoctorDaySchedule = async (req, res) => {
       .populate('petId', 'petName species breed uniquePin')
       .populate('customerId', 'name email role');
 
-    const workingSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
+    const workingSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
 
     const schedule = workingSlots.map((slot) => {
       const match = bookings.find((b) => b.timeSlot === slot);

@@ -360,22 +360,42 @@ const archivePet = async (req, res) => {
       });
     }
 
-    if (req.body.isArchived !== undefined) {
-      pet.isArchived = Boolean(req.body.isArchived);
+    const { isArchived, reason, dateOfEvent, clinicalNotes } = req.body;
+
+    if (isArchived !== undefined) {
+      pet.isArchived = Boolean(isArchived);
     } else {
       pet.isArchived = !pet.isArchived;
     }
 
-    if (req.body.reason) {
-      pet.clinicStatus = req.body.reason;
+    if (pet.isArchived) {
+      const cleanReason = reason || 'Other';
+      pet.archivalDetails = {
+        reason: cleanReason,
+        dateOfEvent: dateOfEvent ? new Date(dateOfEvent) : new Date(),
+        clinicalNotes: clinicalNotes || '',
+        archivedAt: new Date(),
+        archivedBy: req.user?.name || 'Clinical Staff'
+      };
+
+      if (cleanReason === 'Deceased') {
+        pet.clinicStatus = 'Deceased';
+        pet.status = 'Medical Care';
+      } else {
+        pet.clinicStatus = `Archived (${cleanReason})`;
+      }
+    } else {
+      // Restoring to Active
+      pet.clinicStatus = 'Registered';
+      pet.status = 'Available';
     }
 
     await pet.save();
-    await pet.populate('ownerId', 'name email role');
+    await pet.populate('ownerId', 'name email phone address role');
 
     return res.status(200).json({
       success: true,
-      message: `Pet '${pet.petName}' (${pet.uniquePin}) status updated to ${pet.isArchived ? 'Archived' : 'Active'}`,
+      message: `Pet '${pet.petName}' (${pet.uniquePin}) status updated to ${pet.isArchived ? `Archived (${pet.archivalDetails?.reason || 'Archived'})` : 'Active'}`,
       data: pet
     });
   } catch (error) {

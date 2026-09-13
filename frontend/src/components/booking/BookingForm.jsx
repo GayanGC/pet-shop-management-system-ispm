@@ -4,6 +4,8 @@ import { fetchDoctorDaySchedule } from '../../services/bookingService';
 import petService, { getAllPets } from '../../services/petService';
 
 const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose, initialData, prefilledData }) => {
+  const isEditMode = Boolean(initialData?._id);
+
   const [availablePets, setAvailablePets] = useState(() => {
     if (Array.isArray(pets) && pets.length > 0) {
       return pets.filter((p) => !p.isArchived);
@@ -12,10 +14,10 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
   });
 
   const [formData, setFormData] = useState({
-    petId: initialData?.petId || prefilledData?.petId || '',
+    petId: initialData?.petId?._id || initialData?.petId || prefilledData?.petId || '',
     serviceType: initialData?.serviceType || prefilledData?.serviceType || 'Veterinary Checkup',
     assignedStaff: initialData?.assignedStaff || prefilledData?.assignedStaff || 'Dr. Perera (Senior Vet)',
-    appointmentDate: initialData?.appointmentDate || prefilledData?.appointmentDate || '',
+    appointmentDate: initialData?.appointmentDate ? new Date(initialData.appointmentDate).toISOString().split('T')[0] : prefilledData?.appointmentDate || '',
     timeSlot: initialData?.timeSlot || prefilledData?.timeSlot || '09:00 AM',
     notes: initialData?.notes || prefilledData?.notes || ''
   });
@@ -55,7 +57,10 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
       setFormData((prev) => ({
         ...prev,
         ...data,
-        petId: data.petId || prev.petId || ''
+        petId: data.petId?._id || data.petId || prev.petId || '',
+        appointmentDate: data.appointmentDate
+          ? new Date(data.appointmentDate).toISOString().split('T')[0]
+          : prev.appointmentDate
       }));
     }
   }, [initialData, prefilledData]);
@@ -117,20 +122,22 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
     }
 
     try {
-      await onSubmit(formData);
-      setFormData({
-        petId: '',
-        serviceType: 'Veterinary Checkup',
-        assignedStaff: 'Dr. Perera (Senior Vet)',
-        appointmentDate: '',
-        timeSlot: '09:00 AM',
-        notes: ''
-      });
+      await onSubmit(formData, initialData?._id);
+      if (!isEditMode) {
+        setFormData({
+          petId: '',
+          serviceType: 'Veterinary Checkup',
+          assignedStaff: 'Dr. Perera (Senior Vet)',
+          appointmentDate: '',
+          timeSlot: '09:00 AM',
+          notes: ''
+        });
+      }
       setFormError('');
       if (isModal && onClose) onClose();
     } catch (err) {
-      if (err.message && err.message.includes('Conflict')) {
-        setConflictError(err.message);
+      if (err.status === 409 || err.message?.includes('Conflict')) {
+        setConflictError(err.message || 'This doctor slot has already been booked. Please select another time or doctor.');
       } else {
         setFormError(err.message || 'Error booking appointment. Please try again.');
       }
@@ -146,8 +153,12 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
             <Calendar className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Schedule Clinical Appointment</h2>
-            <p className="text-xs text-slate-500">Interactive Clinician Slot Booking & Double-Booking Guard</p>
+            <h2 className="text-lg font-bold text-slate-800">
+              {isEditMode ? '✏️ Edit Scheduled Appointment' : 'Schedule Clinical Appointment'}
+            </h2>
+            <p className="text-xs text-slate-500">
+              {isEditMode ? 'Modify attending doctor, appointment date, slot, or clinical notes' : 'Interactive Clinician Slot Booking & Double-Booking Guard'}
+            </p>
           </div>
         </div>
         {isModal && (
@@ -244,13 +255,19 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-teal-600" /> Select Time Slot (Live Availability) <span className="text-rose-500">*</span>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-teal-600" /> Select Time Slot (Live Availability) <span className="text-rose-500">*</span>
+            </span>
+            <span className="text-[10px] text-slate-400 font-normal">
+              🟢 Available &nbsp;|&nbsp; 🔴 Booked / Busy
+            </span>
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {workingSlots.map((slot) => {
               const matched = slotSchedule.find((s) => s.timeSlot === slot);
-              const isBooked = matched?.status === 'booked';
+              const isMatchedOwnSlot = isEditMode && (initialData?.timeSlot === slot);
+              const isBooked = matched?.status === 'booked' && !isMatchedOwnSlot;
               const isSelected = formData.timeSlot === slot;
 
               if (isBooked) {
@@ -259,10 +276,11 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
                     key={slot}
                     type="button"
                     disabled
-                    className="py-2 px-3 rounded-xl text-xs font-mono font-bold bg-slate-100 text-slate-400 border border-slate-200 opacity-50 cursor-not-allowed line-through flex items-center justify-between"
+                    className="py-2.5 px-3 rounded-xl text-xs font-mono font-bold bg-rose-50/80 text-rose-500 border border-rose-200 opacity-60 cursor-not-allowed flex items-center justify-between shadow-2xs"
+                    title="Clinician Slot Already Booked"
                   >
                     <span>{slot}</span>
-                    <span className="text-[9px] no-underline font-semibold bg-rose-100 text-rose-700 px-1 py-0.5 rounded">Booked</span>
+                    <span className="text-[9px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">⛔ Busy</span>
                   </button>
                 );
               }
@@ -272,14 +290,19 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
                   key={slot}
                   type="button"
                   onClick={() => setFormData((prev) => ({ ...prev, timeSlot: slot }))}
-                  className={`py-2 px-3 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer flex items-center justify-between ${
+                  className={`py-2.5 px-3 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer flex items-center justify-between ${
                     isSelected
-                      ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
-                      : 'bg-teal-50/60 hover:bg-teal-100 text-teal-800 border-teal-200/80'
+                      ? 'bg-teal-700 text-white border-teal-700 shadow-md ring-2 ring-teal-500/30'
+                      : 'bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 border-emerald-300 shadow-2xs'
                   }`}
+                  title="Clinician Slot Available"
                 >
                   <span>{slot}</span>
-                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-amber-300" />}
+                  {isSelected ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-300" />
+                  ) : (
+                    <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1 py-0.5 rounded">Open</span>
+                  )}
                 </button>
               );
             })}
@@ -295,7 +318,7 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
             name="notes"
             value={formData.notes}
             onChange={handleChange}
-            placeholder="Symptoms or grooming requests..."
+            placeholder="Symptoms or reason... (Include 'Emergency' or 'Urgent' if repeat visit on same day)"
             className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all placeholder:text-slate-400"
           />
         </div>
@@ -308,7 +331,13 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
           className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-3 px-6 rounded-2xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          {isLoading ? 'Scheduling Appointment...' : availablePets.length === 0 ? 'Register a Patient First to Book' : 'Confirm & Schedule Appointment'}
+          {isLoading
+            ? (isEditMode ? 'Updating Appointment...' : 'Scheduling Appointment...')
+            : availablePets.length === 0
+            ? 'Register a Patient First to Book'
+            : isEditMode
+            ? 'Save & Update Appointment'
+            : 'Confirm & Schedule Appointment'}
         </button>
       </div>
     </form>

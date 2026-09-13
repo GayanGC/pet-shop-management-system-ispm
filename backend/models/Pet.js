@@ -109,6 +109,29 @@ const petSchema = new mongoose.Schema(
     isArchived: {
       type: Boolean,
       default: false
+    },
+    archivalDetails: {
+      reason: {
+        type: String,
+        enum: ['Deceased', 'Relocated', 'Owner Request', 'Adoption Transfer', 'Other'],
+        default: 'Other'
+      },
+      dateOfEvent: {
+        type: Date,
+        default: Date.now
+      },
+      clinicalNotes: {
+        type: String,
+        default: ''
+      },
+      archivedAt: {
+        type: Date,
+        default: Date.now
+      },
+      archivedBy: {
+        type: String,
+        default: 'Clinical Staff'
+      }
     }
   },
   {
