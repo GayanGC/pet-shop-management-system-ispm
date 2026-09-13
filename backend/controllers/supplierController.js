@@ -77,10 +77,17 @@ const createSupplier = async (req, res) => {
   try {
     const { name, contactPerson, phone, email, address, suppliedCategories, status } = req.body;
 
-    if (!name) {
+    if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Supplier company name is required'
+        message: 'Supplier name is required'
+      });
+    }
+
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
       });
     }
 
@@ -92,12 +99,12 @@ const createSupplier = async (req, res) => {
     }
 
     const supplier = await Supplier.create({
-      name,
-      contactPerson: contactPerson || '',
-      phone: phone || '',
-      email: email || '',
-      address: address || '',
-      suppliedCategories: categoriesArray.length > 0 ? categoriesArray : ['Healthcare'],
+      name: name.trim(),
+      contactPerson: contactPerson ? contactPerson.trim() : '',
+      phone: phone.trim(),
+      email: email ? email.trim() : '',
+      address: address ? address.trim() : '',
+      suppliedCategories: categoriesArray.length > 0 ? categoriesArray : ['Medicines'],
       status: status || 'Active'
     });
 
@@ -107,6 +114,13 @@ const createSupplier = async (req, res) => {
       data: supplier
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', ')
+      });
+    }
     return res.status(500).json({
       success: false,
       message: 'Server Error creating supplier',
@@ -131,11 +145,29 @@ const updateSupplier = async (req, res) => {
       });
     }
 
-    if (name) supplier.name = name;
-    if (contactPerson !== undefined) supplier.contactPerson = contactPerson;
-    if (phone !== undefined) supplier.phone = phone;
-    if (email !== undefined) supplier.email = email;
-    if (address !== undefined) supplier.address = address;
+    if (name !== undefined) {
+      if (!name || !name.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Supplier name is required'
+        });
+      }
+      supplier.name = name.trim();
+    }
+
+    if (phone !== undefined) {
+      if (!phone || !phone.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number is required'
+        });
+      }
+      supplier.phone = phone.trim();
+    }
+
+    if (contactPerson !== undefined) supplier.contactPerson = contactPerson.trim();
+    if (email !== undefined) supplier.email = email.trim();
+    if (address !== undefined) supplier.address = address.trim();
     if (status) supplier.status = status;
 
     if (suppliedCategories !== undefined) {
@@ -154,6 +186,13 @@ const updateSupplier = async (req, res) => {
       data: updated
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', ')
+      });
+    }
     return res.status(500).json({
       success: false,
       message: 'Server Error updating supplier',

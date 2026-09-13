@@ -19,7 +19,12 @@ import {
   ShieldCheck,
   Package
 } from 'lucide-react';
-import { fetchSuppliers } from '../../services/supplierService';
+import {
+  fetchSuppliers,
+  createSupplier,
+  updateSupplier,
+  deleteSupplier
+} from '../../services/supplierService';
 
 const SupplierDirectory = ({
   suppliers = [],
@@ -103,7 +108,7 @@ const SupplierDirectory = ({
         phone: '',
         email: '',
         address: '',
-        suppliedCategories: 'Healthcare, Vaccines, Antibiotics',
+        suppliedCategories: 'Medicines, Vaccines',
         status: 'Active'
       });
     }
@@ -121,7 +126,12 @@ const SupplierDirectory = ({
     setErrorMsg('');
 
     if (!formData.name || !formData.name.trim()) {
-      setErrorMsg('Supplier company name is required.');
+      setErrorMsg('Supplier name is required.');
+      return;
+    }
+
+    if (!formData.phone || !formData.phone.trim()) {
+      setErrorMsg('Phone number is required.');
       return;
     }
 
@@ -135,7 +145,7 @@ const SupplierDirectory = ({
     } else if (Array.isArray(formData.suppliedCategories)) {
       categoriesArray = formData.suppliedCategories;
     }
-    if (categoriesArray.length === 0) categoriesArray = ['Healthcare'];
+    if (categoriesArray.length === 0) categoriesArray = ['Medicines'];
 
     const payload = {
       name: formData.name.trim(),
@@ -154,8 +164,17 @@ const SupplierDirectory = ({
         if (onUpdateSupplier) {
           const updated = await onUpdateSupplier(editingSupplier._id, payload);
           if (updated) {
+            const updatedObj = updated.data || updated;
             setInternalSuppliers((prev) =>
-              prev.map((s) => (s._id === editingSupplier._id ? { ...s, ...payload } : s))
+              prev.map((s) => (s._id === editingSupplier._id ? { ...s, ...payload, ...updatedObj } : s))
+            );
+          }
+        } else {
+          const res = await updateSupplier(editingSupplier._id, payload);
+          const updated = res?.data || res;
+          if (updated) {
+            setInternalSuppliers((prev) =>
+              prev.map((s) => (s._id === editingSupplier._id ? { ...s, ...payload, ...updated } : s))
             );
           }
         }
@@ -164,6 +183,12 @@ const SupplierDirectory = ({
           const created = await handleSaveSupplier(payload);
           if (created) {
             const newObj = created.data || created;
+            setInternalSuppliers((prev) => [newObj, ...prev.filter((s) => s._id !== newObj._id)]);
+          }
+        } else {
+          const res = await createSupplier(payload);
+          const newObj = res?.data || res;
+          if (newObj) {
             setInternalSuppliers((prev) => [newObj, ...prev.filter((s) => s._id !== newObj._id)]);
           }
         }
@@ -185,8 +210,11 @@ const SupplierDirectory = ({
       try {
         if (onDeleteSupplier) {
           await onDeleteSupplier(supplier._id);
+        } else {
+          await deleteSupplier(supplier._id);
         }
         setInternalSuppliers((prev) => prev.filter((s) => s._id !== supplier._id));
+        if (onRefresh) onRefresh();
       } catch (err) {
         console.error('[SupplierDirectory] Delete error:', err);
       }
@@ -582,10 +610,11 @@ const SupplierDirectory = ({
                 </div>
                 <div>
                   <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
-                    Phone Number
+                    Phone Number *
                   </label>
                   <input
                     type="text"
+                    required
                     placeholder="e.g. 077-1234567"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}

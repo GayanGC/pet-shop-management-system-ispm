@@ -578,6 +578,7 @@ function App() {
     loadBookings();
     loadInvoices();
     loadCustomers();
+    loadSuppliers();
   };
 
   useEffect(() => {
@@ -588,7 +589,16 @@ function App() {
     if (role === 'admin' || role === 'staff') {
       loadCustomers();
     }
+    if (role === 'admin' || role === 'inventory_officer') {
+      loadSuppliers();
+    }
   }, [role]);
+
+  useEffect(() => {
+    if (activeTab === 'suppliers') {
+      loadSuppliers();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     loadPets();

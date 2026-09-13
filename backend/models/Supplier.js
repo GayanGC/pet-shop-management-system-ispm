@@ -10,15 +10,10 @@ const supplierSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Supplier company name is required'],
+      required: [true, 'Supplier name is required'],
       trim: true
     },
     contactPerson: {
-      type: String,
-      trim: true,
-      default: ''
-    },
-    phone: {
       type: String,
       trim: true,
       default: ''
@@ -28,6 +23,11 @@ const supplierSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    phone: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      trim: true
+    },
     address: {
       type: String,
       trim: true,
@@ -35,12 +35,16 @@ const supplierSchema = new mongoose.Schema(
     },
     suppliedCategories: {
       type: [String],
-      default: ['Healthcare']
+      default: ['Medicines']
     },
     status: {
       type: String,
       enum: ['Active', 'Inactive'],
       default: 'Active'
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
     }
   },
   {
