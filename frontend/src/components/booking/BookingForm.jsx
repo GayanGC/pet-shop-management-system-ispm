@@ -22,8 +22,13 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
 
   const [slotSchedule, setSlotSchedule] = useState([]);
   const [conflictError, setConflictError] = useState('');
+  const [formError, setFormError] = useState('');
 
-  const workingSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
+  // 8 official clinic time slots
+  const workingSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
+
+  // Today's date string for date input min attribute (prevents past dates)
+  const todayStr = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     const loadPetsForBooking = async () => {
@@ -59,6 +64,7 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
     const selectedId = e.target.value;
     setFormData((prev) => ({ ...prev, petId: selectedId }));
     setConflictError('');
+    setFormError('');
   };
 
   useEffect(() => {
@@ -75,16 +81,38 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Prevent past date selection
+    if (name === 'appointmentDate' && value < todayStr) {
+      setFormError('Appointment date cannot be in the past. Please select today or a future date.');
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
     setConflictError('');
+    setFormError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setConflictError('');
+    setFormError('');
 
-    if (!formData.petId || !formData.appointmentDate || !formData.timeSlot) {
-      alert('Please select a pet, appointment date, and time slot');
+    if (!formData.petId) {
+      setFormError('Please select a registered pet patient before booking.');
+      return;
+    }
+
+    if (!formData.appointmentDate) {
+      setFormError('Please select an appointment date.');
+      return;
+    }
+
+    if (formData.appointmentDate < todayStr) {
+      setFormError('Appointment date cannot be in the past. Please select today or a future date.');
+      return;
+    }
+
+    if (!formData.timeSlot) {
+      setFormError('Please select a time slot.');
       return;
     }
 
@@ -98,15 +126,17 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
         timeSlot: '09:00 AM',
         notes: ''
       });
+      setFormError('');
       if (isModal && onClose) onClose();
     } catch (err) {
       if (err.message && err.message.includes('Conflict')) {
         setConflictError(err.message);
       } else {
-        alert(err.message || 'Error booking appointment');
+        setFormError(err.message || 'Error booking appointment. Please try again.');
       }
     }
   };
+
 
   const formContent = (
     <form onSubmit={handleSubmit} className={`p-6 space-y-5 transition-all duration-300 ${isModal ? 'bg-white/95 backdrop-blur-lg rounded-3xl border border-slate-200/80 shadow-2xl' : 'bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md'}`}>
@@ -133,6 +163,14 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
           <span>{conflictError}</span>
         </div>
       )}
+
+      {formError && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-800 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+          <span>{formError}</span>
+        </div>
+      )}
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
@@ -200,6 +238,7 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
             value={formData.appointmentDate}
             onChange={handleChange}
             required
+            min={todayStr}
             className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all"
           />
         </div>

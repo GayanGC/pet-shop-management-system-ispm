@@ -44,8 +44,8 @@ const seedDatabase = async () => {
     await Appointment.deleteMany({});
     await Invoice.deleteMany({});
 
-    // 2. SEED SYSTEM USERS (4 Distinct Roles)
-    console.log('[Seeder] Creating sample system users (4 Roles)...');
+    // 2. SEED SYSTEM USERS (5 Distinct Roles: admin, customer, staff, inventory_officer, cashier)
+    console.log('[Seeder] Creating sample system users (5 Roles)...');
     const adminUser = await User.create({
       name: 'Dr. Perera (Chief Veterinarian)',
       email: 'admin@4paw.lk',
@@ -72,6 +72,14 @@ const seedDatabase = async () => {
       email: 'inventory@4paw.lk',
       password: 'inv123',
       role: 'inventory_officer'
+    });
+
+    const cashierUser = await User.create({
+      name: 'Kamal Gunasekara (POS Cashier)',
+      email: 'cashier@4paw.lk',
+      phone: '0779998877',
+      password: 'cashier123',
+      role: 'cashier'
     });
 
     // 3. SEED PET PATIENTS
@@ -490,11 +498,18 @@ const seedDatabase = async () => {
     console.log('\n=======================================================');
     console.log('🎉 DATABASE SEEDING COMPLETED SUCCESSFULLY!');
     console.log('-------------------------------------------------------');
+    console.log('👤 Users Seeded: 5 Roles (Admin, Customer, Staff, Inventory Officer, Cashier)');
+    console.log('   📧 admin@4paw.lk         → admin123     [Admin / Chief Vet]');
+    console.log('   📧 customer@gmail.com     → customer123  [Customer / Pet Owner]');
+    console.log('   📧 staff@4paw.lk          → staff123     [Clinical Staff / Nurse]');
+    console.log('   📧 inventory@4paw.lk      → inv123       [Inventory Lead]');
+    console.log('   📧 cashier@4paw.lk        → cashier123   [POS Cashier]');
     console.log('🐶 Pets Seeded: 6 Patients (Buddy, Luna, Rocky, Milo, Bella, Charlie)');
-    console.log('💊 Inventory Seeded: 8 Products (LKR Pricing)');
+    console.log('💊 Inventory Seeded: 10 Products (LKR Pricing)');
     console.log('📅 Appointments Seeded: 4 Clinical Bookings');
     console.log('💳 Invoices Seeded: 3 Sales (Total Revenue: Rs. 41,006.00)');
     console.log('=======================================================\n');
+
 
     process.exit(0);
   } catch (error) {

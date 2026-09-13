@@ -3,7 +3,7 @@
  * SHARED MODEL: USER MODEL
  * ============================================================================
  * Supports Dual-Identifier Authentication (Email OR Phone Number),
- * 4-Role RBAC ('admin', 'customer', 'staff', 'inventory_officer'),
+ * 5-Role RBAC ('admin', 'customer', 'staff', 'inventory_officer', 'cashier'),
  * and Pet count tracking.
  */
 
@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'customer', 'staff', 'inventory_officer', 'Admin', 'Customer', 'Staff', 'Inventory_Officer'],
+      enum: ['admin', 'customer', 'staff', 'inventory_officer', 'cashier', 'Admin', 'Customer', 'Staff', 'Inventory_Officer', 'Cashier'],
       default: 'customer',
       set: (v) => (v ? v.toLowerCase() : 'customer')
     },

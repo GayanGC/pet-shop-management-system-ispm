@@ -86,6 +86,14 @@ const DEMO_ROLES = [
     identifier: 'customer@gmail.com',
     password: 'customer123',
     badge: 'Pet Owner'
+  },
+  {
+    role: 'cashier',
+    label: 'Cashier',
+    icon: '💵',
+    identifier: 'cashier@4paw.lk',
+    password: 'cashier123',
+    badge: 'POS Terminal'
   }
 ];
 
@@ -309,6 +317,8 @@ function App() {
           setActiveTab('pets');
         } else if (account.role === 'admin') {
           setActiveTab('pets');
+        } else if (account.role === 'cashier') {
+          setActiveTab('pos');
         }
         await fetchInitialData();
         showToast(`⚡ Switched to ${account.label} Portal (${account.role.toUpperCase()})`);
@@ -882,6 +892,12 @@ function App() {
         { id: 'expiry', label: `⚠️ Expiry Tracker & Disposal (${expiringProducts.length})` }
       ];
     }
+    if (role === 'cashier') {
+      return [
+        { id: 'pos', label: `💳 POS Checkout Terminal` },
+        { id: 'orders', label: `🧾 Sales Ledger & Invoices (${invoices.length})` }
+      ];
+    }
     if (role === 'admin') {
       return [
         { id: 'pets', label: `🐕 Patients & Pets (${pets.length})` },
@@ -912,6 +928,8 @@ function App() {
         setActiveTab('pharmacy');
       } else if (role === 'staff') {
         setActiveTab('pets');
+      } else if (role === 'cashier') {
+        setActiveTab('pos');
       } else if (role === 'admin') {
         setActiveTab('pets');
       } else {
@@ -919,6 +937,7 @@ function App() {
       }
     }
   }, [role, currentUser]);
+
 
   return (
     <div className={theme === 'dark' 
@@ -1587,6 +1606,50 @@ function App() {
                 </div>
               </div>
             </>
+          ) : role === 'cashier' ? (
+            <>
+              {/* Cashier KPI: Today's Invoice Count */}
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-green-100 dark:border-green-900/50 shadow-lg shadow-green-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-green-100 dark:bg-green-950/60 text-green-700 dark:text-green-400 flex items-center justify-center text-xl shadow-xs">🧾</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Today's Invoices</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">
+                    {invoices.filter(inv => {
+                      const today = new Date().toDateString();
+                      return new Date(inv.createdAt || inv.updatedAt).toDateString() === today;
+                    }).length}
+                  </h4>
+                </div>
+              </div>
+              {/* Total Sales Invoices */}
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-green-100 dark:border-green-900/50 shadow-lg shadow-green-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">💳</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Total Invoices</p>
+                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{invoices.length}</h4>
+                </div>
+              </div>
+              {/* Cash Sales */}
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-green-100 dark:border-green-900/50 shadow-lg shadow-green-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">💵</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Cash Sales</p>
+                  <h4 className="text-sm font-black text-slate-800 dark:text-white font-mono">
+                    Rs. {invoices.filter(i => i.paymentMethod === 'Cash').reduce((s, i) => s + (i.finalTotal || 0), 0).toFixed(2)}
+                  </h4>
+                </div>
+              </div>
+              {/* Card + QR Sales */}
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-green-100 dark:border-green-900/50 shadow-lg shadow-green-900/5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center text-xl shadow-xs">📲</div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Card / QR Sales</p>
+                  <h4 className="text-sm font-black text-slate-800 dark:text-white font-mono">
+                    Rs. {invoices.filter(i => i.paymentMethod === 'Card' || i.paymentMethod === 'Online' || i.paymentMethod === 'QR').reduce((s, i) => s + (i.finalTotal || 0), 0).toFixed(2)}
+                  </h4>
+                </div>
+              </div>
+            </>
           ) : (
             <>
               <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
@@ -1928,34 +1991,48 @@ function App() {
                 </div>
               )}
 
-              {/* TAB: POS CASHIER TERMINAL (ADMIN ONLY) */}
-              {activeTab === 'pos' && role === 'admin' && (
+              {/* TAB: POS CASHIER TERMINAL (ADMIN + CASHIER) */}
+              {activeTab === 'pos' && (role === 'admin' || role === 'cashier') && (
                 <div className="space-y-6 animate-fadeIn">
-                  <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
-                    <button
-                      onClick={() => setPosSubTab('terminal')}
-                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                        posSubTab === 'terminal'
-                          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      <span>🛒</span> POS Cashier Register ({cartItemCount})
-                    </button>
+                  {/* Admin gets full sub-tab switcher; Cashier gets POS directly */}
+                  {role === 'admin' && (
+                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
+                      <button
+                        onClick={() => setPosSubTab('terminal')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          posSubTab === 'terminal'
+                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span>🛒</span> POS Cashier Register ({cartItemCount})
+                      </button>
 
-                    <button
-                      onClick={() => setPosSubTab('analytics')}
-                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                        posSubTab === 'analytics'
-                          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
-                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      <span>📊</span> Sales Analytics & Reports
-                    </button>
-                  </div>
+                      <button
+                        onClick={() => setPosSubTab('analytics')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          posSubTab === 'analytics'
+                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span>📊</span> Sales Analytics & Reports
+                      </button>
+                    </div>
+                  )}
 
-                  {posSubTab === 'terminal' ? (
+                  {/* Cashier header banner */}
+                  {role === 'cashier' && (
+                    <div className="p-4 rounded-2xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 flex items-center gap-3">
+                      <span className="text-2xl">💵</span>
+                      <div>
+                        <h3 className="text-sm font-black text-green-900 dark:text-green-200">POS Cashier Terminal</h3>
+                        <p className="text-xs text-green-700 dark:text-green-400">Kamal Gunasekara · Active Session · Process sales and issue invoices</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {(role === 'admin' ? posSubTab === 'terminal' : true) && (
                     <div className="space-y-8">
                       <POSBilling
                         products={products}
@@ -1973,11 +2050,14 @@ function App() {
                         setPaymentFilter={setInvoicePaymentFilter}
                       />
                     </div>
-                  ) : (
+                  )}
+
+                  {role === 'admin' && posSubTab === 'analytics' && (
                     <SalesAnalytics />
                   )}
                 </div>
               )}
+
 
               {/* TAB: DEDICATED SUPPLIER & DISTRIBUTOR DIRECTORY (ADMIN & INVENTORY ONLY) */}
               {activeTab === 'suppliers' && (role === 'admin' || role === 'inventory_officer') && (
@@ -2000,6 +2080,41 @@ function App() {
                     expiringProducts={expiringProducts}
                     onDisposeBatch={handleDisposeBatch}
                     onRefresh={loadExpiringProducts}
+                  />
+                </div>
+              )}
+
+              {/* TAB: SALES LEDGER & INVOICES (CASHIER ONLY) */}
+              {activeTab === 'orders' && role === 'cashier' && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-6 rounded-3xl border border-green-100 dark:border-green-900/50 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-600 to-emerald-700 text-white flex items-center justify-center text-xl shadow-md">
+                        🧾
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                          Sales Ledger & Invoices ({invoices.length})
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          All processed sales transactions and issued invoices for this cashier session.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('pos')}
+                      className="py-2.5 px-4 rounded-xl bg-green-700 hover:bg-green-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <span>💳</span>
+                      <span>Back to POS Terminal</span>
+                    </button>
+                  </div>
+                  <InvoiceList
+                    invoices={invoices}
+                    onVoidInvoice={handleVoidInvoice}
+                    paymentFilter={invoicePaymentFilter}
+                    setPaymentFilter={setInvoicePaymentFilter}
                   />
                 </div>
               )}
