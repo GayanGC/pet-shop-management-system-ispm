@@ -159,29 +159,29 @@ const CustomerCheckoutModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fadeIn">
-      <div className="relative w-full max-w-3xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-teal-100 dark:border-slate-800 overflow-hidden my-8 transition-colors">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm overflow-hidden animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
         
-        {/* Header */}
-        <div className="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 text-white p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center text-lg font-black shadow-md">
+        {/* Tier 1: Sticky Header (Shrink-0) */}
+        <div className="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 text-white p-4 sm:p-5 shrink-0 flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center text-lg font-black shadow-md shrink-0">
               🛍️
             </div>
-            <div>
-              <h2 className="text-lg font-black tracking-tight">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-black tracking-tight truncate">
                 {completedOrder ? 'Order Confirmed!' : 'Customer Storefront Checkout'}
               </h2>
-              <p className="text-xs text-teal-100">
+              <p className="text-xs text-teal-100 truncate">
                 {completedOrder
-                  ? `Invoice #${completedOrder.invoiceNumber} has been generated`
-                  : 'Select fulfillment, enter delivery details, and pick payment method'}
+                  ? `Invoice #${completedOrder.invoiceNumber || completedOrder.invoiceNo} generated`
+                  : 'Select fulfillment, delivery details, and payment method'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
             title="Close Checkout"
           >
             <X className="w-5 h-5" />
@@ -190,7 +190,7 @@ const CustomerCheckoutModal = ({
 
         {/* ORDER COMPLETED STATE */}
         {completedOrder ? (
-          <div className="p-8 text-center space-y-6">
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8 text-center space-y-6">
             <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-300 dark:border-emerald-700 shadow-lg shadow-emerald-500/20">
               <CheckCircle2 className="w-8 h-8 animate-bounce" />
             </div>
@@ -257,8 +257,10 @@ const CustomerCheckoutModal = ({
           </div>
         ) : (
           /* CHECKOUT FORM STATE */
-          <form onSubmit={handleSubmitOrder} className="p-6 space-y-6">
-            {errorMessage && (
+          <form onSubmit={handleSubmitOrder} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Tier 2: Scrollable Content Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+              {errorMessage && (
               <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMessage}</span>
@@ -571,9 +573,11 @@ const CustomerCheckoutModal = ({
                 </div>
               )}
             </div>
+            {/* End of Tier 2: Scrollable Content Body */}
+            </div>
 
-            {/* 5. Financial Summary Box & Submit Button */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+            {/* Tier 3: Sticky Footer & Financial Summary (Shrink-0) */}
+            <div className="shrink-0 p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-md space-y-3">
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-500 dark:text-slate-400">
                   <span>Items Subtotal:</span>
@@ -585,7 +589,7 @@ const CustomerCheckoutModal = ({
                     {currentDeliveryFee > 0 ? `Rs. ${currentDeliveryFee.toFixed(2)}` : 'FREE'}
                   </span>
                 </div>
-                <div className="flex justify-between text-base font-black text-slate-900 dark:text-white pt-2 border-t border-dashed border-slate-200 dark:border-slate-700">
+                <div className="flex justify-between text-sm sm:text-base font-black text-slate-900 dark:text-white pt-2 border-t border-dashed border-slate-200 dark:border-slate-700">
                   <span>Total Amount (LKR):</span>
                   <span className="text-teal-600 dark:text-teal-400 font-mono">
                     Rs. {grandTotal.toFixed(2)}
@@ -593,11 +597,11 @@ const CustomerCheckoutModal = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex items-center gap-3 pt-1">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-3 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer transition-colors"
+                  className="flex-1 py-2.5 sm:py-3 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
@@ -605,7 +609,7 @@ const CustomerCheckoutModal = ({
                 <button
                   type="submit"
                   disabled={isLoading || cartItems.length === 0}
-                  className="flex-2 py-3 px-6 rounded-xl bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-700/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="flex-2 py-2.5 sm:py-3 px-5 rounded-xl bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-700/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isLoading ? (
                     <span>Processing Order...</span>
