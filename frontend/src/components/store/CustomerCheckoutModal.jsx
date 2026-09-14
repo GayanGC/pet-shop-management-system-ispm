@@ -29,7 +29,8 @@ const CustomerCheckoutModal = ({
   currentUser,
   onRequireAuth,
   onCheckoutSuccess,
-  onOrderSuccess
+  onOrderSuccess,
+  onProductUpdated
 }) => {
   if (!isOpen) return null;
 
@@ -159,6 +160,8 @@ const CustomerCheckoutModal = ({
         if (onClearCart) onClearCart();
         if (onCheckoutSuccess) onCheckoutSuccess(normalizedOrder);
         if (onOrderSuccess) onOrderSuccess(normalizedOrder);
+        if (onProductUpdated) onProductUpdated(normalizedOrder);
+        window.dispatchEvent(new CustomEvent('inventory-updated'));
       } else {
         throw new Error(res?.message || 'Failed to process order.');
       }

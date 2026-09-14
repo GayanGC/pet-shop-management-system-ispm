@@ -519,6 +519,26 @@ function App() {
   };
   const loadProducts = fetchProducts;
 
+  // Real-time Inventory Re-fetch Event Listener
+  useEffect(() => {
+    const handleInventoryUpdate = () => {
+      if (typeof fetchProducts === 'function') {
+        fetchProducts();
+      }
+    };
+    window.addEventListener('inventory-updated', handleInventoryUpdate);
+    return () => window.removeEventListener('inventory-updated', handleInventoryUpdate);
+  }, []);
+
+  // Trigger fresh product fetch whenever switching to pharmacy / inventory / pos tabs
+  useEffect(() => {
+    if (activeTab === 'pharmacy' || activeTab === 'pos' || activeTab === 'inventory') {
+      if (typeof fetchProducts === 'function') {
+        fetchProducts();
+      }
+    }
+  }, [activeTab, pharmacySubTab]);
+
   const loadSuppliers = async () => {
     try {
       const data = await fetchSuppliers();
@@ -849,6 +869,7 @@ function App() {
       setCartItems([]);
       loadInvoices();
       loadProducts();
+      window.dispatchEvent(new CustomEvent('inventory-updated'));
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -863,6 +884,7 @@ function App() {
       showToast(res.message);
       loadInvoices();
       loadProducts();
+      window.dispatchEvent(new CustomEvent('inventory-updated'));
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -2283,8 +2305,11 @@ function App() {
           currentUser={currentUser}
           onRequireAuth={handleActionWithAuth}
           onOrderSuccess={(order) => {
-            showToast(`Order #${order?.invoiceNumber || ''} placed successfully!`);
+            showToast(`Order #${order?.invoiceNo || order?.invoiceNumber || ''} placed successfully!`);
             fetchInvoices();
+            loadProducts();
+          }}
+          onProductUpdated={() => {
             loadProducts();
           }}
         />
