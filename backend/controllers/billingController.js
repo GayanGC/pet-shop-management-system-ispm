@@ -117,15 +117,24 @@ const createInvoice = async (req, res) => {
       pMethod = 'Cash';
     }
 
-    // Cash Tendered validation (tenderedAmount >= finalTotal)
-    if (tenderedAmount !== undefined && pMethod === 'Cash') {
-      if (Number(tenderedAmount) < finalTotal) {
+    // Normalize tendered amount
+    let finalTendered = req.body.tenderedAmount !== undefined && req.body.tenderedAmount !== null && req.body.tenderedAmount !== ''
+      ? Number(req.body.tenderedAmount)
+      : (pMethod === 'Cash' ? 0 : finalTotal);
+
+    // Strict Validation: For Cash sales, tendered cash cannot be less than total amount
+    if (pMethod === 'Cash') {
+      if (finalTendered < finalTotal) {
         return res.status(400).json({
           success: false,
-          message: `Validation Error: Cash tendered (Rs. ${Number(tenderedAmount).toFixed(2)}) is less than total amount (Rs. ${finalTotal.toFixed(2)})`
+          message: `Tendered cash (Rs. ${finalTendered.toFixed(2)}) cannot be less than invoice total (Rs. ${finalTotal.toFixed(2)}).`
         });
       }
+    } else {
+      finalTendered = finalTotal;
     }
+
+    const changeAmount = Math.max(0, finalTendered - finalTotal);
 
     // Atomic Stock Auto-Deduction Verification via $inc
     for (const item of processedItems) {
@@ -135,8 +144,6 @@ const createInvoice = async (req, res) => {
         });
       }
     }
-
-    const changeAmount = tenderedAmount !== undefined ? Math.max(0, Number(tenderedAmount) - finalTotal) : 0;
 
     const rawCustomer = req.body.customerId || req.body.customer || (req.user ? req.user._id : null);
     const validCustomerId = (rawCustomer && mongoose.Types.ObjectId.isValid(rawCustomer)) ? rawCustomer : null;
@@ -167,7 +174,7 @@ const createInvoice = async (req, res) => {
       finalTotal,
       paymentMethod: pMethod,
       paymentStatus: paymentStatus || 'Paid',
-      tenderedAmount: tenderedAmount !== undefined ? Number(tenderedAmount) : null,
+      tenderedAmount: finalTendered,
       changeAmount
     });
 

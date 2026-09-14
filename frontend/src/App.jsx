@@ -42,6 +42,7 @@ import BookingList from './components/booking/BookingList';
 import DoctorCalendarView from './components/appointments/DoctorCalendarView';
 import POSBilling from './components/billing/POSBilling';
 import InvoiceList from './components/billing/InvoiceList';
+import PrintableInvoiceModal from './components/billing/PrintableInvoiceModal';
 import SalesAnalytics from './components/billing/SalesAnalytics';
 import AuthModal from './components/auth/AuthModal';
 import CustomerCheckoutModal from './components/store/CustomerCheckoutModal';
@@ -247,6 +248,7 @@ function App() {
   const [selectedPassportPet, setSelectedPassportPet] = useState(null);
   const [isPassportModalOpen, setIsPassportModalOpen] = useState(false);
   const [prefilledBookingData, setPrefilledBookingData] = useState(null);
+  const [activeReceiptInvoice, setActiveReceiptInvoice] = useState(null);
   const [notification, setNotification] = useState({ message: '', type: '' });
 
   // Role Auto-Landing & Active Tab Sanitization
@@ -873,13 +875,19 @@ function App() {
     setIsBillingLoading(true);
     try {
       const res = await createInvoice(invoiceData);
-      const invNumber = res.data?.invoiceNo || res.data?.invoiceNumber || 'INV-2026';
-      const invTotal = Number(res.data?.finalTotal || res.data?.totalAmount || invoiceData.totalAmount || 0).toFixed(2);
+      const createdInvoice = res.data?.invoice || res.data?.data || res.data;
+      const invNumber = createdInvoice?.invoiceNo || createdInvoice?.invoiceNumber || 'INV-2026';
+      const invTotal = Number(createdInvoice?.finalTotal || createdInvoice?.totalAmount || invoiceData.finalTotal || invoiceData.totalAmount || 0).toFixed(2);
       showToast(`Invoice #${invNumber} processed! Total: Rs. ${invTotal}`);
       setCartItems([]);
       loadInvoices();
       loadProducts();
       window.dispatchEvent(new CustomEvent('inventory-updated'));
+
+      // 80mm Thermal Receipt pops up immediately upon sale completion
+      if (createdInvoice) {
+        setActiveReceiptInvoice(createdInvoice);
+      }
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -2333,6 +2341,14 @@ function App() {
             setIsPassportModalOpen(false);
             setSelectedPassportPet(null);
           }}
+        />
+      )}
+
+      {/* 7. 80mm Thermal Receipt Modal on POS Sale Completion */}
+      {activeReceiptInvoice && (
+        <PrintableInvoiceModal
+          invoice={activeReceiptInvoice}
+          onClose={() => setActiveReceiptInvoice(null)}
         />
       )}
     </div>

@@ -33,6 +33,7 @@ const POSBilling = ({
   const [selectedProductId, setSelectedProductId] = useState('');
   const [itemQty, setItemQty] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [tenderedAmount, setTenderedAmount] = useState('');
   const [discountRate, setDiscountRate] = useState(0);
   const [taxRate, setTaxRate] = useState(8); // Default 8% VAT
   const [customItemName, setCustomItemName] = useState('');
@@ -114,6 +115,16 @@ const POSBilling = ({
       return;
     }
 
+    const finalTotal = calculateFinalTotal();
+    const tenderedNum = Number(tenderedAmount || 0);
+
+    if (paymentMethod === 'Cash') {
+      if (!tenderedAmount || tenderedNum < finalTotal) {
+        alert(`Tendered cash (Rs. ${tenderedNum.toFixed(2)}) cannot be less than invoice total (Rs. ${finalTotal.toFixed(2)}).`);
+        return;
+      }
+    }
+
     if (!currentUser && onRequireAuth) {
       onRequireAuth(() => {
         // Will continue once authenticated
@@ -124,14 +135,18 @@ const POSBilling = ({
     const orderPayload = {
       items: cartItems,
       totalAmount: calculateSubtotal(),
+      finalTotal,
       discountRate: Number(discountRate),
       taxRate: Number(taxRate),
       paymentMethod,
+      tenderedAmount: paymentMethod === 'Cash' ? tenderedNum : finalTotal,
+      changeAmount: paymentMethod === 'Cash' ? Math.max(0, tenderedNum - finalTotal) : 0,
       paymentStatus: 'Paid'
     };
 
     onSubmitOrder(orderPayload);
     setCartItems([]);
+    setTenderedAmount('');
   };
 
   return (
@@ -332,13 +347,94 @@ const POSBilling = ({
                 </span>
               </div>
             </div>
+
+            {/* Strict Cash Tendered & Change Return Panel */}
+            {paymentMethod === 'Cash' && (
+              <div className="border-t border-slate-200 pt-3 space-y-2.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Cash Tendered (Rs.)</span>
+                      {cartItems.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setTenderedAmount(String(calculateFinalTotal().toFixed(2)))}
+                          className="text-[10px] text-purple-600 hover:text-purple-700 font-bold underline cursor-pointer"
+                        >
+                          Exact (Rs. {calculateFinalTotal().toFixed(2)})
+                        </button>
+                      )}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder={`Min: Rs. ${calculateFinalTotal().toFixed(2)}`}
+                      value={tenderedAmount}
+                      onChange={(e) => setTenderedAmount(e.target.value)}
+                      className={`w-full px-3.5 py-2 bg-white border rounded-xl font-mono text-xs font-bold focus:outline-none transition-all ${
+                        cartItems.length > 0 && tenderedAmount !== '' && Number(tenderedAmount) < calculateFinalTotal()
+                          ? 'border-rose-400 bg-rose-50/40 text-rose-700 focus:ring-2 focus:ring-rose-200'
+                          : 'border-slate-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-slate-800'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <span className="block text-xs font-semibold text-slate-700 mb-1">
+                      Change Due (Return to Client)
+                    </span>
+                    <div className={`px-3.5 py-2 rounded-xl border font-mono font-black text-xs flex items-center justify-between transition-all ${
+                      cartItems.length > 0 && tenderedAmount !== '' && Number(tenderedAmount) >= calculateFinalTotal()
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                        : 'bg-slate-100/70 border-slate-200 text-slate-400'
+                    }`}>
+                      <span>Change:</span>
+                      <span className="text-sm">
+                        Rs. {Math.max(0, Number(tenderedAmount || 0) - calculateFinalTotal()).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick denomination chips */}
+                {cartItems.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Quick Cash:</span>
+                    {[calculateFinalTotal(), 500, 1000, 2000, 5000, 10000]
+                      .filter((val, i, arr) => val >= calculateFinalTotal() && (val === calculateFinalTotal() || arr.indexOf(val) === i))
+                      .slice(0, 5)
+                      .map((val, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setTenderedAmount(String(val))}
+                          className="px-2 py-0.5 rounded-lg bg-white hover:bg-purple-50 border border-slate-200 hover:border-purple-300 text-slate-700 hover:text-purple-700 text-[10px] font-mono font-bold transition-all cursor-pointer shadow-2xs"
+                        >
+                          Rs. {val >= 1000 ? val.toLocaleString() : val.toFixed(0)}
+                        </button>
+                      ))}
+                  </div>
+                )}
+
+                {cartItems.length > 0 && tenderedAmount !== '' && Number(tenderedAmount) < calculateFinalTotal() && (
+                  <p className="text-[11px] font-bold text-rose-600">
+                    ⚠️ Tendered cash (Rs. {Number(tenderedAmount).toFixed(2)}) cannot be less than invoice total (Rs. {calculateFinalTotal().toFixed(2)}).
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={isLoading || cartItems.length === 0}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-sm hover:shadow-purple-200 text-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={
+              isLoading ||
+              cartItems.length === 0 ||
+              (paymentMethod === 'Cash' && (!tenderedAmount || Number(tenderedAmount) < calculateFinalTotal()))
+            }
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-sm hover:shadow-purple-200 text-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
           >
             <Receipt className="w-4 h-4" />
             {isLoading ? 'Processing Checkout Order...' : 'Complete Payment & Issue Invoice'}

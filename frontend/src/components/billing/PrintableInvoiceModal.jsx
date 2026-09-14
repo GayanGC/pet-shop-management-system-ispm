@@ -9,7 +9,8 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
   };
 
   const formattedDate = new Date(invoice.createdAt || Date.now()).toLocaleString();
-  const customerName = invoice.customerId ? (invoice.customerId.name || invoice.customerId.email) : 'Walk-in Counter Guest';
+  const customerName = invoice.customerName || (invoice.customerId ? (invoice.customerId.name || invoice.customerId.email) : 'Walk-in Counter Guest');
+  const customerPhone = invoice.customerPhone || (invoice.customerId ? invoice.customerId.phone : '');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md transition-all duration-300">
@@ -18,7 +19,7 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
         <div className="p-4 bg-slate-900 text-white flex justify-between items-center print:hidden">
           <div className="flex items-center gap-2">
             <Receipt className="w-4 h-4 text-purple-400" />
-            <span className="text-xs font-bold">Official Invoice Receipt</span>
+            <span className="text-xs font-bold">Official Invoice Receipt (80mm Thermal)</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -49,6 +50,12 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
               <span className="text-slate-500">Customer:</span>
               <span className="font-semibold text-slate-800">{customerName}</span>
             </div>
+            {customerPhone && (
+              <div className="flex justify-between">
+                <span className="text-slate-500">Contact Phone:</span>
+                <span className="font-mono text-slate-700">{customerPhone}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-slate-500">Payment Channel:</span>
               <span className="font-semibold text-purple-700">{invoice.paymentMethod}</span>
@@ -56,7 +63,7 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
             <div className="flex justify-between">
               <span className="text-slate-500">Payment Status:</span>
               <span className="font-bold text-emerald-600 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> {invoice.paymentStatus}
+                <CheckCircle2 className="w-3 h-3" /> {invoice.paymentStatus || 'Paid'}
               </span>
             </div>
           </div>
@@ -78,8 +85,8 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
                   <tr key={idx}>
                     <td className="py-2 font-medium text-slate-800">{item.itemName}</td>
                     <td className="py-2 text-center font-mono">{item.quantity}</td>
-                    <td className="py-2 text-right font-mono">Rs. {item.unitPrice.toFixed(2)}</td>
-                    <td className="py-2 text-right font-mono font-bold">Rs. {item.subtotal.toFixed(2)}</td>
+                    <td className="py-2 text-right font-mono">Rs. {Number(item.unitPrice || item.price || 0).toFixed(2)}</td>
+                    <td className="py-2 text-right font-mono font-bold">Rs. {Number(item.subtotal || (item.unitPrice || 0) * (item.quantity || 1)).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -111,6 +118,19 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
               <span>Total Paid:</span>
               <span className="text-purple-700">Rs. {(invoice.finalTotal || invoice.totalAmount || 0).toFixed(2)}</span>
             </div>
+
+            {invoice.paymentMethod === 'Cash' && invoice.tenderedAmount !== undefined && invoice.tenderedAmount !== null && (
+              <div className="space-y-1 pt-2 border-t border-dashed border-slate-200 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Cash Tendered:</span>
+                  <span className="font-mono font-bold text-slate-800">Rs. {Number(invoice.tenderedAmount).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-emerald-700 font-bold">
+                  <span>Change Returned:</span>
+                  <span className="font-mono">Rs. {Number(invoice.changeAmount || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer note */}
