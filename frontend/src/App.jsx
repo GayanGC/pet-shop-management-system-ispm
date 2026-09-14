@@ -530,11 +530,16 @@ function App() {
     return () => window.removeEventListener('inventory-updated', handleInventoryUpdate);
   }, []);
 
-  // Trigger fresh product fetch whenever switching to pharmacy / inventory / pos tabs
+  // Trigger fresh product / invoice fetch whenever switching to pharmacy / inventory / pos / orders tabs
   useEffect(() => {
     if (activeTab === 'pharmacy' || activeTab === 'pos' || activeTab === 'inventory') {
       if (typeof fetchProducts === 'function') {
         fetchProducts();
+      }
+    }
+    if (activeTab === 'orders') {
+      if (typeof fetchInvoices === 'function') {
+        fetchInvoices();
       }
     }
   }, [activeTab, pharmacySubTab]);
@@ -570,9 +575,14 @@ function App() {
 
   const fetchInvoices = async () => {
     try {
-      const data = await fetchInvoicesApi({
-        paymentMethod: invoicePaymentFilter !== 'All' ? invoicePaymentFilter : undefined
-      });
+      const params = {};
+      if (invoicePaymentFilter !== 'All') {
+        params.paymentMethod = invoicePaymentFilter;
+      }
+      if (currentUser && (currentUser._id || currentUser.id)) {
+        params.customerId = currentUser._id || currentUser.id;
+      }
+      const data = await fetchInvoicesApi(params);
       setInvoices(data.data || []);
       return data;
     } catch (err) {

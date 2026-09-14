@@ -125,9 +125,26 @@ const createInvoice = async (req, res) => {
 
     const changeAmount = tenderedAmount !== undefined ? Math.max(0, Number(tenderedAmount) - finalTotal) : 0;
 
+    const rawCustomer = req.body.customerId || req.body.customer || (req.user ? req.user._id : null);
+    const validCustomerId = (rawCustomer && mongoose.Types.ObjectId.isValid(rawCustomer)) ? rawCustomer : null;
+    const customerName = req.body.customerName || (req.user ? req.user.name : '');
+    const customerPhone = req.body.customerPhone || (req.user ? req.user.phone : '');
+    const customerEmail = req.body.customerEmail || (req.user ? req.user.email : '');
+    const fulfillmentMethod = req.body.fulfillmentMethod || 'Clinic Pickup';
+    const deliveryAddress = req.body.deliveryAddress || req.body.address || '';
+    const deliveryFee = Number(req.body.deliveryFee || 0);
+    const notes = req.body.notes || '';
+
     const invoice = await Invoice.create({
       invoiceNo,
-      customerId: customerId || null,
+      customerId: validCustomerId,
+      customerName,
+      customerPhone,
+      customerEmail,
+      fulfillmentMethod,
+      deliveryAddress,
+      deliveryFee,
+      notes,
       items: processedItems,
       totalAmount: calculatedTotal,
       discountRate: discRate,
@@ -141,7 +158,7 @@ const createInvoice = async (req, res) => {
       changeAmount
     });
 
-    if (customerId) {
+    if (validCustomerId) {
       await invoice.populate('customerId', 'name email role');
     }
 
@@ -177,12 +194,17 @@ const getAllInvoices = async (req, res) => {
     // Private Scoping for Customer Role: only see own order receipts
     const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
     if (isCustomer) {
-      const orList = [{ customerId: req.user._id }];
+      const orList = [
+        { customerId: req.user._id },
+        { customerId: String(req.user._id) }
+      ];
       if (req.user.name) orList.push({ customerName: new RegExp(`^${req.user.name}$`, 'i') });
       if (req.user.phone) orList.push({ customerPhone: req.user.phone });
+      if (req.user.email) orList.push({ customerEmail: new RegExp(`^${req.user.email}$`, 'i') });
       query.$or = orList;
     } else if (customerId) {
-      query.customerId = customerId;
+      const targetCust = (customerId && mongoose.Types.ObjectId.isValid(customerId)) ? new mongoose.Types.ObjectId(customerId) : customerId;
+      query.$or = [{ customerId: targetCust }, { customerId: String(customerId) }];
     }
 
     const invoices = await Invoice.find(query)

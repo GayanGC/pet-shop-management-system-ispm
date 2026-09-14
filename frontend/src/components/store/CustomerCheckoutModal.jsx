@@ -116,10 +116,19 @@ const CustomerCheckoutModal = ({
           ? 'Cash'
           : `Bank Transfer / ${walletType}`;
 
+      const customerId = currentUser?._id || currentUser?.id || null;
+
       const invoicePayload = {
-        customerId: currentUser._id,
-        customerName: customerInfo.name,
-        customerPhone: customerInfo.phone,
+        customer: customerId,
+        customerId: customerId,
+        customerName: customerInfo.name || currentUser?.name || 'Customer',
+        customerPhone: customerInfo.phone || currentUser?.phone || '',
+        customerEmail: customerInfo.email || currentUser?.email || '',
+        fulfillmentMethod: fulfillmentType === 'delivery' ? 'Express Home Delivery' : 'Clinic Pickup',
+        paymentMethod: paymentMethod === 'card' ? 'Credit Card' : paymentMethod === 'cod' ? 'Cash on Delivery' : 'Bank Transfer',
+        deliveryAddress: fulfillmentType === 'delivery' ? customerInfo.address : '',
+        deliveryFee: currentDeliveryFee,
+        tenderedAmount: Number(grandTotal),
         items: cartItems.map((item) => {
           const itemPrice = Number(item.price !== undefined ? item.price : (item.unitPrice || 0));
           const itemQty = Number(item.quantity || 1);
@@ -133,9 +142,11 @@ const CustomerCheckoutModal = ({
             subtotal: itemPrice * itemQty
           };
         }),
-        paymentMethod: paymentMethod === 'card' ? 'Card' : paymentMethod === 'cod' ? 'Cash' : 'Online',
-        notes: `Store Order [${fulfillmentType === 'delivery' ? 'Home Delivery' : 'Clinic Pickup'}] - ${paymentMethodLabel} | Address: ${fulfillmentType === 'delivery' ? customerInfo.address : 'In-Clinic'} | ${customerInfo.notes || 'None'}`,
-        discount: 0
+        subtotal: Number(subtotal),
+        totalAmount: Number(grandTotal),
+        discount: 0,
+        tax: 0,
+        notes: `Store Order [${fulfillmentType === 'delivery' ? 'Home Delivery' : 'Clinic Pickup'}] - ${paymentMethodLabel} | Address: ${fulfillmentType === 'delivery' ? customerInfo.address : 'In-Clinic'} | ${customerInfo.notes || 'None'}`
       };
 
       const res = await createInvoice(invoicePayload);

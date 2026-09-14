@@ -47,6 +47,40 @@ const invoiceSchema = new mongoose.Schema(
       ref: 'User',
       required: false
     },
+    customerName: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    customerPhone: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    customerEmail: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    fulfillmentMethod: {
+      type: String,
+      default: 'Clinic Pickup',
+      trim: true
+    },
+    deliveryAddress: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    deliveryFee: {
+      type: Number,
+      default: 0
+    },
+    notes: {
+      type: String,
+      default: '',
+      trim: true
+    },
     items: [invoiceItemSchema],
     totalAmount: {
       type: Number,

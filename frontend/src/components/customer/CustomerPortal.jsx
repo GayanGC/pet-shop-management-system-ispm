@@ -24,7 +24,8 @@ import {
   Heart,
   LayoutGrid,
   List,
-  Filter
+  Filter,
+  Receipt
 } from 'lucide-react';
 import ProductShowcase from '../inventory/ProductShowcase';
 import PrintableHealthPassportModal from '../pet/PrintableHealthPassportModal';
@@ -268,14 +269,18 @@ const CustomerPortal = ({
               <span className="text-[10px] font-bold text-teal-200 uppercase block">Channelings</span>
               <span className="text-lg font-black font-mono">{bookings.length}</span>
             </div>
-            <div className="px-4 py-2 rounded-2xl bg-white/10 dark:bg-slate-800/80 backdrop-blur-md border border-white/20 text-center flex-1 md:flex-initial">
-              <span className="text-[10px] font-bold text-teal-200 uppercase block">Invoices</span>
+            <div
+              onClick={() => onTabChange && onTabChange('orders')}
+              className="px-4 py-2 rounded-2xl bg-white/10 hover:bg-white/20 dark:bg-slate-800/80 backdrop-blur-md border border-white/20 text-center flex-1 md:flex-initial cursor-pointer transition-all active:scale-95"
+              title="Click to view My Orders"
+            >
+              <span className="text-[10px] font-bold text-teal-200 uppercase block">Invoices / Orders</span>
               <span className="text-lg font-black font-mono">{invoices.length}</span>
             </div>
           </div>
         </div>
 
-        {/* 3 Dedicated Portal Tabs */}
+        {/* Dedicated Portal Tabs */}
         <div className="flex flex-wrap gap-2 pt-6 mt-6 border-t border-teal-600/40 dark:border-slate-800">
           <button
             onClick={() => handleTabSwitch('pets')}
@@ -311,6 +316,16 @@ const CustomerPortal = ({
           >
             <ShoppingBag className="w-4 h-4" />
             <span>Pet Pharmacy & Care Store ({products.length})</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (onTabChange) onTabChange('orders');
+            }}
+            className="py-2.5 px-5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer bg-white/10 hover:bg-white/20 text-white hover:border-amber-300"
+          >
+            <Receipt className="w-4 h-4" />
+            <span>My Orders & Invoices ({invoices.length})</span>
           </button>
         </div>
       </div>
