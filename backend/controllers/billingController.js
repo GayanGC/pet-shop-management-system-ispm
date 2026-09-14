@@ -70,6 +70,19 @@ const createInvoice = async (req, res) => {
       }
     }
 
+    // Stock availability validation
+    for (const item of sanitizedItems) {
+      if (item.product) {
+        const productDoc = await Product.findById(item.product);
+        if (productDoc && productDoc.stockQuantity < item.quantity) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient stock for product '${productDoc.itemName || item.itemName}'. Available: ${productDoc.stockQuantity}, Requested: ${item.quantity}`
+          });
+        }
+      }
+    }
+
     let calculatedTotal = 0;
     const processedItems = [];
 
@@ -293,10 +306,17 @@ const voidInvoice = async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.id);
 
-    if (!invoice || invoice.isVoided) {
+    if (!invoice) {
       return res.status(404).json({
         success: false,
-        message: 'Invoice not found or already voided'
+        message: 'Invoice record not found'
+      });
+    }
+
+    if (invoice.isVoided) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice is already voided'
       });
     }
 

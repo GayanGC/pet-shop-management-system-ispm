@@ -33,9 +33,14 @@ router.route('/')
   .get(protect, authorize('Admin', 'Staff'), getAllInvoices)
   .post(protect, authorize('Admin', 'Staff'), createInvoice);
 
+router.route('/:id/void')
+  .patch(protect, authorize('Admin', 'Staff'), voidInvoice)
+  .post(protect, authorize('Admin', 'Staff'), voidInvoice);
+
 router.route('/:id')
   .get(protect, authorize('Admin', 'Staff'), getInvoiceById)
   .put(protect, authorize('Admin', 'Staff'), updatePaymentStatus)
+  .patch(protect, authorize('Admin', 'Staff'), updatePaymentStatus)
   .delete(protect, authorize('Admin'), voidInvoice);
 
 module.exports = router;
