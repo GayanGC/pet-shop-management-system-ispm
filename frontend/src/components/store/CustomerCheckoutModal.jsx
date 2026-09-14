@@ -138,14 +138,29 @@ const CustomerCheckoutModal = ({
       };
 
       const res = await createInvoice(invoicePayload);
+      const invData = res?.data || res?.invoice || res || {};
 
-      if (res && res.data) {
-        setCompletedOrder(res.data);
+      const normalizedOrder = {
+        invoiceNo: invData.invoiceNo || invData.invoiceNumber || res?.invoiceNo || res?.invoiceNumber || ('INV-' + Date.now().toString().slice(-6)),
+        customerName: invData.customerName || customerInfo.name || currentUser?.name || 'Customer',
+        customerPhone: invData.customerPhone || customerInfo.phone || currentUser?.phone || '',
+        fulfillmentMethod: fulfillmentType === 'delivery' ? '🚚 Express Home Delivery' : '🏥 4 Paw Clinic Counter Pickup',
+        paymentStatus: invData.paymentStatus || 'Paid',
+        paymentMethod: paymentMethod === 'card' ? 'Credit / Debit Card' : paymentMethod === 'cod' ? 'Cash on Delivery' : 'QR / Bank Transfer',
+        totalAmount: Number(invData.finalTotal || invData.totalAmount || grandTotal || 0),
+        items: invData.items || cartItems || [],
+        address: fulfillmentType === 'delivery' ? customerInfo.address : 'In-Clinic Pickup',
+        deliveryFee: currentDeliveryFee,
+        createdAt: invData.createdAt || new Date().toISOString()
+      };
+
+      if (res && (res.data || res.success || res.invoiceNo)) {
+        setCompletedOrder(normalizedOrder);
         if (onClearCart) onClearCart();
-        if (onCheckoutSuccess) onCheckoutSuccess(res.data);
-        if (onOrderSuccess) onOrderSuccess(res.data);
+        if (onCheckoutSuccess) onCheckoutSuccess(normalizedOrder);
+        if (onOrderSuccess) onOrderSuccess(normalizedOrder);
       } else {
-        throw new Error(res.message || 'Failed to process order.');
+        throw new Error(res?.message || 'Failed to process order.');
       }
     } catch (err) {
       setErrorMessage(err.message || 'Error processing your checkout. Please try again.');
@@ -174,7 +189,7 @@ const CustomerCheckoutModal = ({
               </h2>
               <p className="text-xs text-teal-100 truncate">
                 {completedOrder
-                  ? `Invoice #${completedOrder.invoiceNumber || completedOrder.invoiceNo} generated`
+                  ? `Invoice #${completedOrder.invoiceNo || 'INV-2026-PENDING'} generated`
                   : 'Select fulfillment, delivery details, and payment method'}
               </p>
             </div>
@@ -190,13 +205,42 @@ const CustomerCheckoutModal = ({
 
         {/* ORDER COMPLETED STATE */}
         {completedOrder ? (
-          <div className="flex-1 overflow-y-auto p-6 sm:p-8 text-center space-y-6">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-300 dark:border-emerald-700 shadow-lg shadow-emerald-500/20">
-              <CheckCircle2 className="w-8 h-8 animate-bounce" />
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            <style>{`
+              @media print {
+                body * {
+                  visibility: hidden;
+                }
+                #printable-receipt, #printable-receipt * {
+                  visibility: visible;
+                }
+                #printable-receipt {
+                  position: fixed;
+                  left: 50%;
+                  top: 20px;
+                  transform: translateX(-50%);
+                  width: 100%;
+                  max-width: 480px;
+                  margin: 0 auto;
+                  padding: 20px;
+                  border: 1px solid #cbd5e1;
+                  border-radius: 8px;
+                  background: #ffffff !important;
+                  color: #0f172a !important;
+                  box-shadow: none;
+                }
+                .no-print {
+                  display: none !important;
+                }
+              }
+            `}</style>
+
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-300 dark:border-emerald-700 shadow-md shadow-emerald-500/20 no-print">
+              <CheckCircle2 className="w-7 h-7 animate-bounce" />
             </div>
 
-            <div className="space-y-1">
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white">
+            <div className="text-center space-y-1 no-print">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">
                 Thank You for Your Order!
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -204,42 +248,114 @@ const CustomerCheckoutModal = ({
               </p>
             </div>
 
-            {/* Receipt Summary Box */}
-            <div className="bg-slate-50 dark:bg-slate-800/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 text-left space-y-3 font-mono text-xs">
-              <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+            {/* Printable Receipt Card */}
+            <div
+              id="printable-receipt"
+              className="bg-slate-50 dark:bg-slate-800/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-left space-y-3 font-mono text-xs shadow-inner"
+            >
+              {/* Receipt Header Branding */}
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2.5">
+                <div>
+                  <h4 className="font-sans font-black text-sm text-slate-900 dark:text-white tracking-tight">
+                    🐾 4 PAW ANIMAL CLINIC
+                  </h4>
+                  <p className="font-sans text-[10px] text-slate-500 dark:text-slate-400">
+                    Pet Pharmacy & Prescription Receipt
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono font-bold text-teal-600 dark:text-teal-400 text-xs">
+                    {completedOrder?.invoiceNo || 'INV-2026-PENDING'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {new Date(completedOrder?.createdAt || Date.now()).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice Number Row */}
+              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700/60">
                 <span className="text-slate-500 dark:text-slate-400">Invoice Number:</span>
-                <span className="font-bold text-teal-600 dark:text-teal-400">{completedOrder.invoiceNumber}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
-                <span className="text-slate-500 dark:text-slate-400">Recipient Name:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-100">{completedOrder.customerName}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
-                <span className="text-slate-500 dark:text-slate-400">Fulfillment Method:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-100">
-                  {fulfillmentType === 'delivery' ? '🚚 Express Home Delivery' : '🏥 4 Paw Clinic Counter Pickup'}
+                <span className="font-mono font-bold text-teal-600 dark:text-teal-400">
+                  {completedOrder?.invoiceNo || 'INV-2026-PENDING'}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+
+              {/* Recipient Name Row */}
+              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700/60">
+                <span className="text-slate-500 dark:text-slate-400">Recipient Name:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-100 font-sans">
+                  {completedOrder?.customerName || customerInfo?.name || currentUser?.name || 'Customer'}
+                </span>
+              </div>
+
+              {/* Recipient Phone */}
+              {(completedOrder?.customerPhone || customerInfo?.phone) && (
+                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700/60">
+                  <span className="text-slate-500 dark:text-slate-400">Contact Phone:</span>
+                  <span className="font-mono text-slate-800 dark:text-slate-100">
+                    {completedOrder?.customerPhone || customerInfo?.phone}
+                  </span>
+                </div>
+              )}
+
+              {/* Fulfillment Method Row */}
+              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700/60">
+                <span className="text-slate-500 dark:text-slate-400">Fulfillment Method:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-100 font-sans">
+                  {completedOrder?.fulfillmentMethod || (fulfillmentType === 'delivery' ? '🚚 Express Home Delivery' : '🏥 4 Paw Clinic Counter Pickup')}
+                </span>
+              </div>
+
+              {/* Payment Method & Status */}
+              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700/60">
+                <span className="text-slate-500 dark:text-slate-400">Payment Method:</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200 font-sans">
+                  {completedOrder?.paymentMethod || 'Cash'}
+                </span>
+              </div>
+
+              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700/60">
                 <span className="text-slate-500 dark:text-slate-400">Payment Status:</span>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-sans font-bold text-[10px]">
-                  {completedOrder.paymentStatus || 'Paid / Verified'}
+                  {completedOrder?.paymentStatus || 'Paid / Verified'}
                 </span>
               </div>
+
+              {/* Purchased Items List */}
+              {Array.isArray(completedOrder?.items) && completedOrder.items.length > 0 && (
+                <div className="py-2 border-b border-slate-200 dark:border-slate-700 space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block font-sans">
+                    Purchased Items ({completedOrder.items.length})
+                  </span>
+                  {completedOrder.items.map((it, idx) => (
+                    <div key={idx} className="flex justify-between text-[11px]">
+                      <span className="text-slate-700 dark:text-slate-300 truncate max-w-[240px] font-sans">
+                        {it.itemName || it.name || 'Product Item'} × {it.quantity || 1}
+                      </span>
+                      <span className="font-mono text-slate-800 dark:text-slate-200">
+                        Rs. {Number(it.subtotal || ((it.unitPrice || it.price || 0) * (it.quantity || 1))).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Total Amount Row */}
               <div className="flex justify-between pt-1 text-sm font-sans font-extrabold text-slate-900 dark:text-white">
                 <span>Total Amount Paid (LKR):</span>
-                <span className="text-teal-600 dark:text-teal-400 font-mono">
-                  Rs. {Number(completedOrder.finalTotal || completedOrder.totalAmount).toFixed(2)}
+                <span className="text-teal-600 dark:text-teal-400 font-mono text-base">
+                  Rs. {Number(completedOrder?.totalAmount || completedOrder?.finalTotal || grandTotal).toFixed(2)}
                 </span>
               </div>
             </div>
 
             {/* Receipt Modal Action Buttons */}
-            <div className="flex items-center justify-center gap-3 pt-2">
+            <div className="flex items-center justify-center gap-3 pt-2 no-print">
               <button
                 type="button"
                 onClick={handlePrintReceipt}
-                className="py-2.5 px-5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                className="py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-200 dark:border-slate-700 cursor-pointer transition-colors"
               >
                 <Printer className="w-4 h-4" />
                 <span>Print Official Receipt</span>
@@ -248,7 +364,7 @@ const CustomerCheckoutModal = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-teal-700/20 cursor-pointer"
+                className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-teal-700/20 cursor-pointer transition-all"
               >
                 <span>Back to Storefront</span>
                 <ArrowRight className="w-4 h-4" />
