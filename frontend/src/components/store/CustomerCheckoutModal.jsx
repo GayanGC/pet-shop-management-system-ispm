@@ -119,14 +119,20 @@ const CustomerCheckoutModal = ({
         customerId: currentUser._id,
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone,
-        items: cartItems.map((item) => ({
-          productId: item._id,
-          itemName: item.itemName,
-          quantity: item.quantity || 1,
-          price: Number(item.price),
-          subtotal: Number(item.price) * (item.quantity || 1)
-        })),
-        paymentMethod: paymentMethod === 'card' ? 'Credit Card' : paymentMethod === 'cod' ? 'Cash' : 'Bank Transfer',
+        items: cartItems.map((item) => {
+          const itemPrice = Number(item.price !== undefined ? item.price : (item.unitPrice || 0));
+          const itemQty = Number(item.quantity || 1);
+          return {
+            productId: item._id || item.productId || item.product,
+            product: item._id || item.productId || item.product,
+            itemName: item.itemName || item.name || 'Product Item',
+            quantity: itemQty,
+            unitPrice: itemPrice,
+            price: itemPrice,
+            subtotal: itemPrice * itemQty
+          };
+        }),
+        paymentMethod: paymentMethod === 'card' ? 'Card' : paymentMethod === 'cod' ? 'Cash' : 'Online',
         notes: `Store Order [${fulfillmentType === 'delivery' ? 'Home Delivery' : 'Clinic Pickup'}] - ${paymentMethodLabel} | Address: ${fulfillmentType === 'delivery' ? customerInfo.address : 'In-Clinic'} | ${customerInfo.notes || 'None'}`,
         discount: 0
       };

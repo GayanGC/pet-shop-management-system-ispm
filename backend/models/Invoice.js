@@ -75,7 +75,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['Cash', 'Card', 'Online'],
+      enum: ['Cash', 'Card', 'Credit Card', 'Debit Card', 'Online', 'Bank Transfer'],
       default: 'Cash'
     },
     paymentStatus: {

@@ -4,6 +4,7 @@
  * ============================================================================
  */
 
+const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
 const Product = require('../models/Product');
 
@@ -40,28 +41,46 @@ const createInvoice = async (req, res) => {
       invoiceExists = await Invoice.findOne({ invoiceNo });
     }
 
-    let calculatedTotal = 0;
-    const processedItems = [];
+    const sanitizedItems = (items || []).map((item) => {
+      const itemName = item.itemName || item.name || 'Product Item';
+      const unitPrice = Number(item.unitPrice !== undefined ? item.unitPrice : (item.price || 0));
+      const quantity = Number(item.quantity || 1);
+      const subtotal = Number(item.subtotal !== undefined ? item.subtotal : (unitPrice * quantity));
+      const rawProd = item.productId || item.product || item._id;
+      const productId = (rawProd && mongoose.Types.ObjectId.isValid(rawProd)) ? rawProd : null;
 
-    for (const item of items) {
-      if (!item.itemName || item.unitPrice === undefined || !item.quantity) {
+      return {
+        product: productId,
+        productId,
+        itemName,
+        unitPrice,
+        price: unitPrice,
+        quantity,
+        subtotal
+      };
+    });
+
+    // Validation check
+    for (const item of sanitizedItems) {
+      if (!item.itemName || item.unitPrice <= 0 || !item.quantity) {
         return res.status(400).json({
           success: false,
           message: 'Each item must have itemName, unitPrice, and quantity'
         });
       }
+    }
 
-      const qty = Number(item.quantity);
-      const price = Number(item.unitPrice);
-      const lineSubtotal = qty * price;
-      calculatedTotal += lineSubtotal;
+    let calculatedTotal = 0;
+    const processedItems = [];
 
+    for (const item of sanitizedItems) {
+      calculatedTotal += item.subtotal;
       processedItems.push({
-        product: item.product || null,
+        product: item.product,
         itemName: item.itemName,
-        unitPrice: price,
-        quantity: qty,
-        subtotal: lineSubtotal
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        subtotal: item.subtotal
       });
     }
 
@@ -74,9 +93,19 @@ const createInvoice = async (req, res) => {
     const taxAmount = amountAfterDiscount * (tRate / 100);
     const finalTotal = amountAfterDiscount + taxAmount;
 
+    // Normalize Payment Method
+    let pMethod = paymentMethod || 'Cash';
+    const pMethodLower = String(pMethod).toLowerCase();
+    if (pMethodLower.includes('card')) {
+      pMethod = 'Card';
+    } else if (pMethodLower.includes('online') || pMethodLower.includes('bank') || pMethodLower.includes('qr') || pMethodLower.includes('transfer')) {
+      pMethod = 'Online';
+    } else {
+      pMethod = 'Cash';
+    }
+
     // Cash Tendered validation (tenderedAmount >= finalTotal)
-    const pMethod = paymentMethod || 'Cash';
-    if (tenderedAmount !== undefined && (pMethod === 'Cash' || pMethod === 'cash')) {
+    if (tenderedAmount !== undefined && pMethod === 'Cash') {
       if (Number(tenderedAmount) < finalTotal) {
         return res.status(400).json({
           success: false,
