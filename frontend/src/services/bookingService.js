@@ -1,8 +1,8 @@
-import API_BASE_URL, { getAuthHeader, handleResponse } from './api';
+import API_BASE_URL, { getAuthHeader, handleResponse, toQueryString } from './api';
 
 export const fetchBookings = async (params = {}) => {
-  const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE_URL}/bookings${query ? `?${query}` : ''}`, {
+  const qs = toQueryString(params);
+  const res = await fetch(`${API_BASE_URL}/bookings${qs}`, {
     headers: getAuthHeader()
   });
   return handleResponse(res);
@@ -41,8 +41,8 @@ export const cancelBooking = async (id) => {
 };
 
 export const fetchDoctorDaySchedule = async (doctor, date) => {
-  const query = new URLSearchParams({ doctor: doctor || '', date: date || '' }).toString();
-  const res = await fetch(`${API_BASE_URL}/bookings/schedule?${query}`, {
+  const qs = toQueryString({ doctor, date });
+  const res = await fetch(`${API_BASE_URL}/bookings/schedule${qs}`, {
     headers: getAuthHeader()
   });
   return handleResponse(res);

@@ -123,7 +123,7 @@ const getAllBookings = async (req, res) => {
 
     let query = {};
 
-    if (status && status !== 'All') {
+    if (status && status !== 'All' && status !== 'undefined' && status !== 'null') {
       query.status = status;
     }
 
@@ -137,7 +137,7 @@ const getAllBookings = async (req, res) => {
         { customerId: req.user._id },
         { petId: { $in: userPetIds } }
       ];
-    } else if (customerId) {
+    } else if (customerId && customerId !== 'undefined' && customerId !== 'null') {
       query.customerId = customerId;
     }
 
@@ -150,7 +150,8 @@ const getAllBookings = async (req, res) => {
       success: true,
       count: bookings.length,
       message: 'Appointments fetched successfully',
-      data: bookings
+      data: bookings,
+      bookings: bookings
     });
   } catch (error) {
     return res.status(500).json({
@@ -426,6 +427,7 @@ module.exports = {
   bookingHealthCheck,
   createBooking,
   getAllBookings,
+  getBookings: getAllBookings,
   getBookingById,
   updateBooking,
   deleteBooking,

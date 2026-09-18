@@ -1,8 +1,8 @@
-import API_BASE_URL, { getAuthHeader, handleResponse } from './api';
+import API_BASE_URL, { getAuthHeader, handleResponse, toQueryString } from './api';
 
 export const fetchPets = async (params = {}) => {
-  const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE_URL}/pets${query ? `?${query}` : ''}`, {
+  const qs = toQueryString(params);
+  const res = await fetch(`${API_BASE_URL}/pets${qs}`, {
     headers: getAuthHeader()
   });
   return handleResponse(res);

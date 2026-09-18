@@ -1,8 +1,8 @@
-import API_BASE_URL, { getAuthHeader, handleResponse } from './api';
+import API_BASE_URL, { getAuthHeader, handleResponse, toQueryString } from './api';
 
 export const fetchInvoices = async (params = {}) => {
-  const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE_URL}/billing${query ? `?${query}` : ''}`, {
+  const qs = toQueryString(params);
+  const res = await fetch(`${API_BASE_URL}/billing${qs}`, {
     headers: getAuthHeader()
   });
   return handleResponse(res);

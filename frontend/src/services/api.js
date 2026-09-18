@@ -10,6 +10,19 @@ export const getAuthHeader = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+export const toQueryString = (params = {}) => {
+  if (!params || typeof params !== 'object') return '';
+  const clean = {};
+  Object.keys(params).forEach((key) => {
+    const val = params[key];
+    if (val !== undefined && val !== null && val !== '' && val !== 'undefined' && val !== 'null') {
+      clean[key] = val;
+    }
+  });
+  const qs = new URLSearchParams(clean).toString();
+  return qs ? `?${qs}` : '';
+};
+
 export const handleResponse = async (response) => {
   const data = await response.json();
   if (!response.ok) {

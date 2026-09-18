@@ -117,7 +117,7 @@ const getAllPets = async (req, res) => {
       query.isArchived = false;
     }
 
-    if (species && species !== 'All') {
+    if (species && species !== 'All' && species !== 'undefined' && species !== 'null') {
       query.species = species;
     }
 
@@ -139,15 +139,18 @@ const getAllPets = async (req, res) => {
         });
       }
       query.ownerId = { $in: customerIds };
-    } else if (customerId || ownerId) {
-      query.ownerId = customerId || ownerId;
+    } else if (customerId && customerId !== 'undefined' && customerId !== 'null') {
+      query.ownerId = customerId;
+    } else if (ownerId && ownerId !== 'undefined' && ownerId !== 'null') {
+      query.ownerId = ownerId;
     }
 
-    if (search) {
+    if (search && search !== 'undefined' && search !== 'null' && search.trim() !== '') {
+      const trimmedSearch = search.trim();
       const searchConditions = [
-        { petName: { $regex: search, $options: 'i' } },
-        { uniquePin: { $regex: search, $options: 'i' } },
-        { breed: { $regex: search, $options: 'i' } }
+        { petName: { $regex: trimmedSearch, $options: 'i' } },
+        { uniquePin: { $regex: trimmedSearch, $options: 'i' } },
+        { breed: { $regex: trimmedSearch, $options: 'i' } }
       ];
       if (query.ownerId) {
         query = {
@@ -473,6 +476,7 @@ module.exports = {
   petHealthCheck,
   createPet,
   getAllPets,
+  getPets: getAllPets,
   getPetById,
   updatePet,
   deletePet,

@@ -494,12 +494,13 @@ function App() {
   // Data Loading Effects
   const loadPets = async () => {
     try {
-      const data = await fetchPets({
+      const res = await fetchPets({
         species: petSpeciesFilter !== 'All' ? petSpeciesFilter : undefined,
-        search: petSearch || undefined,
+        search: petSearch && petSearch.trim() ? petSearch.trim() : undefined,
         includeArchived: includeArchivedPets
       });
-      setPets(data.data || []);
+      const items = Array.isArray(res) ? res : (res?.data || res?.pets || []);
+      setPets(items);
     } catch (err) {
       console.error('Error loading pets:', err);
     }
@@ -555,8 +556,9 @@ function App() {
 
   const loadSuppliers = async () => {
     try {
-      const data = await fetchSuppliers();
-      setSuppliers(data.data || []);
+      const res = await fetchSuppliers();
+      const items = Array.isArray(res) ? res : (res?.data || res?.suppliers || []);
+      setSuppliers(items);
     } catch (err) {
       console.error('Error loading suppliers:', err);
     }
@@ -564,8 +566,9 @@ function App() {
 
   const loadExpiringProducts = async () => {
     try {
-      const data = await fetchExpiringProducts(30);
-      setExpiringProducts(data.data || []);
+      const res = await fetchExpiringProducts(30);
+      const items = Array.isArray(res) ? res : (res?.data || res?.products || []);
+      setExpiringProducts(items);
     } catch (err) {
       console.error('Error loading expiring products:', err);
     }
@@ -573,10 +576,11 @@ function App() {
 
   const loadBookings = async () => {
     try {
-      const data = await fetchBookings({
+      const res = await fetchBookings({
         status: bookingStatusFilter !== 'All' ? bookingStatusFilter : undefined
       });
-      setBookings(data.data || []);
+      const items = Array.isArray(res) ? res : (res?.data || res?.bookings || []);
+      setBookings(items);
     } catch (err) {
       console.error('Error loading bookings:', err);
     }
@@ -588,12 +592,13 @@ function App() {
       if (invoicePaymentFilter !== 'All') {
         params.paymentMethod = invoicePaymentFilter;
       }
-      if (currentUser && (currentUser._id || currentUser.id)) {
+      if (currentUser && (currentUser._id || currentUser.id) && role === 'customer') {
         params.customerId = currentUser._id || currentUser.id;
       }
-      const data = await fetchInvoicesApi(params);
-      setInvoices(data.data || []);
-      return data;
+      const res = await fetchInvoicesApi(params);
+      const items = Array.isArray(res) ? res : (res?.data || res?.invoices || []);
+      setInvoices(items);
+      return res;
     } catch (err) {
       console.error('Error loading invoices:', err);
     }
