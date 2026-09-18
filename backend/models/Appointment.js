@@ -21,8 +21,19 @@ const appointmentSchema = new mongoose.Schema(
     serviceType: {
       type: String,
       required: [true, 'Service type is required'],
-      enum: ['Grooming & Bath', 'Veterinary Checkup', 'Vaccination', 'Dental Care', 'General Consultation'],
-      default: 'General Consultation'
+      enum: [
+        'General Veterinary Consultation',
+        'Vaccination & Immunization',
+        'Dental Scaling & Oral Surgery',
+        'Surgical Wound Dressing',
+        'Clinical Diagnostics & Laboratory',
+        'Emergency Clinical Care',
+        'Veterinary Checkup',
+        'Vaccination',
+        'Dental Care',
+        'General Consultation'
+      ],
+      default: 'General Veterinary Consultation'
     },
     assignedStaff: {
       type: String,
@@ -42,6 +53,10 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled'],
       default: 'Pending'
+    },
+    cancelledAt: {
+      type: Date,
+      default: null
     },
     notes: {
       type: String,

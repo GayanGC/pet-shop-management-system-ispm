@@ -78,16 +78,16 @@ const RescheduleModal = ({ booking, onClose, onReschedule }) => {
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">Reassigned Doctor / Groomer</label>
+            <label className="block font-semibold text-slate-700 mb-1">Reassigned Attending Clinician</label>
             <select
               value={assignedStaff}
               onChange={(e) => setAssignedStaff(e.target.value)}
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-blue-500 focus:outline-none"
             >
               <option value="Dr. Perera (Senior Vet)">Dr. Perera (Senior Vet)</option>
-              <option value="Dr. Fernando (Surgeon)">Dr. Fernando (Surgeon)</option>
+              <option value="Dr. Fernando (Vet Surgeon)">Dr. Fernando (Vet Surgeon)</option>
+              <option value="Dr. Silva (Consultant Physician)">Dr. Silva (Consultant Physician)</option>
               <option value="Nurse Silva">Nurse Silva</option>
-              <option value="Senior Groomer Kapila">Senior Groomer Kapila</option>
             </select>
           </div>
 

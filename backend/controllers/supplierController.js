@@ -27,7 +27,7 @@ const seedInitialSuppliers = async () => {
           phone: '071-9876543',
           email: 'sales@ceylonpet.lk',
           address: 'No. 120, Kandy Road, Kelaniya',
-          suppliedCategories: ['Pet Food', 'Toys', 'Grooming Supplies'],
+          suppliedCategories: ['Pet Food', 'Toys', 'Clinical Consumables'],
           status: 'Active'
         },
         {

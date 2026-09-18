@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, DollarSign, Layers, Truck, Tag, Plus, Calendar, X, AlertCircle } from 'lucide-react';
+import { fetchSuppliers } from '../../services/supplierService';
 
 // ─── Validation ─────────────────────────────────────────────────────────────
 const BATCH_RE = /^[A-Z0-9\-]{3,30}$/;
@@ -63,6 +64,22 @@ const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose }) 
   const [formData, setFormData] = useState(INITIAL);
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [dynamicSuppliers, setDynamicSuppliers] = useState(suppliers || []);
+
+  useEffect(() => {
+    if (Array.isArray(suppliers) && suppliers.length > 0) {
+      setDynamicSuppliers(suppliers);
+    } else {
+      fetchSuppliers()
+        .then((res) => {
+          const list = Array.isArray(res) ? res : (res?.data || res?.suppliers || []);
+          if (Array.isArray(list) && list.length > 0) {
+            setDynamicSuppliers(list);
+          }
+        })
+        .catch((err) => console.error('Error fetching suppliers for ProductForm:', err));
+    }
+  }, [suppliers]);
 
   const handleChange = (e) => {
     let { name, value } = e.target;
@@ -184,7 +201,7 @@ const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose }) 
             <option value="Accessories">Accessories & Gear</option>
             <option value="Toys">Toys & Enrichment</option>
             <option value="Supplements">Supplements & Vitamins</option>
-            <option value="Grooming">Grooming & Hygiene</option>
+            <option value="Clinical Supplies">Clinical Consumables & Supplies</option>
           </select>
         </div>
 
@@ -233,29 +250,24 @@ const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose }) 
           <ErrorMsg name="stockQuantity" />
         </div>
 
-        {/* Supplier */}
+        {/* Dynamic Supplier Dropdown */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-            <Truck className="w-3.5 h-3.5 text-slate-400" /> Supplier / Vendor
+            <Truck className="w-3.5 h-3.5 text-slate-400" /> Supplier / Vendor <span className="text-rose-500">*</span>
           </label>
-          <input
-            type="text"
+          <select
             name="supplier"
-            list="registered-suppliers-list"
             value={formData.supplier}
             onChange={handleChange}
-            placeholder="e.g. VetMed Lanka or MediVet"
-            className="w-full px-3.5 py-2.5 bg-slate-50/50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:bg-white dark:focus:bg-slate-900 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all placeholder:text-slate-400"
-          />
-          {Array.isArray(suppliers) && suppliers.length > 0 && (
-            <datalist id="registered-suppliers-list">
-              {suppliers.map((s) => (
-                <option key={s._id} value={s.name}>
-                  {s.name} ({s.phone || s.contactPerson || 'Vendor'})
-                </option>
-              ))}
-            </datalist>
-          )}
+            className="w-full px-3.5 py-2.5 bg-slate-50/50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:bg-white dark:focus:bg-slate-900 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all cursor-pointer font-medium text-slate-700 dark:text-slate-300"
+          >
+            <option value="">-- Choose Registered Clinical Supplier --</option>
+            {dynamicSuppliers.map((s) => (
+              <option key={s._id || s.name} value={s.name}>
+                {s.name} {s.phone ? `(${s.phone})` : ''}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Batch Number */}

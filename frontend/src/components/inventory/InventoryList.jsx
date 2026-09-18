@@ -61,11 +61,12 @@ const InventoryList = ({
               className="pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="All">All Categories</option>
-              <option value="Healthcare">Healthcare 💊</option>
-              <option value="Food">Food 🍖</option>
-              <option value="Toys">Toys 🎾</option>
-              <option value="Accessories">Accessories 🦮</option>
-              <option value="Grooming Supplies">Grooming 🧼</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Medicine">Prescription Medicine</option>
+              <option value="Vaccines">Vaccines & Biologics</option>
+              <option value="Supplements">Supplements & Vitamins</option>
+              <option value="Food">Pet Nutrition & Diets</option>
+              <option value="Clinical Supplies">Clinical Supplies</option>
             </select>
           </div>
         </div>

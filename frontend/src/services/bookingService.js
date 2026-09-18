@@ -47,3 +47,10 @@ export const fetchDoctorDaySchedule = async (doctor, date) => {
   });
   return handleResponse(res);
 };
+
+export const fetchBookingReport = async () => {
+  const res = await fetch(`${API_BASE_URL}/bookings/report`, {
+    headers: getAuthHeader()
+  });
+  return handleResponse(res);
+};

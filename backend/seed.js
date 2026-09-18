@@ -267,7 +267,7 @@ const seedDatabase = async () => {
       },
       {
         itemName: 'Antiseptic Flea & Tick Shampoo (500ml)',
-        category: 'Grooming Supplies',
+        category: 'Healthcare',
         price: 1850.00,
         stockQuantity: 18,
         supplier: 'Pet Care Importers',
@@ -335,7 +335,7 @@ const seedDatabase = async () => {
         phone: '071-9876543',
         email: 'sales@ceylonpet.lk',
         address: 'No. 120, Kandy Road, Kelaniya',
-        suppliedCategories: ['Pet Food', 'Toys', 'Grooming Supplies'],
+        suppliedCategories: ['Pet Food', 'Toys', 'Clinical Consumables'],
         status: 'Active'
       },
       {
@@ -355,7 +355,7 @@ const seedDatabase = async () => {
       {
         petId: pets[0]._id, // Buddy
         customerId: customerUser._id,
-        serviceType: 'Vaccination',
+        serviceType: 'Vaccination & Immunization',
         assignedStaff: 'Dr. Perera (Senior Vet)',
         appointmentDate: new Date('2026-09-10'),
         timeSlot: '09:30 AM',
@@ -365,7 +365,7 @@ const seedDatabase = async () => {
       {
         petId: pets[1]._id, // Luna
         customerId: customerUser._id,
-        serviceType: 'Veterinary Checkup',
+        serviceType: 'General Veterinary Consultation',
         assignedStaff: 'Dr. Perera (Senior Vet)',
         appointmentDate: new Date('2026-09-11'),
         timeSlot: '11:00 AM',
@@ -375,12 +375,12 @@ const seedDatabase = async () => {
       {
         petId: pets[3]._id, // Milo
         customerId: customerUser._id,
-        serviceType: 'Grooming & Bath',
-        assignedStaff: 'Staff Groomer (Saman)',
+        serviceType: 'Surgical Wound Dressing',
+        assignedStaff: 'Dr. Silva (Consultant Physician)',
         appointmentDate: new Date('2026-09-12'),
         timeSlot: '02:00 PM',
         status: 'Pending',
-        notes: 'Full medicated bath and nail trimming'
+        notes: 'Wound dressing change and antiseptic wash'
       },
       {
         petId: pets[4]._id, // Bella

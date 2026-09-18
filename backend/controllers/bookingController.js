@@ -208,10 +208,12 @@ const updateBooking = async (req, res) => {
     const endOfDay = new Date(`${dateOnly}T23:59:59.999Z`);
     const slotToUse = timeSlot || booking.timeSlot;
 
+    const targetId = mongoose.Types.ObjectId.isValid(req.params.id) ? new mongoose.Types.ObjectId(req.params.id) : req.params.id;
+
     // 1. Strict Double Booking Guard for Updates / Rescheduling (Doctor + Date + Slot)
     if (assignedStaff || appointmentDate || timeSlot) {
       const existingConflict = await Appointment.findOne({
-        _id: { $ne: req.params.id },
+        _id: { $ne: targetId },
         assignedStaff: docToUse,
         appointmentDate: { $gte: startOfDay, $lte: endOfDay },
         timeSlot: slotToUse,
@@ -237,7 +239,7 @@ const updateBooking = async (req, res) => {
     if (!isEmergency && (appointmentDate || booking.appointmentDate)) {
       const targetPetId = mongoose.Types.ObjectId.isValid(booking.petId) ? new mongoose.Types.ObjectId(booking.petId) : booking.petId;
       const sameDayPet = await Appointment.findOne({
-        _id: { $ne: req.params.id },
+        _id: { $ne: targetId },
         petId: targetPetId,
         appointmentDate: { $gte: startOfDay, $lte: endOfDay },
         status: { $ne: 'Cancelled' }
@@ -254,7 +256,14 @@ const updateBooking = async (req, res) => {
     if (assignedStaff) booking.assignedStaff = assignedStaff;
     if (appointmentDate) booking.appointmentDate = new Date(appointmentDate);
     if (timeSlot) booking.timeSlot = timeSlot;
-    if (status) booking.status = status;
+    if (status) {
+      booking.status = status;
+      if (status === 'Cancelled') {
+        booking.cancelledAt = new Date();
+      } else {
+        booking.cancelledAt = null;
+      }
+    }
     if (notes !== undefined) booking.notes = notes;
 
     const updatedBooking = await booking.save();
@@ -286,18 +295,81 @@ const deleteBooking = async (req, res) => {
       });
     }
 
+    // Strict Soft-Delete: NEVER delete appointment documents from MongoDB Atlas
     booking.status = 'Cancelled';
+    booking.cancelledAt = new Date();
     await booking.save();
 
     return res.status(200).json({
       success: true,
       message: 'Appointment successfully cancelled and slot released',
-      data: { _id: booking._id, status: 'Cancelled' }
+      data: {
+        _id: booking._id,
+        status: 'Cancelled',
+        cancelledAt: booking.cancelledAt
+      }
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: 'Server Error cancelling appointment',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Clinical Appointment Summary Report
+ * Returns totals: confirmed, completed, cancelled, pending, and an audit table
+ */
+const getBookingReport = async (req, res) => {
+  try {
+    const allBookings = await Appointment.find({})
+      .populate('petId', 'petName species breed uniquePin ownerName')
+      .populate('customerId', 'name email phone role')
+      .sort({ appointmentDate: -1, timeSlot: 1 });
+
+    const total = allBookings.length;
+    const confirmed = allBookings.filter((b) => b.status === 'Confirmed').length;
+    const completed = allBookings.filter((b) => b.status === 'Completed').length;
+    const cancelled = allBookings.filter((b) => b.status === 'Cancelled').length;
+    const pending = allBookings.filter((b) => b.status === 'Pending').length;
+
+    const reportData = allBookings.map((b) => ({
+      _id: b._id,
+      patientName: b.petId?.petName || 'Unknown Patient',
+      patientPin: b.petId?.uniquePin || 'N/A',
+      species: b.petId?.species || 'N/A',
+      breed: b.petId?.breed || '',
+      ownerName: b.customerId?.name || b.petId?.ownerName || 'Pet Parent',
+      ownerPhone: b.customerId?.phone || '',
+      serviceType: b.serviceType,
+      assignedStaff: b.assignedStaff || 'Dr. Perera (Senior Vet)',
+      appointmentDate: b.appointmentDate,
+      timeSlot: b.timeSlot,
+      status: b.status,
+      cancelledAt: b.cancelledAt,
+      notes: b.notes,
+      createdAt: b.createdAt
+    }));
+
+    return res.status(200).json({
+      success: true,
+      generatedAt: new Date().toISOString(),
+      summary: {
+        total,
+        confirmed,
+        completed,
+        cancelled,
+        pending
+      },
+      data: reportData
+    });
+  } catch (error) {
+    console.error('[Booking Report Error]:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error generating clinical appointment report',
       error: error.message
     });
   }
@@ -357,5 +429,6 @@ module.exports = {
   getBookingById,
   updateBooking,
   deleteBooking,
+  getBookingReport,
   getDoctorDaySchedule
 };

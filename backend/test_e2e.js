@@ -246,6 +246,48 @@ async function runE2ETests() {
       totalFailed++;
     }
 
+    // 3.4 Test Reschedule / Update Without Self-Conflict
+    const updateRes = await fetch(`${BASE_URL}/bookings/${testData.bookingId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        notes: 'Updated clinical consultation notes for patient',
+        timeSlot: targetSlot
+      })
+    });
+    const updateData = await updateRes.json();
+    if (updateRes.status === 200 && updateData.success) {
+      pass(`Appointment update/reschedule succeeded without false-positive 409 self-conflict`);
+      totalPassed++;
+    } else {
+      fail(`Update failed with status ${updateRes.status}`, JSON.stringify(updateData));
+      totalFailed++;
+    }
+
+    // 3.5 Test Strict Soft-Delete on Cancel
+    const cancelRes = await fetch(`${BASE_URL}/bookings/${testData.bookingId}`, {
+      method: 'DELETE'
+    });
+    const cancelData = await cancelRes.json();
+    if (cancelRes.status === 200 && cancelData.success && cancelData.data.status === 'Cancelled' && cancelData.data.cancelledAt) {
+      pass(`Strict soft-delete verified! Appointment marked 'Cancelled' with cancelledAt timestamp and preserved in Atlas`);
+      totalPassed++;
+    } else {
+      fail(`Soft-delete cancellation failed`, JSON.stringify(cancelData));
+      totalFailed++;
+    }
+
+    // 3.6 Test Clinical Appointment Summary Report Endpoint
+    const reportRes = await fetch(`${BASE_URL}/bookings/report`);
+    const reportData = await reportRes.json();
+    if (reportRes.status === 200 && reportData.success && reportData.summary?.total > 0 && Array.isArray(reportData.data)) {
+      pass(`Clinical Appointment Summary Report verified! Total: ${reportData.summary.total} (Confirmed: ${reportData.summary.confirmed}, Cancelled: ${reportData.summary.cancelled})`);
+      totalPassed++;
+    } else {
+      fail(`Appointment report endpoint failed`, JSON.stringify(reportData));
+      totalFailed++;
+    }
+
   } catch (err) {
     fail(`Suite 3 exception: ${err.message}`);
     totalFailed++;
@@ -271,6 +313,7 @@ async function runE2ETests() {
           }
         ],
         paymentMethod: 'Cash',
+        tenderedAmount: 5000,
         discountRate: 0,
         taxRate: 0
       })
@@ -295,6 +338,52 @@ async function runE2ETests() {
       totalPassed++;
     } else {
       fail(`Stock auto-deduction failed! Expected stock: 3, Actual stock: ${checkStockData.data?.stockQuantity}`, JSON.stringify(checkStockData));
+      totalFailed++;
+    }
+
+    // 4.3 Process Mixed POS Sale (Physical Product + Clinical Service without stock decrement)
+    const mixedSaleRes = await fetch(`${BASE_URL}/billing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: [
+          {
+            product: testData.productId,
+            itemName: 'E2E Flea & Tick Spray',
+            unitPrice: 1850.00,
+            quantity: 1
+          },
+          {
+            product: null,
+            itemName: 'General Veterinary Consultation',
+            unitPrice: 1500.00,
+            quantity: 1
+          }
+        ],
+        paymentMethod: 'Cash',
+        tenderedAmount: 5000,
+        discountRate: 0,
+        taxRate: 0
+      })
+    });
+    const mixedSaleData = await mixedSaleRes.json();
+
+    if (mixedSaleRes.status === 201 && mixedSaleData.success) {
+      pass(`Mixed Cart Sale Verified! Product (1 unit) + Clinical Service processed without error (Invoice #${mixedSaleData.data.invoiceNo})`);
+      totalPassed++;
+    } else {
+      fail(`Mixed cart sale failed`, JSON.stringify(mixedSaleData));
+      totalFailed++;
+    }
+
+    // 4.4 Verify Product Stock decreased by 1 more unit (from 3 to 2), clinical service did not decrement
+    const checkMixedStockRes = await fetch(`${BASE_URL}/inventory/${testData.productId}`);
+    const checkMixedStockData = await checkMixedStockRes.json();
+    if (checkMixedStockRes.status === 200 && checkMixedStockData.data.stockQuantity === 2) {
+      pass(`Inventory Verification: Stock reduced from 3 to 2 for product, service had zero negative side-effects`);
+      totalPassed++;
+    } else {
+      fail(`Inventory verification failed after mixed sale`, JSON.stringify(checkMixedStockData));
       totalFailed++;
     }
 

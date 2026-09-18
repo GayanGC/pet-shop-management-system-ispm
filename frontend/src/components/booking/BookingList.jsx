@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Calendar, Filter, Clock, Edit3, Trash2 } from 'lucide-react';
+import { Calendar, Filter, Clock, Edit3, Trash2, FileText } from 'lucide-react';
 import RescheduleModal from './RescheduleModal';
+import ClinicalAppointmentReportModal from './ClinicalAppointmentReportModal';
 
 const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, onEditBooking, statusFilter, setStatusFilter }) => {
   const [selectedBookingForReschedule, setSelectedBookingForReschedule] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden space-y-0">
@@ -12,21 +14,30 @@ const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, on
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-slate-800">Scheduled Appointments</h2>
-            <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-200/60">
+            <span className="bg-teal-50 text-teal-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-teal-200/60">
               {bookings.length} Bookings
             </span>
           </div>
-          <p className="text-xs text-slate-500">Clinical Consultations, Grooming & Doctor Slots</p>
+          <p className="text-xs text-slate-500">Clinical Consultations, Diagnostics & Doctor Slots</p>
         </div>
 
-        {/* Status filter */}
-        <div className="flex items-center gap-2.5">
+        {/* Action Controls: Report Button & Status filter */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setIsReportModalOpen(true)}
+            className="py-2 px-3.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+          >
+            <FileText className="w-4 h-4" />
+            <span>📑 Clinical Appointment Report</span>
+          </button>
+
           <div className="relative">
             <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all appearance-none cursor-pointer"
+              className="pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="All">All Statuses</option>
               <option value="Pending">Pending</option>
@@ -193,6 +204,12 @@ const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, on
           }}
         />
       )}
+
+      {/* Clinical Appointment Summary Report Modal */}
+      <ClinicalAppointmentReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+      />
     </div>
   );
 };

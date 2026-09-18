@@ -30,7 +30,7 @@ const CATEGORY_ICONS = {
   Healthcare: '🩺',
   Accessories: '🦮',
   Toys: '🎾',
-  Grooming: '🧼',
+  Clinical: '🔬',
   General: '📦'
 };
 
@@ -56,7 +56,7 @@ const getProductClinicalInfo = (item) => {
   } else if (name.includes('flea') || name.includes('tick') || name.includes('spray') || name.includes('bravecto')) {
     dosage = 'Topical application once every 30-90 days along the dorsal spine line or coat spray.';
     healthBenefits = 'Immediate knockdown of adult fleas, ticks, and mange mites; breaks parasite breeding cycle.';
-    precautions = 'Avoid contact with animal eyes and mouth. Allow coat to dry before grooming.';
+    precautions = 'Avoid contact with animal eyes and mouth. Allow coat to dry thoroughly after topical application.';
   } else if (cat.includes('food') || name.includes('kibble') || name.includes('royal canin') || name.includes('whiskas')) {
     dosage = 'Feed daily portion according to animal age and weight chart printed on the package.';
     healthBenefits = 'Clinically balanced macronutrients, omega-3 fatty acids for coat shine, and prebiotic fibers for optimal digestion.';

@@ -55,7 +55,7 @@ function DoctorCalendarView({ onBookSlot }) {
             >
               <option value="Dr. Perera (Senior Vet)">Dr. Perera (Senior Vet)</option>
               <option value="Dr. Fernando (Vet Surgeon)">Dr. Fernando (Vet Surgeon)</option>
-              <option value="Senior Groomer Kapila">Senior Groomer Kapila</option>
+              <option value="Dr. Silva (Consultant Physician)">Dr. Silva (Consultant Physician)</option>
               <option value="Nurse Silva">Nurse Silva</option>
             </select>
           </div>

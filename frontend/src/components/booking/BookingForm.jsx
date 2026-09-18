@@ -15,7 +15,7 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
 
   const [formData, setFormData] = useState({
     petId: initialData?.petId?._id || initialData?.petId || prefilledData?.petId || '',
-    serviceType: initialData?.serviceType || prefilledData?.serviceType || 'Veterinary Checkup',
+    serviceType: initialData?.serviceType || prefilledData?.serviceType || 'General Veterinary Consultation',
     assignedStaff: initialData?.assignedStaff || prefilledData?.assignedStaff || 'Dr. Perera (Senior Vet)',
     appointmentDate: initialData?.appointmentDate ? new Date(initialData.appointmentDate).toISOString().split('T')[0] : prefilledData?.appointmentDate || '',
     timeSlot: initialData?.timeSlot || prefilledData?.timeSlot || '09:00 AM',
@@ -214,11 +214,12 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
             onChange={handleChange}
             className="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all"
           >
-            <option value="Veterinary Checkup">Veterinary Clinical Checkup 🩺</option>
-            <option value="Grooming & Bath">Full Grooming & Bathing ✂️</option>
-            <option value="Vaccination">Vaccination & Immunization 💉</option>
-            <option value="Dental Care">Dental Scaling & Cleaning 🦷</option>
-            <option value="General Consultation">General Consultation 💬</option>
+            <option value="General Veterinary Consultation">General Veterinary Consultation</option>
+            <option value="Vaccination & Immunization">Vaccination & Immunization</option>
+            <option value="Dental Scaling & Oral Surgery">Dental Scaling & Oral Surgery</option>
+            <option value="Surgical Wound Dressing">Surgical Wound Dressing</option>
+            <option value="Clinical Diagnostics & Laboratory">Clinical Diagnostics & Laboratory</option>
+            <option value="Emergency Clinical Care">Emergency Clinical Care</option>
           </select>
         </div>
 
@@ -234,8 +235,8 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
           >
             <option value="Dr. Perera (Senior Vet)">Dr. Perera (Senior Vet)</option>
             <option value="Dr. Fernando (Vet Surgeon)">Dr. Fernando (Vet Surgeon)</option>
+            <option value="Dr. Silva (Consultant Physician)">Dr. Silva (Consultant Physician)</option>
             <option value="Nurse Silva">Nurse Silva</option>
-            <option value="Senior Groomer Kapila">Senior Groomer Kapila</option>
           </select>
         </div>
 

@@ -670,7 +670,7 @@ const SupplierDirectory = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Vaccines, Antibiotics, Pet Food, Grooming"
+                  placeholder="e.g. Vaccines, Antibiotics, Pet Food, Clinical Consumables"
                   value={formData.suppliedCategories}
                   onChange={(e) => setFormData({ ...formData, suppliedCategories: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
