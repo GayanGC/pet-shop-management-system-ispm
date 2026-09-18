@@ -17,22 +17,13 @@ import {
 } from 'lucide-react';
 import ProductDetailModal from './ProductDetailModal';
 
-const CATEGORY_ICONS = {
-  Medicines: '💊',
-  Vaccines: '💉',
-  Nutrition: '🍖',
-  Supplements: '✨',
-  Healthcare: '🩺',
-  General: '📦'
-};
-
 const CATEGORY_GRADIENTS = {
-  Medicines: 'from-emerald-500/20 via-teal-500/10 to-cyan-500/20 border-emerald-400/40 text-emerald-800 dark:text-emerald-300',
-  Vaccines: 'from-cyan-500/20 via-blue-500/10 to-indigo-500/20 border-cyan-400/40 text-cyan-800 dark:text-cyan-300',
-  Nutrition: 'from-amber-500/20 via-orange-500/10 to-yellow-500/20 border-amber-400/40 text-amber-800 dark:text-amber-300',
-  Supplements: 'from-purple-500/20 via-indigo-500/10 to-pink-500/20 border-purple-400/40 text-purple-800 dark:text-purple-300',
-  Healthcare: 'from-emerald-500/20 via-teal-500/10 to-cyan-500/20 border-emerald-400/40 text-emerald-800 dark:text-emerald-300',
-  General: 'from-slate-500/20 via-slate-600/10 to-slate-700/20 border-slate-400/40 text-slate-800 dark:text-slate-300'
+  Medicines: 'bg-teal-50 dark:bg-teal-950/50 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300',
+  Vaccines: 'bg-teal-50 dark:bg-teal-950/50 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300',
+  Nutrition: 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300',
+  Supplements: 'bg-teal-50 dark:bg-teal-950/50 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300',
+  Healthcare: 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300',
+  General: 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300'
 };
 
 // Curated High-Definition Pet & Veterinary Product Photography
@@ -174,15 +165,15 @@ const ProductShowcase = ({
   return (
     <div className="space-y-6">
       {/* Header & Filter Card */}
-      <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-6 rounded-3xl border border-teal-150 dark:border-slate-800 shadow-xl shadow-teal-950/5 space-y-4 transition-all">
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 transition-all">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="p-2.5 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 shadow-md shadow-amber-400/20 flex items-center justify-center">
-                <Sparkles className="w-5 h-5" />
+              <span className="p-2.5 rounded-xl bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 border border-teal-100 dark:border-slate-700 flex items-center justify-center shadow-xs">
+                <Package className="w-5 h-5" />
               </span>
               <div>
-                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                   {title}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -195,20 +186,20 @@ const ProductShowcase = ({
           {/* Search Bar & Cart Shortcut */}
           <div className="flex items-center gap-2.5 w-full md:w-auto">
             <div className="relative flex-1 md:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search products, brands or batch..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 focus:outline-none text-slate-800 dark:text-slate-100 font-medium"
+                className="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 focus:outline-none text-slate-800 dark:text-slate-100 font-medium"
               />
             </div>
 
             {onOpenCart && cartCount > 0 && (
               <button
                 onClick={onOpenCart}
-                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 text-white font-extrabold text-xs flex items-center gap-2 shadow-md shadow-teal-700/20 hover:shadow-lg active:scale-95 transition-all cursor-pointer shrink-0"
+                className="py-2 px-3.5 rounded-lg bg-teal-700 hover:bg-teal-600 text-white font-semibold text-xs flex items-center gap-2 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0 border border-teal-500/40"
               >
                 <ShoppingCart className="w-4 h-4" />
                 <span>Cart ({cartCount})</span>
@@ -217,21 +208,20 @@ const ProductShowcase = ({
           </div>
         </div>
 
-        {/* Category Filter Pills matching MongoDB categories */}
+        {/* Category Filter Pills */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
           {['All', 'Medicines', 'Vaccines', 'Nutrition', 'Supplements', 'Healthcare'].map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
                 selectedCategory === cat
-                  ? 'bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-700 text-white shadow-md shadow-teal-700/25 scale-105'
-                  : 'bg-slate-100/90 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  ? 'bg-teal-700 text-white border-teal-500 shadow-xs'
+                  : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
-              <span>{cat === 'All' ? '🌟' : CATEGORY_ICONS[cat] || '📦'}</span>
               <span>{cat}</span>
-              {cat === 'All' && <span className="text-[10px] opacity-75">({products.length})</span>}
+              {cat === 'All' && <span className="text-[10px] opacity-75 font-mono">({products.length})</span>}
             </button>
           ))}
         </div>

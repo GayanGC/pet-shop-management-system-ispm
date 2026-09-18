@@ -23,37 +23,37 @@ import {
 
 const HERO_SLIDES = [
   {
-    badge: '🐾 Sri Lanka’s Premier Animal Care Center',
+    badge: 'Premier Veterinary Care & Surgical Hospital',
     title: 'Advanced Veterinary Hospital & Multi-Species Wellness',
     subtitle:
-      'From domestic dogs and cats to birds, small mammals, and exotic species — our state-of-the-art medical hospital provides compassionate diagnostics, surgery, and certified pharmacy dispensing.',
-    ctaText: '📅 Schedule Clinical Consultation',
+      'Comprehensive veterinary hospital providing compassionate diagnostics, sterile operating suites, certified pharmacy dispensing, and dedicated post-operative care.',
+    ctaText: 'Schedule Consultation',
     actionType: 'book',
     image:
       'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=1200&q=80',
-    stat: '15,000+ Happy Patients'
+    stat: '15,000+ Clinical Patients'
   },
   {
-    badge: '💊 Certified Veterinary Dispensary',
+    badge: 'Certified Clinical Dispensary & Formulary',
     title: 'Official Pet Pharmacy & Specialized Nutritional Diets',
     subtitle:
       'Order hospital-grade pharmaceuticals, vaccine boosters, and clinical prescription diets online with guaranteed cold-chain integrity and fast island-wide delivery.',
-    ctaText: '🛒 Explore Pharmacy Catalog',
+    ctaText: 'Explore Pharmacy',
     actionType: 'store',
     image:
       'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&w=1200&q=80',
-    stat: '100% Authentic Meds'
+    stat: '100% Verified Medications'
   },
   {
-    badge: '🚑 24/7 Emergency & ICU Readiness',
+    badge: '24/7 Emergency & ICU Readiness',
     title: 'Rapid Trauma Response & Advanced Surgical Care',
     subtitle:
       'Equipped with digital ultrasound, hematology analyzers, continuous vitals monitoring, and dedicated sterile surgical suites for critical patient stabilization.',
-    ctaText: '📞 24/7 Emergency Hotline',
+    ctaText: 'Emergency Contact',
     actionType: 'emergency',
     image:
       'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&w=1200&q=80',
-    stat: '24/7 Emergency Care'
+    stat: '24/7 ICU Care'
   }
 ];
 
@@ -61,44 +61,32 @@ const CLINICAL_SERVICES = [
   {
     icon: Stethoscope,
     title: 'Consultations & General Medicine',
-    description: 'Thorough physical examinations, preventive screenings, dermatology, and chronic illness management by experienced veterinarians.',
-    color: 'from-emerald-500 to-teal-600',
-    emoji: '🩺'
+    description: 'Thorough physical examinations, preventive screenings, dermatology, and chronic illness management by experienced veterinarians.'
   },
   {
     icon: Syringe,
     title: 'Vaccinations & Parasite Defense',
-    description: 'Rabies, DHPP, and FVRCP booster schedules coupled with complete flea, tick, and heartworm clinical protection.',
-    color: 'from-cyan-500 to-blue-600',
-    emoji: '💉'
+    description: 'Rabies, DHPP, and FVRCP booster schedules coupled with complete flea, tick, and heartworm clinical protection.'
   },
   {
     icon: Microscope,
     title: 'In-House Pathology & Imaging',
-    description: 'Immediate results with high-resolution digital X-rays, ultrasound diagnostics, and full automated blood analysis.',
-    color: 'from-purple-500 to-indigo-600',
-    emoji: '🔬'
+    description: 'Immediate results with high-resolution digital X-rays, ultrasound diagnostics, and full automated blood analysis.'
   },
   {
     icon: Ambulance,
     title: '24/7 Emergency & Critical Surgery',
-    description: 'Emergency stabilization, soft-tissue surgeries, orthopedic interventions, and dedicated recovery incubators.',
-    color: 'from-rose-500 to-pink-600',
-    emoji: '🚑'
+    description: 'Emergency stabilization, soft-tissue surgeries, orthopedic interventions, and dedicated recovery incubators.'
   },
   {
     icon: Sparkles,
     title: 'Veterinary Dentistry & Oral Care',
-    description: 'Ultrasonic dental scaling, tooth polishing, extractions, and periodontal prophylaxis under monitored anesthesia.',
-    color: 'from-amber-500 to-orange-600',
-    emoji: '🦷'
+    description: 'Ultrasonic dental scaling, tooth polishing, extractions, and periodontal prophylaxis under monitored anesthesia.'
   },
   {
     icon: ShoppingCart,
     title: 'Prescription Pharmacy & Care',
-    description: 'Direct access to official medications, surgical supplies, dietary supplements, and prescription kibbles.',
-    color: 'from-teal-600 to-emerald-700',
-    emoji: '💊'
+    description: 'Direct access to official medications, surgical supplies, dietary supplements, and prescription kibbles.'
   }
 ];
 
@@ -190,12 +178,12 @@ const GuestClinicOverview = ({
 
         {/* Content Box */}
         <div className="relative z-10 max-w-3xl p-6 sm:p-10 md:p-12 space-y-5 text-white">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-xs font-bold backdrop-blur-md">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-800/80 text-teal-200 border border-teal-600/40 text-xs font-semibold backdrop-blur-md">
+            <Activity className="w-3.5 h-3.5 text-teal-300" />
             {activeSlide.badge}
           </span>
 
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
             {activeSlide.title}
           </h1>
 
@@ -206,25 +194,25 @@ const GuestClinicOverview = ({
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <button
               onClick={onBookAppointment}
-              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs sm:text-sm shadow-xl shadow-emerald-700/30 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-semibold text-xs sm:text-sm shadow-xs active:scale-95 transition-all flex items-center gap-2 cursor-pointer border border-teal-500/40"
             >
               <Calendar className="w-4 h-4" />
-              <span>Book Doctor Appointment</span>
+              <span>Schedule Consultation</span>
             </button>
 
             <button
               onClick={onExploreStore}
-              className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/30 backdrop-blur-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm border border-white/30 backdrop-blur-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
-              <ShoppingCart className="w-4 h-4 text-amber-300" />
-              <span>Browse Pet Store ({productsCount})</span>
+              <ShoppingCart className="w-4 h-4 text-teal-200" />
+              <span>Browse Dispensary ({productsCount})</span>
             </button>
 
             <button
               onClick={onOpenAuth}
-              className="px-4 py-3 rounded-2xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ml-auto sm:ml-0"
+              className="px-4 py-2.5 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-semibold text-xs sm:text-sm shadow-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ml-auto sm:ml-0"
             >
-              <LogIn className="w-4 h-4" />
+              <LogIn className="w-4 h-4 text-teal-700" />
               <span>Sign In</span>
             </button>
           </div>
@@ -235,8 +223,8 @@ const GuestClinicOverview = ({
               <button
                 key={idx}
                 onClick={() => setCurrentSlide(idx)}
-                className={`h-2 rounded-full transition-all cursor-pointer ${
-                  currentSlide === idx ? 'w-8 bg-amber-400' : 'w-2 bg-white/40 hover:bg-white/70'
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                  currentSlide === idx ? 'w-7 bg-teal-400' : 'w-2 bg-white/40 hover:bg-white/70'
                 }`}
                 aria-label={`Go to slide ${idx + 1}`}
               />
@@ -251,10 +239,10 @@ const GuestClinicOverview = ({
       {/* 2. CLINICAL EXCELLENCE SERVICES */}
       <div className="space-y-6">
         <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
-            🏥 Comprehensive Care Under One Roof
+          <span className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+            Comprehensive Clinical Care
           </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
             Specialist Veterinary Services & Hospital Facilities
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -266,13 +254,13 @@ const GuestClinicOverview = ({
           {CLINICAL_SERVICES.map((serv, idx) => (
             <div
               key={idx}
-              className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-md shadow-slate-900/5 hover:shadow-xl hover:border-teal-500/50 transition-all duration-300 flex flex-col justify-between group"
+              className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-teal-500/50 hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
             >
               <div className="space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-slate-800 text-2xl flex items-center justify-center border border-teal-100 dark:border-slate-700 shadow-xs group-hover:scale-110 transition-transform">
-                  {serv.emoji}
+                <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center border border-teal-100 dark:border-slate-700 shadow-xs group-hover:bg-teal-700 group-hover:text-white transition-colors">
+                  <serv.icon className="w-5 h-5" />
                 </div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">
                   {serv.title}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -280,7 +268,7 @@ const GuestClinicOverview = ({
                 </p>
               </div>
 
-              <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-teal-600 dark:text-teal-400">
+              <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-teal-700 dark:text-teal-400">
                 <span>Certified Clinical Standard</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
@@ -290,22 +278,22 @@ const GuestClinicOverview = ({
       </div>
 
       {/* 3. MULTI-SPECIES WELLNESS & PREVENTIVE GUIDELINES */}
-      <div className="bg-gradient-to-br from-teal-900 via-teal-950 to-slate-950 text-white p-8 sm:p-10 rounded-3xl shadow-xl border border-teal-800/60 space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-teal-800/80 pb-4">
+      <div className="bg-slate-900 dark:bg-slate-950 text-white p-8 sm:p-10 rounded-3xl shadow-xl border border-slate-800 space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4">
           <div>
-            <span className="text-amber-400 text-xs font-black uppercase tracking-wider">
-              🛡️ Doctor’s Preventive Medicine Guide
+            <span className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+              Preventive Medicine Protocol
             </span>
-            <h3 className="text-xl sm:text-2xl font-black text-white mt-0.5">
-              Multi-Species Health Protocols
+            <h3 className="text-xl sm:text-2xl font-bold text-white mt-0.5">
+              Multi-Species Health Guidelines
             </h3>
-            <p className="text-xs text-teal-200/80">
+            <p className="text-xs text-slate-400">
               Essential healthcare habits certified by our senior veterinary staff.
             </p>
           </div>
           <button
             onClick={onBookAppointment}
-            className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-black rounded-xl shadow-md transition cursor-pointer"
+            className="px-4 py-2 bg-teal-700 hover:bg-teal-600 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer border border-teal-500/40"
           >
             Consult a Vet
           </button>
@@ -315,12 +303,12 @@ const GuestClinicOverview = ({
           {SPECIES_WELLNESS_TIPS.map((item, idx) => (
             <div
               key={idx}
-              className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 space-y-3"
+              className="bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/10 space-y-3"
             >
-              <h4 className="font-black text-sm text-amber-300 flex items-center gap-2">
+              <h4 className="font-bold text-sm text-teal-300 flex items-center gap-2">
                 {item.species}
               </h4>
-              <ul className="space-y-2 text-xs text-slate-200">
+              <ul className="space-y-2 text-xs text-slate-300">
                 {item.tips.map((tip, tipIdx) => (
                   <li key={tipIdx} className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -336,10 +324,10 @@ const GuestClinicOverview = ({
       {/* 4. MEET OUR SENIOR VETERINARY PHYSICIANS */}
       <div className="space-y-6">
         <div className="text-center max-w-xl mx-auto space-y-2">
-          <span className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
-            🩺 Expert Veterinary Physicians
+          <span className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+            Veterinary Clinical Leadership
           </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
             Dedicated Care by Clinical Leaders
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -351,7 +339,7 @@ const GuestClinicOverview = ({
           {DOCTOR_TEAM.map((doc, idx) => (
             <div
               key={idx}
-              className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-lg overflow-hidden flex flex-col justify-between group hover:border-teal-500/50 transition-all"
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col justify-between group hover:border-teal-500/50 transition-all"
             >
               <div>
                 <div className="relative h-48 overflow-hidden bg-slate-100 dark:bg-slate-800">
@@ -364,23 +352,23 @@ const GuestClinicOverview = ({
                     }}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-white text-[10px] font-bold">
+                  <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-white text-[10px] font-semibold">
                     {doc.experience}
                   </div>
                 </div>
 
                 <div className="p-5 space-y-1.5">
-                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
                     {doc.name}
                   </h3>
-                  <p className="text-xs text-teal-700 dark:text-teal-400 font-bold">
+                  <p className="text-xs text-teal-700 dark:text-teal-400 font-semibold">
                     {doc.role}
                   </p>
                   <p className="text-[11px] text-slate-400 font-mono">
                     {doc.degrees}
                   </p>
                   <div className="pt-2">
-                    <span className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold inline-block">
+                    <span className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium inline-block">
                       Focus: {doc.specialty}
                     </span>
                   </div>
@@ -390,7 +378,7 @@ const GuestClinicOverview = ({
               <div className="p-5 pt-0">
                 <button
                   onClick={onBookAppointment}
-                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-teal-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-teal-700 dark:text-teal-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-teal-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-teal-700 dark:text-teal-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                 >
                   <Calendar className="w-3.5 h-3.5" />
                   <span>Book Consultation</span>
@@ -402,20 +390,20 @@ const GuestClinicOverview = ({
       </div>
 
       {/* 5. LOCATION, HOURS & 24/7 HOTLINE CARD */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-2">
-          <span className="text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-            <span className="relative flex h-2.5 w-2.5">
+          <span className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
             </span>
             Emergency Care Active 24/7
           </span>
-          <h3 className="text-xl font-black text-slate-900 dark:text-white">
-            4 Paw Animal Clinic & Specialist Hospital
+          <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+            4 Paw Animal Clinic & Hospital
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+            <MapPin className="w-4 h-4 text-teal-700 dark:text-teal-400 shrink-0" />
             No. 120, Galle Road, Colombo 03, Western Province, Sri Lanka
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
@@ -427,7 +415,7 @@ const GuestClinicOverview = ({
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
           <a
             href="tel:+94112345678"
-            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 transition cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
           >
             <Phone className="w-4 h-4" />
             <span>Emergency: +94 11 234 5678</span>
@@ -435,10 +423,10 @@ const GuestClinicOverview = ({
 
           <button
             onClick={onOpenAuth}
-            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-amber-400/20 transition cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer border border-teal-500/40"
           >
             <LogIn className="w-4 h-4" />
-            <span>Customer Sign In / Register</span>
+            <span>Sign In / Register</span>
           </button>
         </div>
       </div>

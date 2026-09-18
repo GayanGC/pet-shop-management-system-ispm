@@ -3,6 +3,7 @@ import {
   Search,
   Phone,
   ShieldCheck,
+  ShieldAlert,
   PawPrint,
   Package,
   Calendar,
@@ -25,7 +26,13 @@ import {
   ShoppingCart,
   Sparkles,
   Zap,
-  Clock
+  Clock,
+  Globe,
+  Building2,
+  Receipt,
+  Activity,
+  FileText,
+  Users
 } from 'lucide-react';
 
 import PetForm from './components/pet/PetForm';
@@ -57,47 +64,47 @@ import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from '
 import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
 import { fetchInvoices as fetchInvoicesApi, createInvoice, voidInvoice } from './services/billingService';
 
-// 1-Click Fast Role Switcher Configuration for Rapid Viva Testing
+// Fast Role Switcher Configuration
 const DEMO_ROLES = [
   {
     role: 'admin',
     label: 'Admin',
-    icon: '👑',
+    icon: ShieldAlert,
     identifier: 'admin@4paw.lk',
     password: 'admin123',
     badge: 'Master Control'
   },
   {
     role: 'staff',
-    label: 'Doctor / Staff',
-    icon: '🩺',
+    label: 'Clinical Staff',
+    icon: Stethoscope,
     identifier: 'staff@4paw.lk',
     password: 'staff123',
     badge: 'Vets & Clinical'
   },
   {
     role: 'inventory_officer',
-    label: 'Inventory Officer',
-    icon: '📦',
+    label: 'Inventory',
+    icon: Package,
     identifier: 'inventory@4paw.lk',
     password: 'inv123',
     badge: 'Supply & Stock'
   },
   {
-    role: 'customer',
-    label: 'Customer',
-    icon: '👤',
-    identifier: 'customer@gmail.com',
-    password: 'customer123',
-    badge: 'Pet Owner'
-  },
-  {
     role: 'cashier',
     label: 'Cashier',
-    icon: '💵',
+    icon: Receipt,
     identifier: 'cashier@4paw.lk',
     password: 'cashier123',
     badge: 'POS Terminal'
+  },
+  {
+    role: 'customer',
+    label: 'Customer',
+    icon: UserIcon,
+    identifier: 'customer@gmail.com',
+    password: 'customer123',
+    badge: 'Pet Owner'
   }
 ];
 
@@ -949,51 +956,51 @@ function App() {
   const getNavTabs = () => {
     if (!currentUser) {
       return [
-        { id: 'overview', label: '🏠 Clinic Overview & Pet Care' },
-        { id: 'pharmacy', label: `🛒 Pet Pharmacy Store (${products.length})` }
+        { id: 'overview', label: 'Clinic Overview' },
+        { id: 'pharmacy', label: `Pharmacy Store (${products.length})` }
       ];
     }
     if (role === 'customer') {
       return [
-        { id: 'pets', label: `🐾 My Pets (${customerPets.length})` },
-        { id: 'appointments', label: `📅 Clinical Channeling (${bookings.length})` },
-        { id: 'pharmacy', label: `🛒 Pharmacy Store (${products.length})` },
-        { id: 'orders', label: `🧾 My Orders (${invoices.length})` }
+        { id: 'pets', label: `Patient Pets (${customerPets.length})` },
+        { id: 'appointments', label: `Doctor Channeling (${bookings.length})` },
+        { id: 'pharmacy', label: `Pharmacy Store (${products.length})` },
+        { id: 'orders', label: `Order History (${invoices.length})` }
       ];
     }
     if (role === 'staff') {
       return [
-        { id: 'pets', label: `🐕 Patients & Passports (${pets.length})` },
-        { id: 'appointments', label: `📅 Doctor Day Calendar (${activeBookingsCount})` },
-        { id: 'pharmacy', label: `💊 Clinic Pharmacy Catalog (${products.length})` }
+        { id: 'pets', label: `Patient Records (${pets.length})` },
+        { id: 'appointments', label: `Doctor Calendar (${activeBookingsCount})` },
+        { id: 'pharmacy', label: `Formulary Catalog (${products.length})` }
       ];
     }
     if (role === 'inventory_officer') {
       return [
-        { id: 'pharmacy', label: `📦 Pharmacy & Stock (${products.length})` },
-        { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
-        { id: 'expiry', label: `⚠️ Expiry Tracker & Disposal (${expiringProducts.length})` }
+        { id: 'pharmacy', label: `Stock Ledger (${products.length})` },
+        { id: 'suppliers', label: `Suppliers (${suppliers.length})` },
+        { id: 'expiry', label: `Expiry & Disposal (${expiringProducts.length})` }
       ];
     }
     if (role === 'cashier') {
       return [
-        { id: 'pos', label: `💳 POS Checkout Terminal` },
-        { id: 'orders', label: `🧾 Sales Ledger & Invoices (${invoices.length})` }
+        { id: 'pos', label: `POS Terminal` },
+        { id: 'orders', label: `Sales Ledger (${invoices.length})` }
       ];
     }
     if (role === 'admin') {
       return [
-        { id: 'pets', label: `🐕 Patients & Pets (${pets.length})` },
-        { id: 'pharmacy', label: `💊 Pharmacy & Stock (${products.length})` },
-        { id: 'appointments', label: `📅 Appointments & Calendar (${activeBookingsCount})` },
-        { id: 'suppliers', label: `🏢 Supplier Directory (${suppliers.length})` },
-        { id: 'pos', label: `💳 POS Cashier & Analytics` }
+        { id: 'pets', label: `Patients (${pets.length})` },
+        { id: 'pharmacy', label: `Formulary (${products.length})` },
+        { id: 'appointments', label: `Appointments (${activeBookingsCount})` },
+        { id: 'suppliers', label: `Suppliers (${suppliers.length})` },
+        { id: 'pos', label: `POS & Financial BI` }
       ];
     }
     // Guest Fallback
     return [
-      { id: 'overview', label: '🏠 Clinic Overview & Pet Care' },
-      { id: 'pharmacy', label: `🛒 Pet Pharmacy Store (${products.length})` }
+      { id: 'overview', label: 'Clinic Overview' },
+      { id: 'pharmacy', label: `Pharmacy Store (${products.length})` }
     ];
   };
 
@@ -1028,36 +1035,36 @@ function App() {
       : 'min-h-screen bg-slate-100 text-slate-900 transition-colors duration-300'}>
       
       {/* 1. TOP HEADER BAR */}
-      <header className="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950 text-white shadow-lg border-b border-teal-600/40 dark:border-emerald-500/20 transition-colors sticky top-0 z-50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-3">
+      <header className="bg-teal-800 dark:bg-slate-900 text-white shadow-md border-b border-teal-700/60 dark:border-slate-800 transition-colors sticky top-0 z-50 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
           
           {/* Logo & Brand Identity */}
           <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-amber-200 text-slate-950 border border-amber-300 flex items-center justify-center text-xl shadow-md shadow-amber-400/20">
-                🐾
+              <div className="w-10 h-10 rounded-xl bg-teal-900/90 border border-teal-600/60 dark:border-slate-700 flex items-center justify-center text-white shadow-xs">
+                <Activity className="w-5 h-5 text-teal-300" />
               </div>
               <div>
-                <h1 className="text-lg font-black tracking-tight leading-none text-white flex items-center gap-1.5">
+                <h1 className="text-base sm:text-lg font-bold tracking-tight leading-none text-white flex items-center gap-2">
                   4 Paw Animal Clinic
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-mono font-bold">
-                    PRO
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-teal-700/80 text-teal-100 border border-teal-500/40 font-mono font-semibold uppercase tracking-wider">
+                    Clinical HMS
                   </span>
                 </h1>
-                <p className="text-xs text-teal-100 dark:text-slate-400 font-medium">
-                  Veterinary Hospital & Multi-Species E-Commerce Platform
+                <p className="text-xs text-teal-100/80 dark:text-slate-400 font-normal mt-0.5">
+                  Hospital Management & Clinical Operations
                 </p>
               </div>
             </div>
 
-            {/* Mobile Controls */}
+            {/* Mobile Theme Control */}
             <div className="flex items-center gap-2 md:hidden">
               <button
                 onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-                className="p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-amber-500 hover:scale-105 transition shadow-sm cursor-pointer"
-                title="Toggle Light/Dark Theme"
+                className="p-2 rounded-lg border border-teal-700 dark:border-slate-700 bg-teal-900/60 dark:bg-slate-800 text-teal-200 dark:text-slate-200 transition shadow-xs cursor-pointer"
+                title="Toggle Theme"
               >
-                {theme === 'dark' ? '☀️' : '🌙'}
+                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-slate-100" />}
               </button>
             </div>
           </div>
@@ -1074,12 +1081,12 @@ function App() {
                   if (activeTab === 'pets') setPetSearch(e.target.value);
                   if (activeTab === 'pharmacy') setProductSearch(e.target.value);
                 }}
-                className="w-full pl-9 pr-4 py-2 bg-white/95 dark:bg-slate-800/90 text-slate-800 dark:text-white text-xs rounded-xl border border-teal-200/60 dark:border-slate-700 focus:ring-4 focus:ring-amber-300 focus:outline-none placeholder:text-slate-400 font-medium shadow-inner"
+                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs rounded-lg border border-teal-600/40 dark:border-slate-700 focus:ring-2 focus:ring-teal-400 focus:outline-none placeholder:text-slate-400 font-medium shadow-xs"
               />
             </div>
             <button
               type="submit"
-              className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-all duration-200 shadow-md shadow-amber-400/20 active:scale-95 cursor-pointer shrink-0"
+              className="bg-teal-700 hover:bg-teal-600 text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition-all duration-150 border border-teal-500/40 shadow-xs active:scale-95 cursor-pointer shrink-0"
             >
               Search
             </button>
@@ -1088,60 +1095,58 @@ function App() {
           {/* Right Header Controls */}
           <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
             {/* Phone Hot-line */}
-            <div className="hidden xl:flex items-center gap-1.5 bg-teal-900/60 dark:bg-slate-800 px-3 py-1.5 rounded-full text-xs font-bold text-teal-100 dark:text-slate-300 border border-teal-600/40 dark:border-slate-700 shadow-xs">
-              <Phone className="w-3.5 h-3.5 text-amber-300" />
-              <span>+94 11 234 5678</span>
+            <div className="hidden xl:flex items-center gap-1.5 bg-teal-900/70 dark:bg-slate-800/90 px-3 py-1.5 rounded-lg text-xs font-semibold text-teal-100 dark:text-slate-300 border border-teal-700/60 dark:border-slate-700 shadow-xs">
+              <Phone className="w-3.5 h-3.5 text-teal-300" />
+              <span className="font-mono">+94 11 234 5678</span>
             </div>
 
-            {/* Shopping Cart Shortcut Button (Customer & Guest Only) */}
+            {/* Shopping Cart Shortcut Button */}
             {(!currentUser || role === 'customer') && (
               <button
                 onClick={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to view your cart and checkout.')}
-                className="relative p-2 rounded-xl bg-teal-900/60 hover:bg-teal-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 transition-all cursor-pointer border border-teal-600/40 dark:border-slate-700 flex items-center gap-1.5 shadow-xs"
+                className="relative p-2 rounded-lg bg-teal-900/70 hover:bg-teal-700 dark:bg-slate-800 dark:hover:bg-slate-700 text-teal-200 dark:text-slate-200 transition cursor-pointer border border-teal-700/60 dark:border-slate-700 flex items-center gap-1.5 shadow-xs"
                 title="Shopping Bag & Checkout"
               >
-                <ShoppingCart className="w-4 h-4 text-amber-300" />
+                <ShoppingCart className="w-4 h-4 text-teal-200" />
                 {cartItemCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-mono font-black text-[10px]">
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white font-mono font-bold text-[10px]">
                     {cartItemCount}
                   </span>
                 )}
               </button>
             )}
 
-            {/* Theme Toggler (Sun / Moon) */}
+            {/* Theme Toggler */}
             <button
               onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-              className="p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-amber-500 hover:scale-105 transition shadow-sm cursor-pointer"
+              className="hidden md:flex p-2 rounded-lg border border-teal-700 dark:border-slate-700 bg-teal-900/70 hover:bg-teal-700 dark:bg-slate-800 dark:hover:bg-slate-700 text-teal-200 dark:text-slate-200 transition shadow-xs cursor-pointer"
               title="Toggle Light/Dark Theme"
             >
-              {theme === 'dark' ? '☀️' : '🌙'}
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-teal-100" />}
             </button>
 
-            {/* Live Server Status Radar Ping */}
-            <div className="hidden sm:flex items-center gap-1.5 bg-teal-900/60 dark:bg-slate-800 px-3 py-1.5 rounded-full text-teal-100 dark:text-slate-300 font-medium border border-teal-600/40 dark:border-slate-700 shadow-xs">
-              <span className="relative flex h-2.5 w-2.5">
+            {/* Live Server Status */}
+            <div className="hidden sm:flex items-center gap-1.5 bg-teal-900/70 dark:bg-slate-800/90 px-3 py-1.5 rounded-lg text-teal-100 dark:text-slate-300 font-medium border border-teal-700/60 dark:border-slate-700 shadow-xs">
+              <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="font-mono text-[11px]">Server Online</span>
+              <span className="font-mono text-[11px]">Online</span>
             </div>
 
             {/* Auth User Status / Login Button */}
             {currentUser ? (
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-teal-900/80 dark:bg-slate-800 px-3 py-1.5 rounded-full text-white font-medium border border-teal-600/40 dark:border-slate-700 shadow-xs">
-                  <span className="text-sm">
-                    {role === 'admin' ? '👑' : role === 'staff' ? '🩺' : role === 'inventory_officer' ? '📦' : '👤'}
-                  </span>
-                  <span className="font-bold text-xs truncate max-w-[110px]">{currentUser.name || currentUser.email || currentUser.phone}</span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-300 uppercase font-mono font-bold">
+                <div className="flex items-center gap-1.5 bg-teal-900/90 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-white font-medium border border-teal-700/60 dark:border-slate-700 shadow-xs">
+                  <UserIcon className="w-3.5 h-3.5 text-teal-300" />
+                  <span className="font-semibold text-xs truncate max-w-[120px]">{currentUser.name || currentUser.email}</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-700 text-teal-100 uppercase font-mono font-bold tracking-wider">
                     {role === 'inventory_officer' ? 'INVENTORY' : role}
                   </span>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-1 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 px-3 py-1.5 rounded-full text-white font-bold text-[11px] transition-all cursor-pointer shadow-sm shadow-rose-600/20"
+                  className="flex items-center gap-1 bg-rose-700 hover:bg-rose-800 px-3 py-1.5 rounded-lg text-white font-semibold text-[11px] transition cursor-pointer shadow-xs"
                   title="Sign Out"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -1151,64 +1156,68 @@ function App() {
             ) : (
               <button
                 onClick={() => { setAuthModalMessage(''); setIsAuthModalOpen(true); }}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black px-4 py-2 rounded-full text-xs transition-all shadow-md shadow-amber-400/30 active:scale-95 cursor-pointer border border-amber-300"
+                className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white font-semibold px-3.5 py-2 rounded-lg text-xs transition shadow-xs border border-teal-400/40 active:scale-95 cursor-pointer"
               >
                 <LogIn className="w-4 h-4" />
-                <span>🔑 Sign In / Register</span>
+                <span>Sign In / Register</span>
               </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* 1.5. 1-CLICK DEMO ROLE SWITCHER (INSTANT VIVA EVALUATION & DASHBOARD TRANSFORMATION) */}
-      <div className="bg-slate-900/95 dark:bg-slate-950 text-white text-xs px-4 sm:px-6 lg:px-8 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 shadow-inner z-40">
+      {/* 1.5. FAST ROLE SWITCHER SEGMENTED TOOLBAR */}
+      <div className="bg-slate-900 dark:bg-slate-950 text-white text-xs px-4 sm:px-6 lg:px-8 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 shadow-inner z-40">
         <div className="flex items-center gap-2">
           <span className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
           </span>
-          <span className="font-black text-amber-400 uppercase tracking-wider text-[10px]">
-            ⚡ 1-Click Role Switcher:
+          <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">
+            Fast Role Switcher:
           </span>
           <span className="text-[11px] text-slate-300 hidden sm:inline">
-            Active: <strong className="text-white capitalize">{currentUser ? `${role.replace('_', ' ')} (${currentUser.name})` : 'Public Guest View'}</strong>
+            Active: <strong className="text-white capitalize">{currentUser ? `${role.replace('_', ' ')} (${currentUser.name})` : 'Public Guest'}</strong>
           </span>
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">
-          {DEMO_ROLES.map((acc) => (
-            <button
-              key={acc.role}
-              onClick={() => handleFastRoleSwitch(acc)}
-              className={`px-3 py-1 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1.5 cursor-pointer border ${
-                currentUser && role === acc.role
-                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/30 scale-105 ring-2 ring-amber-400/50'
-                  : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-slate-700 hover:border-slate-500'
-              }`}
-              title={`Switch instantly to ${acc.label} (${acc.identifier})`}
-            >
-              <span>{acc.icon}</span>
-              <span>{acc.label}</span>
-            </button>
-          ))}
+          {DEMO_ROLES.map((acc) => {
+            const RoleIcon = acc.icon;
+            const isActive = currentUser && role === acc.role;
+            return (
+              <button
+                key={acc.role}
+                onClick={() => handleFastRoleSwitch(acc)}
+                className={`px-3 py-1 rounded-lg font-semibold text-[11px] transition-all flex items-center gap-1.5 cursor-pointer border ${
+                  isActive
+                    ? 'bg-teal-700 text-white border-teal-500 shadow-xs'
+                    : 'bg-slate-800/90 hover:bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
+                }`}
+                title={`Switch to ${acc.label} (${acc.identifier})`}
+              >
+                <RoleIcon className="w-3.5 h-3.5" />
+                <span>{acc.label}</span>
+              </button>
+            );
+          })}
 
           {currentUser && (
             <button
               onClick={handleLogout}
-              className="px-2.5 py-1 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-300 hover:text-white border border-rose-800/60 font-bold text-[11px] transition-all flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-semibold text-[11px] transition-all flex items-center gap-1 cursor-pointer"
               title="Switch to Public Guest (Logged Out)"
             >
-              <span>🌐</span>
-              <span>Public Guest</span>
+              <Globe className="w-3.5 h-3.5" />
+              <span>Guest</span>
             </button>
           )}
         </div>
       </div>
 
       {/* 2. SECONDARY NAVIGATION BAR (ROLE-ADAPTIVE TABS) */}
-      <nav className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-teal-100/80 dark:border-slate-800 shadow-sm sticky top-[61px] z-40 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto py-2.5 gap-2 text-xs font-semibold">
+      <nav className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 shadow-xs sticky top-[57px] z-40 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto py-2 gap-1.5 text-xs font-medium">
           {navTabs.map((tab) => (
             <button
               key={tab.id}
@@ -1216,10 +1225,10 @@ function App() {
                 setActiveTab(tab.id);
                 scrollToContent();
               }}
-              className={`py-2.5 px-4 rounded-2xl flex items-center gap-2 whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              className={`py-1.5 px-3.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition-all duration-150 cursor-pointer ${
                 activeTab === tab.id
-                  ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md shadow-teal-700/20 font-black scale-105'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-teal-50 dark:hover:bg-slate-800'
+                  ? 'bg-teal-700 text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               <span>{tab.label}</span>
@@ -1318,28 +1327,28 @@ function App() {
               {heroSlides[currentHeroSlide].subtitle}
             </p>
 
-            {/* Quick Action Action Buttons with Guest Protection */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            {/* Quick Action Buttons with Guest Protection */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-2">
               <button
                 onClick={() => handleActionWithAuth(() => setIsPetModalOpen(true), 'Please sign in to register a pet patient.')}
-                className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-extrabold py-2.5 px-5 rounded-2xl text-xs transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-400/30"
+                className="bg-teal-700 hover:bg-teal-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs border border-teal-500/40"
               >
-                <Plus className="w-4 h-4" /> + Register New Patient
+                <Plus className="w-4 h-4" /> Register Patient
               </button>
 
               <button
                 onClick={() => handleActionWithAuth(() => setIsBookingModalOpen(true), 'Please sign in to book a clinical appointment.')}
-                className="bg-white/15 hover:bg-white/25 text-white font-bold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-md"
+                className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <Calendar className="w-4 h-4 text-amber-300" /> 📅 Book Clinical Appointment
+                <Calendar className="w-4 h-4 text-teal-200" /> Book Consultation
               </button>
 
               {(!currentUser || role === 'admin' || role === 'inventory_officer') && (
                 <button
                   onClick={() => handleActionWithAuth(() => setIsProductModalOpen(true), 'Please sign in as Admin or Inventory Officer to add stock.')}
-                  className="bg-white/15 hover:bg-white/25 text-white font-bold py-2.5 px-5 rounded-2xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-md"
+                  className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
                 >
-                  <Package className="w-4 h-4 text-emerald-300" /> + Add Pharmacy Product
+                  <Package className="w-4 h-4 text-teal-200" /> Add Inventory Item
                 </button>
               )}
             </div>
@@ -1353,8 +1362,8 @@ function App() {
                 onClick={() => setCurrentHeroSlide(idx)}
                 className={`transition-all duration-300 rounded-full cursor-pointer ${
                   idx === currentHeroSlide
-                    ? 'w-7 h-2.5 bg-amber-400 shadow-md'
-                    : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80'
+                    ? 'w-7 h-2 bg-teal-400 shadow-xs'
+                    : 'w-2 h-2 bg-white/40 hover:bg-white/80'
                 }`}
                 title={`Go to slide ${idx + 1}`}
               />
@@ -1362,19 +1371,19 @@ function App() {
           </div>
         </div>
 
-        {/* 4. ROLE-ADAPTIVE QUICK ACCESS HUBS */}
+        {/* 4. ROLE-ADAPTIVE QUICK ACCESS CLINICAL HUBS */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              {role === 'inventory_officer' ? 'Inventory & Supply Chain Hubs' : role === 'staff' ? 'Clinical Care & Doctor Hubs' : 'Quick Access Clinical Services'}
+            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              {role === 'inventory_officer' ? 'Inventory & Supply Operations' : role === 'staff' ? 'Clinical Operations Hubs' : 'Clinical Service Hubs'}
             </h3>
-            <span className="text-[11px] text-teal-700 dark:text-teal-400 font-bold">
-              {role === 'inventory_officer' ? 'Supply Operations' : role === 'staff' ? 'Doctor Operations' : '5 Core Clinical Hubs'}
+            <span className="text-[11px] text-teal-700 dark:text-teal-400 font-semibold">
+              {role === 'inventory_officer' ? 'Supply Operations' : role === 'staff' ? 'Doctor Operations' : 'Core Services'}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
             {role === 'inventory_officer' ? (
               <>
                 {/* Hub 1: Pharmacy Catalog */}
@@ -1383,11 +1392,13 @@ function App() {
                     setActiveTab('pharmacy');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-teal-500/20 hover:from-emerald-500/25 hover:to-teal-500/30 border-2 border-emerald-400/60 dark:border-emerald-500/40 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">📦</span>
-                  <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Pharmacy & Stock</span>
-                  <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Manage Formulations</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Pharmacy & Stock</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Formulary Ledger</span>
                 </div>
 
                 {/* Hub 2: Low Stock */}
@@ -1396,11 +1407,13 @@ function App() {
                     setActiveTab('pharmacy');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/20 hover:from-amber-500/25 hover:to-orange-500/30 border-2 border-amber-400/60 dark:border-amber-500/40 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-amber-500/60 dark:hover:border-amber-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">⚠️</span>
-                  <span className="text-xs font-black text-amber-950 dark:text-amber-200">Low Stock Radar</span>
-                  <span className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-medium">{lowStockCount} Items Low</span>
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-slate-800 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center transition-colors">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Low Stock Radar</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{lowStockCount} Items Low</span>
                 </div>
 
                 {/* Hub 3: Suppliers */}
@@ -1409,11 +1422,13 @@ function App() {
                     setActiveTab('suppliers');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-blue-500/15 via-blue-500/5 to-indigo-500/20 hover:from-blue-500/25 hover:to-indigo-500/30 border-2 border-blue-400/60 dark:border-blue-500/40 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">🏢</span>
-                  <span className="text-xs font-black text-blue-950 dark:text-blue-200">Supplier Directory</span>
-                  <span className="text-[10px] text-blue-800/80 dark:text-blue-400/80 font-medium">{suppliers.length} Distributors</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Supplier Directory</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{suppliers.length} Distributors</span>
                 </div>
 
                 {/* Hub 4: Expiry Tracker */}
@@ -1422,21 +1437,25 @@ function App() {
                     setActiveTab('expiry');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-rose-500/15 via-rose-500/5 to-pink-500/20 hover:from-rose-500/25 hover:to-pink-500/30 border-2 border-rose-400/60 dark:border-rose-500/40 shadow-lg shadow-rose-500/10 hover:shadow-rose-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-rose-500/60 dark:hover:border-rose-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">⏳</span>
-                  <span className="text-xs font-black text-rose-950 dark:text-rose-200">Expiry Tracker</span>
-                  <span className="text-[10px] text-rose-800/80 dark:text-rose-400/80 font-medium">{expiringProducts.length} Batches</span>
+                  <div className="w-9 h-9 rounded-lg bg-rose-50 dark:bg-slate-800 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">Expiry Tracker</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{expiringProducts.length} Batches</span>
                 </div>
 
                 {/* Hub 5: Add Medication */}
                 <div
                   onClick={() => setIsProductModalOpen(true)}
-                  className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">➕</span>
-                  <span className="text-xs font-black text-purple-950 dark:text-purple-200">+ Register Drug</span>
-                  <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">New Batch & Stock</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Register Drug</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">New Batch & Stock</span>
                 </div>
               </>
             ) : role === 'staff' ? (
@@ -1448,11 +1467,13 @@ function App() {
                     setPetSpeciesFilter('Dog');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/20 hover:from-amber-500/25 hover:to-orange-500/30 border-2 border-amber-400/60 dark:border-amber-500/40 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">🐕</span>
-                  <span className="text-xs font-black text-amber-950 dark:text-amber-200">Canine Patients</span>
-                  <span className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-medium">Passports & Vitals</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Canine Patients</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Passports & Vitals</span>
                 </div>
 
                 {/* Hub 2: Feline */}
@@ -1462,11 +1483,13 @@ function App() {
                     setPetSpeciesFilter('Cat');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-rose-500/15 via-rose-500/5 to-pink-500/20 hover:from-rose-500/25 hover:to-pink-500/30 border-2 border-rose-400/60 dark:border-rose-500/40 shadow-lg shadow-rose-500/10 hover:shadow-rose-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">🐈</span>
-                  <span className="text-xs font-black text-rose-950 dark:text-rose-200">Feline Patients</span>
-                  <span className="text-[10px] text-rose-800/80 dark:text-rose-400/80 font-medium">Passports & Vitals</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Feline Patients</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Passports & Vitals</span>
                 </div>
 
                 {/* Hub 3: Doctor Calendar */}
@@ -1476,11 +1499,13 @@ function App() {
                     setBookingSubTab('calendar');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-cyan-500/15 via-cyan-500/5 to-blue-500/20 hover:from-cyan-500/25 hover:to-blue-500/30 border-2 border-cyan-400/60 dark:border-cyan-500/40 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">📅</span>
-                  <span className="text-xs font-black text-cyan-950 dark:text-cyan-200">Doctor Calendar</span>
-                  <span className="text-[10px] text-cyan-800/80 dark:text-cyan-400/80 font-medium">Day Slots & Roster</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Doctor Calendar</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Slots & Appointments</span>
                 </div>
 
                 {/* Hub 4: Clinical Pharmacy */}
@@ -1489,21 +1514,25 @@ function App() {
                     setActiveTab('pharmacy');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-teal-500/20 hover:from-emerald-500/25 hover:to-teal-500/30 border-2 border-emerald-400/60 dark:border-emerald-500/40 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">💊</span>
-                  <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Clinic Formulary</span>
-                  <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Meds & Vaccines</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Clinic Formulary</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Meds & Vaccines</span>
                 </div>
 
                 {/* Hub 5: Register Patient */}
                 <div
                   onClick={() => setIsPetModalOpen(true)}
-                  className="bg-gradient-to-br from-teal-500/15 via-teal-500/5 to-emerald-500/20 hover:from-teal-500/25 hover:to-emerald-500/30 border-2 border-teal-400/60 dark:border-teal-500/40 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">🐾</span>
-                  <span className="text-xs font-black text-teal-950 dark:text-teal-200">+ Register Patient</span>
-                  <span className="text-[10px] text-teal-800/80 dark:text-teal-400/80 font-medium">Issue Microchip PIN</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Register Patient</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Issue Microchip PIN</span>
                 </div>
               </>
             ) : (
@@ -1515,11 +1544,13 @@ function App() {
                     setPetSpeciesFilter('Dog');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/20 hover:from-amber-500/25 hover:to-orange-500/30 border-2 border-amber-400/60 dark:border-amber-500/40 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">🐕</span>
-                  <span className="text-xs font-black text-amber-950 dark:text-amber-200">Canine / Dogs</span>
-                  <span className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-medium">Patients & Profiles</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Canine Patients</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Medical Profiles</span>
                 </div>
 
                 {/* Hub 2: Feline */}
@@ -1529,11 +1560,13 @@ function App() {
                     setPetSpeciesFilter('Cat');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-rose-500/15 via-rose-500/5 to-pink-500/20 hover:from-rose-500/25 hover:to-pink-500/30 border-2 border-rose-400/60 dark:border-rose-500/40 shadow-lg shadow-rose-500/10 hover:shadow-rose-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">🐈</span>
-                  <span className="text-xs font-black text-rose-950 dark:text-rose-200">Feline / Cats</span>
-                  <span className="text-[10px] text-rose-800/80 dark:text-rose-400/80 font-medium">Patients & Profiles</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Feline Patients</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Medical Profiles</span>
                 </div>
 
                 {/* Hub 3: Pet Pharmacy */}
@@ -1543,11 +1576,13 @@ function App() {
                     setProductCategoryFilter('All');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-teal-500/20 hover:from-emerald-500/25 hover:to-teal-500/30 border-2 border-emerald-400/60 dark:border-emerald-500/40 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">💊</span>
-                  <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">Pet Pharmacy</span>
-                  <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 font-medium">Meds & Vaccines</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Pharmacy Store</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Meds & Healthcare</span>
                 </div>
 
                 {/* Hub 4: Consultations */}
@@ -1556,11 +1591,13 @@ function App() {
                     setActiveTab('appointments');
                     scrollToContent();
                   }}
-                  className="bg-gradient-to-br from-cyan-500/15 via-cyan-500/5 to-blue-500/20 hover:from-cyan-500/25 hover:to-blue-500/30 border-2 border-cyan-400/60 dark:border-cyan-500/40 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="text-3xl drop-shadow-sm">🩺</span>
-                  <span className="text-xs font-black text-cyan-950 dark:text-cyan-200">Consultations</span>
-                  <span className="text-[10px] text-cyan-800/80 dark:text-cyan-400/80 font-medium">Doctor Calendar</span>
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Appointments</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Doctor Channeling</span>
                 </div>
 
                 {/* Hub 5: Storefront for Customer vs POS for Admin */}
@@ -1570,11 +1607,13 @@ function App() {
                       setActiveTab('pharmacy');
                       scrollToContent();
                     }}
-                    className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                    className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                   >
-                    <span className="text-3xl drop-shadow-sm">🛍️</span>
-                    <span className="text-xs font-black text-purple-950 dark:text-purple-200">Pet Store & Cart</span>
-                    <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Shop Medicines & Care</span>
+                    <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                      <ShoppingBag className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Store & Cart</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Prescription Care</span>
                   </div>
                 ) : (
                   <div
@@ -1582,11 +1621,13 @@ function App() {
                       setActiveTab('pos');
                       scrollToContent();
                     }}
-                    className="bg-gradient-to-br from-purple-500/15 via-purple-500/5 to-indigo-500/20 hover:from-purple-500/25 hover:to-indigo-500/30 border-2 border-purple-400/60 dark:border-purple-500/40 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 transform transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer p-4 rounded-3xl text-center flex flex-col items-center justify-center gap-1"
+                    className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                   >
-                    <span className="text-3xl drop-shadow-sm">🏷️</span>
-                    <span className="text-xs font-black text-purple-950 dark:text-purple-200">POS & Retail</span>
-                    <span className="text-[10px] text-purple-800/80 dark:text-purple-400/80 font-medium">Checkout Cashier</span>
+                    <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                      <Receipt className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">POS Terminal</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Checkout Cashier</span>
                   </div>
                 )}
               </>
@@ -1594,109 +1635,135 @@ function App() {
           </div>
         </div>
 
-        {/* 5. ROLE-ISOLATED KPI METRICS RIBBON */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 5. ROLE-ISOLATED MINIMALIST KPI METRICS RIBBON */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           {role === 'customer' ? (
             <>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">🐾</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">My Registered Pets</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{customerPets.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Registered Pets</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{customerPets.length}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">💊</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Available Medications</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{products.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Medications</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{products.length}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 flex items-center justify-center text-xl shadow-xs">📅</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">My Channeling</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{bookings.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Channelings</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{bookings.length}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 flex items-center justify-center text-xl shadow-xs">🧾</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">My Orders Placed</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{invoices.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Orders Placed</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{invoices.length}</h4>
                 </div>
               </div>
             </>
           ) : role === 'staff' ? (
             <>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">🐕</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Total Clinic Patients</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{pets.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Clinic Patients</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{pets.length}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 flex items-center justify-center text-xl shadow-xs">📅</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Active Consultations</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{activeBookingsCount}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Consultations</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{activeBookingsCount}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">💊</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Formulary Drugs</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{products.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Formulary Drugs</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{products.length}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 flex items-center justify-center text-xl shadow-xs">⚠️</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Low Stock Alerts</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{lowStockCount}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Low Stock Alerts</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{lowStockCount}</h4>
                 </div>
               </div>
             </>
           ) : role === 'inventory_officer' ? (
             <>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">📦</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Stock Products</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{products.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Catalog Items</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{products.length}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">⚠️</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Low Stock Radar</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{lowStockCount}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Low Stock Radar</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{lowStockCount}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 flex items-center justify-center text-xl shadow-xs">⏳</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Expiring Batches</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{expiringProducts.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Expiring Batches</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{expiringProducts.length}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center text-xl shadow-xs">🏢</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Active Suppliers</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{suppliers.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Distributors</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{suppliers.length}</h4>
                 </div>
               </div>
             </>
           ) : role === 'cashier' ? (
             <>
               {/* Cashier KPI: Today's Invoice Count */}
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-green-100 dark:border-green-900/50 shadow-lg shadow-green-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-green-100 dark:bg-green-950/60 text-green-700 dark:text-green-400 flex items-center justify-center text-xl shadow-xs">🧾</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Today's Invoices</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Today's Invoices</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">
                     {invoices.filter(inv => {
                       const today = new Date().toDateString();
                       return new Date(inv.createdAt || inv.updatedAt).toDateString() === today;
@@ -1705,29 +1772,35 @@ function App() {
                 </div>
               </div>
               {/* Total Sales Invoices */}
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-green-100 dark:border-green-900/50 shadow-lg shadow-green-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">💳</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Total Invoices</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{invoices.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Total Invoices</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{invoices.length}</h4>
                 </div>
               </div>
               {/* Cash Sales */}
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-green-100 dark:border-green-900/50 shadow-lg shadow-green-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">💵</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Cash Sales</p>
-                  <h4 className="text-sm font-black text-slate-800 dark:text-white font-mono">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Cash Sales</p>
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-white font-mono leading-tight">
                     Rs. {invoices.filter(i => i.paymentMethod === 'Cash').reduce((s, i) => s + (i.finalTotal || 0), 0).toFixed(2)}
                   </h4>
                 </div>
               </div>
               {/* Card + QR Sales */}
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-green-100 dark:border-green-900/50 shadow-lg shadow-green-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center text-xl shadow-xs">📲</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Card / QR Sales</p>
-                  <h4 className="text-sm font-black text-slate-800 dark:text-white font-mono">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Card & Digital</p>
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-white font-mono leading-tight">
                     Rs. {invoices.filter(i => i.paymentMethod === 'Card' || i.paymentMethod === 'Online' || i.paymentMethod === 'QR').reduce((s, i) => s + (i.finalTotal || 0), 0).toFixed(2)}
                   </h4>
                 </div>
@@ -1735,32 +1808,40 @@ function App() {
             </>
           ) : (
             <>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs">🐕</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Registered Patients</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{pets.length}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Patients</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{pets.length}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs">💊</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Low Stock Items</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{lowStockCount}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Low Stock</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{lowStockCount}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 flex items-center justify-center text-xl shadow-xs">📅</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Active Bookings</p>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white font-mono">{activeBookingsCount}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Active Bookings</p>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white font-mono leading-tight">{activeBookingsCount}</h4>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-lg shadow-teal-900/5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 flex items-center justify-center text-xl shadow-xs">🧾</div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Total Clinic Revenue</p>
-                  <h4 className="text-xl font-black text-slate-800 dark:text-white font-mono">Rs. {totalRevenue.toFixed(2)}</h4>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider truncate">Gross Revenue</p>
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-white font-mono leading-tight">Rs. {totalRevenue.toFixed(2)}</h4>
                 </div>
               </div>
             </>
@@ -1772,17 +1853,17 @@ function App() {
           {role === 'customer' && currentUser && activeTab !== 'pos' && activeTab !== 'suppliers' ? (
             activeTab === 'orders' ? (
               <div className="space-y-6 animate-fadeIn">
-                <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-6 rounded-3xl border border-teal-100 dark:border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-700 text-white flex items-center justify-center text-xl shadow-md">
-                      🧾
+                    <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                      <Receipt className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                        My Order Receipts & Clinical Invoices ({invoices.length})
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        Order Receipts & Clinical Invoices ({invoices.length})
                       </h3>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        View official clinic payment receipts, purchased medications, and transaction records.
+                        Official dispensary invoices and transaction history.
                       </p>
                     </div>
                   </div>
@@ -1791,16 +1872,16 @@ function App() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('pharmacy')}
-                      className="flex-1 sm:flex-initial py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      className="flex-1 sm:flex-initial py-2 px-3.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                     >
-                      <span>🛒</span>
+                      <ShoppingBag className="w-4 h-4 text-slate-500" />
                       <span>Return to Store</span>
                     </button>
                     {cartItemCount > 0 && (
                       <button
                         type="button"
                         onClick={() => setIsCheckoutModalOpen(true)}
-                        className="flex-1 sm:flex-initial py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 active:scale-95 transition-all cursor-pointer"
+                        className="flex-1 sm:flex-initial py-2 px-4 rounded-lg bg-teal-700 hover:bg-teal-600 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs active:scale-95 transition cursor-pointer border border-teal-500/40"
                       >
                         <ShoppingCart className="w-4 h-4" />
                         <span>Checkout ({cartItemCount})</span>
@@ -1838,19 +1919,19 @@ function App() {
               {/* TAB: PATIENTS & PET PROFILES (STAFF & ADMIN ONLY) */}
               {activeTab === 'pets' && (role === 'admin' || role === 'staff') && (
                 <div className="space-y-6 animate-fadeIn">
-                  {/* View Toggler for Admin: [ 🐾 All Patients & Pets ] | [ 👥 Registered Clients & Pet Parents ] */}
+                  {/* View Toggler for Admin: [ All Patients & Pets ] | [ Registered Clients & Pet Parents ] */}
                   {role === 'admin' && (
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
+                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex gap-2 w-fit">
                       <button
                         type="button"
                         onClick={() => setAdminPetSubTab('pets')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                           adminPetSubTab === 'pets'
-                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                            ? 'bg-teal-700 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        <span>🐾</span> All Patients & Pets ({pets.length})
+                        <PawPrint className="w-3.5 h-3.5" /> All Patients & Pets ({pets.length})
                       </button>
 
                       <button
@@ -1859,13 +1940,13 @@ function App() {
                           setAdminPetSubTab('clients');
                           loadCustomers();
                         }}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                           adminPetSubTab === 'clients'
-                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                            ? 'bg-teal-700 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        <span>👥</span> Registered Clients & Pet Parents ({customers.length})
+                        <Users className="w-3.5 h-3.5" /> Registered Clients & Pet Parents ({customers.length})
                       </button>
                     </div>
                   )}
@@ -1899,10 +1980,10 @@ function App() {
                         <button
                           type="button"
                           onClick={() => setIsPetModalOpen(true)}
-                          className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                          className="py-2.5 px-5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
                         >
                           <Plus className="w-4 h-4" />
-                          <span>+ Register New Patient</span>
+                          <span>Register New Patient</span>
                         </button>
                       </div>
 
@@ -1952,9 +2033,9 @@ function App() {
                         </div>
                         <button
                           onClick={() => setIsProductModalOpen(true)}
-                          className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                          className="py-2.5 px-5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
                         >
-                          <Plus className="w-4 h-4" /> + Add New Medication
+                          <Plus className="w-4 h-4" /> Add New Medication
                         </button>
                       </div>
                       <InventoryList
@@ -1971,49 +2052,49 @@ function App() {
                   ) : role === 'admin' ? (
                     /* Admin View: Master Inventory Control with Sub-tab Switches */
                     <>
-                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit flex-wrap">
+                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex gap-2 w-fit flex-wrap">
                         <button
                           onClick={() => setPharmacySubTab('inventory')}
-                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                             pharmacySubTab === 'inventory'
-                              ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                              ? 'bg-teal-700 text-white shadow-xs'
                               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
-                          <span>📦</span> Medicine & Stock Directory
+                          <Package className="w-3.5 h-3.5" /> Medicine & Stock Directory
                         </button>
 
                         <button
                           onClick={() => setPharmacySubTab('showcase')}
-                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                             pharmacySubTab === 'showcase'
-                              ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                              ? 'bg-teal-700 text-white shadow-xs'
                               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
-                          <span>🛍️</span> Storefront Catalog View
+                          <ShoppingBag className="w-3.5 h-3.5" /> Storefront Catalog View
                         </button>
 
                         <button
                           onClick={() => setPharmacySubTab('suppliers')}
-                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                             pharmacySubTab === 'suppliers'
-                              ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                              ? 'bg-teal-700 text-white shadow-xs'
                               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
-                          <span>🏢</span> Supplier Directory ({suppliers.length})
+                          <Building2 className="w-3.5 h-3.5" /> Supplier Directory ({suppliers.length})
                         </button>
 
                         <button
                           onClick={() => setPharmacySubTab('expiry')}
-                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                             pharmacySubTab === 'expiry'
-                              ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                              ? 'bg-teal-700 text-white shadow-xs'
                               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
-                          <span>⚠️</span> Expiry Tracker ({expiringProducts.length})
+                          <AlertTriangle className="w-3.5 h-3.5" /> Expiry Tracker ({expiringProducts.length})
                         </button>
                       </div>
 
@@ -2022,9 +2103,9 @@ function App() {
                           <div className="flex justify-end">
                             <button
                               onClick={() => setIsProductModalOpen(true)}
-                              className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md cursor-pointer"
+                              className="py-2.5 px-5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer"
                             >
-                              <Plus className="w-4 h-4" /> + Add New Product
+                              <Plus className="w-4 h-4" /> Add New Product
                             </button>
                           </div>
                           <InventoryList
@@ -2076,27 +2157,27 @@ function App() {
               {/* TAB: APPOINTMENT SCHEDULING (STAFF & ADMIN ONLY) */}
               {activeTab === 'appointments' && (role === 'admin' || role === 'staff') && (
                 <div className="space-y-6 animate-fadeIn">
-                  <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
+                  <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex gap-2 w-fit">
                     <button
                       onClick={() => setBookingSubTab('calendar')}
-                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                         bookingSubTab === 'calendar'
-                          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                          ? 'bg-teal-700 text-white shadow-xs'
                           : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <span>📅</span> Doctor Day Calendar
+                      <Calendar className="w-3.5 h-3.5" /> Doctor Day Calendar
                     </button>
 
                     <button
                       onClick={() => setBookingSubTab('directory')}
-                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                         bookingSubTab === 'directory'
-                          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                          ? 'bg-teal-700 text-white shadow-xs'
                           : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <span>📋</span> Bookings Directory ({bookings.length})
+                      <FileText className="w-3.5 h-3.5" /> Bookings Directory ({bookings.length})
                     </button>
                   </div>
 
@@ -2132,35 +2213,37 @@ function App() {
                     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-2xl border border-teal-100 dark:border-slate-800 shadow-sm flex gap-2 w-fit">
                       <button
                         onClick={() => setPosSubTab('terminal')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                           posSubTab === 'terminal'
-                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                            ? 'bg-teal-700 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        <span>🛒</span> POS Cashier Register ({cartItemCount})
+                        <ShoppingCart className="w-3.5 h-3.5" /> POS Cashier Register ({cartItemCount})
                       </button>
 
                       <button
                         onClick={() => setPosSubTab('analytics')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                           posSubTab === 'analytics'
-                            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+                            ? 'bg-teal-700 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        <span>📊</span> Sales Analytics & Reports
+                        <TrendingUp className="w-3.5 h-3.5" /> Sales Analytics & Reports
                       </button>
                     </div>
                   )}
 
                   {/* Cashier header banner */}
                   {role === 'cashier' && (
-                    <div className="p-4 rounded-2xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 flex items-center gap-3">
-                      <span className="text-2xl">💵</span>
+                    <div className="p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-800/50 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center text-teal-700 dark:text-teal-300">
+                        <Receipt className="w-5 h-5" />
+                      </div>
                       <div>
-                        <h3 className="text-sm font-black text-green-900 dark:text-green-200">POS Cashier Terminal</h3>
-                        <p className="text-xs text-green-700 dark:text-green-400">Kamal Gunasekara · Active Session · Process sales and issue invoices</p>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">POS Cashier Terminal</h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">Kamal Gunasekara · Active Session · Process sales and issue invoices</p>
                       </div>
                     </div>
                   )}

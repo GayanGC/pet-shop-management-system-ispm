@@ -236,96 +236,94 @@ const CustomerPortal = ({
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* 1. Personalized Pet Parent Header Card */}
-      <div className="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-teal-600/40 dark:border-emerald-500/20 relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-
+      <div className="bg-teal-800 dark:bg-slate-900 text-white p-6 sm:p-8 rounded-2xl shadow-md border border-teal-700/60 dark:border-slate-800 relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center text-2xl font-black shadow-lg shadow-amber-400/20">
-              🐾
+            <div className="w-12 h-12 rounded-xl bg-teal-900/80 border border-teal-600/50 flex items-center justify-center text-white shrink-0">
+              <User className="w-6 h-6 text-teal-200" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight">
-                  Welcome, {currentUser.name || 'Pet Parent'}!
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+                  Welcome, {currentUser.name || 'Client'}
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 font-mono text-[10px] font-bold border border-emerald-400/30">
-                  VERIFIED OWNER
+                <span className="px-2 py-0.5 rounded bg-teal-700/90 text-teal-100 font-mono text-[10px] font-semibold border border-teal-500/40 uppercase tracking-wider">
+                  Verified Client
                 </span>
               </div>
-              <p className="text-xs text-teal-100 dark:text-slate-400 mt-1 max-w-xl">
-                Private Pet Parent Portal: Access certified prescription health records, book veterinary channeling visits, and order authentic medications with doorstep delivery.
+              <p className="text-xs text-teal-100/80 dark:text-slate-400 mt-1 max-w-xl">
+                Client Portal: Access health passports, reserve veterinary doctor channeling slots, and order verified pharmaceuticals.
               </p>
             </div>
           </div>
 
           {/* Quick Metrics */}
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="px-4 py-2 rounded-2xl bg-white/10 dark:bg-slate-800/80 backdrop-blur-md border border-white/20 text-center flex-1 md:flex-initial">
-              <span className="text-[10px] font-bold text-teal-200 uppercase block">My Pets</span>
-              <span className="text-lg font-black font-mono">{portalPets.length}</span>
+          <div className="flex items-center gap-2.5 w-full md:w-auto">
+            <div className="px-4 py-2 rounded-xl bg-teal-900/60 dark:bg-slate-800/80 border border-teal-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial">
+              <span className="text-[10px] font-bold text-teal-200 uppercase block tracking-wider">Pets</span>
+              <span className="text-lg font-bold font-mono">{portalPets.length}</span>
             </div>
-            <div className="px-4 py-2 rounded-2xl bg-white/10 dark:bg-slate-800/80 backdrop-blur-md border border-white/20 text-center flex-1 md:flex-initial">
-              <span className="text-[10px] font-bold text-teal-200 uppercase block">Channelings</span>
-              <span className="text-lg font-black font-mono">{bookings.length}</span>
+            <div className="px-4 py-2 rounded-xl bg-teal-900/60 dark:bg-slate-800/80 border border-teal-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial">
+              <span className="text-[10px] font-bold text-teal-200 uppercase block tracking-wider">Channelings</span>
+              <span className="text-lg font-bold font-mono">{bookings.length}</span>
             </div>
             <div
               onClick={() => onTabChange && onTabChange('orders')}
-              className="px-4 py-2 rounded-2xl bg-white/10 hover:bg-white/20 dark:bg-slate-800/80 backdrop-blur-md border border-white/20 text-center flex-1 md:flex-initial cursor-pointer transition-all active:scale-95"
+              className="px-4 py-2 rounded-xl bg-teal-900/60 hover:bg-teal-900 dark:bg-slate-800/80 border border-teal-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial cursor-pointer transition-all active:scale-95"
               title="Click to view My Orders"
             >
-              <span className="text-[10px] font-bold text-teal-200 uppercase block">Invoices / Orders</span>
-              <span className="text-lg font-black font-mono">{invoices.length}</span>
+              <span className="text-[10px] font-bold text-teal-200 uppercase block tracking-wider">Invoices</span>
+              <span className="text-lg font-bold font-mono">{invoices.length}</span>
             </div>
           </div>
         </div>
 
         {/* Dedicated Portal Tabs */}
-        <div className="flex flex-wrap gap-2 pt-6 mt-6 border-t border-teal-600/40 dark:border-slate-800">
+        <div className="flex flex-wrap gap-2 pt-5 mt-6 border-t border-teal-700/50 dark:border-slate-800">
           <button
             onClick={() => handleTabSwitch('pets')}
-            className={`py-2.5 px-5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+            className={`py-2 px-4 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'pets'
-                ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/25 scale-105'
-                : 'bg-white/10 hover:bg-white/20 text-white'
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'bg-teal-900/60 hover:bg-teal-900 text-teal-100'
             }`}
           >
             <PawPrint className="w-4 h-4" />
-            <span>My Pets, Medical Reports & Doctor Notes ({portalPets.length})</span>
+            <span>My Pets & Health Passports ({portalPets.length})</span>
           </button>
 
           <button
             onClick={() => handleTabSwitch('channeling')}
-            className={`py-2.5 px-5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+            className={`py-2 px-4 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'channeling'
-                ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/25 scale-105'
-                : 'bg-white/10 hover:bg-white/20 text-white'
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'bg-teal-900/60 hover:bg-teal-900 text-teal-100'
             }`}
           >
             <Stethoscope className="w-4 h-4" />
-            <span>Doctor Channeling & Appointments ({bookings.length})</span>
+            <span>Doctor Channeling ({bookings.length})</span>
           </button>
 
           <button
             onClick={() => handleTabSwitch('store')}
-            className={`py-2.5 px-5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+            className={`py-2 px-4 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'store'
-                ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/25 scale-105'
-                : 'bg-white/10 hover:bg-white/20 text-white'
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'bg-teal-900/60 hover:bg-teal-900 text-teal-100'
             }`}
           >
             <ShoppingBag className="w-4 h-4" />
-            <span>Pet Pharmacy & Care Store ({products.length})</span>
+            <span>Dispensary Store ({products.length})</span>
           </button>
 
           <button
             onClick={() => {
               if (onTabChange) onTabChange('orders');
             }}
-            className="py-2.5 px-5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer bg-white/10 hover:bg-white/20 text-white hover:border-amber-300"
+            className="py-2 px-4 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer bg-teal-900/60 hover:bg-teal-900 text-teal-100"
           >
             <Receipt className="w-4 h-4" />
-            <span>My Orders & Invoices ({invoices.length})</span>
+            <span>Invoices & Receipts ({invoices.length})</span>
           </button>
         </div>
       </div>
@@ -341,8 +339,8 @@ const CustomerPortal = ({
             onQuickBuy={onQuickBuy}
             cartCount={cartItemCount}
             onOpenCart={onOpenCheckout}
-            title="🐾 4 Paw Certified Pharmacy & Pet Essentials Store"
-            subtitle="Explore veterinary prescription pharmaceuticals, nutritional feeds & accessories. Instant purchase with LKR pricing."
+            title="Dispensary & Pharmacy Store"
+            subtitle="Verified veterinary prescription pharmaceuticals, diets, and healthcare essentials."
           />
         </div>
       )}
