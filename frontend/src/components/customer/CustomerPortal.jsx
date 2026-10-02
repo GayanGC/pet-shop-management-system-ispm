@@ -32,6 +32,7 @@ import PrintableHealthPassportModal from '../pet/PrintableHealthPassportModal';
 import PetDetailsReportModal from '../pet/PetDetailsReportModal';
 import { createBooking, cancelBooking } from '../../services/bookingService';
 import petService from '../../services/petService';
+import { useTheme } from '../../context/ThemeContext';
 
 const VET_DOCTORS = [
   { id: 'Dr. Perera (Senior Vet)', name: 'Dr. Perera (Senior Vet & Clinical Surgeon)', specialty: 'Senior Surgeon & General Medicine' },
@@ -75,6 +76,7 @@ const CustomerPortal = ({
 }) => {
   // Active Tab: 'store' | 'channeling' | 'pets'
   const [activeTab, setActiveTab] = useState('pets');
+  const { customerFontScale, setCustomerFontScale, customerScales } = useTheme();
 
   // Internal reactive pets state with auto-fallback fetch
   const [portalPets, setPortalPets] = useState(pets || []);
@@ -237,56 +239,78 @@ const CustomerPortal = ({
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* 1. Personalized Pet Parent Header Card */}
-      <div className="bg-teal-800 dark:bg-slate-900 text-white p-6 sm:p-8 rounded-2xl shadow-md border border-teal-700/60 dark:border-slate-800 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-violet-900 via-purple-900 to-indigo-950 text-white p-6 sm:p-8 rounded-2xl shadow-md border border-violet-700/60 dark:border-slate-800 relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-teal-900/80 border border-teal-600/50 flex items-center justify-center text-white shrink-0">
-              <User className="w-6 h-6 text-teal-200" />
+            <div className="w-12 h-12 rounded-xl bg-violet-950/80 border border-violet-600/50 flex items-center justify-center text-white shrink-0">
+              <User className="w-6 h-6 text-violet-300" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
                   Welcome, {currentUser.name || 'Client'}
                 </h1>
-                <span className="px-2 py-0.5 rounded bg-teal-700/90 text-teal-100 font-mono text-[10px] font-semibold border border-teal-500/40 uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded bg-violet-800/90 text-violet-100 font-mono text-[10px] font-semibold border border-violet-500/40 uppercase tracking-wider">
                   Verified Client
                 </span>
               </div>
-              <p className="text-xs text-teal-100/80 dark:text-slate-400 mt-1 max-w-xl">
+              <p className="text-xs text-violet-200/80 dark:text-slate-400 mt-1 max-w-xl">
                 Client Portal: Access health passports, reserve veterinary doctor channeling slots, and order verified pharmaceuticals.
               </p>
             </div>
           </div>
 
-          {/* Quick Metrics */}
-          <div className="flex items-center gap-2.5 w-full md:w-auto">
-            <div className="px-4 py-2 rounded-xl bg-teal-900/60 dark:bg-slate-800/80 border border-teal-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial">
-              <span className="text-[10px] font-bold text-teal-200 uppercase block tracking-wider">Pets</span>
+          {/* Quick Metrics & Personal Accessibility Controls */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+            {/* Accessibility Font Size Controller (A- / A / A+) */}
+            <div className="flex items-center gap-1 bg-violet-950/70 border border-violet-500/40 rounded-xl p-1 shadow-xs" title="Adjust Text Readability Size (Personal Accessibility)">
+              <span className="text-[10px] font-bold text-violet-300 uppercase px-1.5 flex items-center gap-1">
+                Text:
+              </span>
+              {customerScales.map((item) => (
+                <button
+                  key={item.scale}
+                  type="button"
+                  onClick={() => setCustomerFontScale(item.scale)}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    customerFontScale === item.scale
+                      ? 'bg-violet-600 text-white shadow-xs scale-105'
+                      : 'text-violet-200 hover:bg-violet-800/60'
+                  }`}
+                  title={item.title}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="px-4 py-2 rounded-xl bg-violet-950/60 dark:bg-slate-800/80 border border-violet-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial">
+              <span className="text-[10px] font-bold text-violet-300 uppercase block tracking-wider">Pets</span>
               <span className="text-lg font-bold font-mono">{portalPets.length}</span>
             </div>
-            <div className="px-4 py-2 rounded-xl bg-teal-900/60 dark:bg-slate-800/80 border border-teal-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial">
-              <span className="text-[10px] font-bold text-teal-200 uppercase block tracking-wider">Channelings</span>
+            <div className="px-4 py-2 rounded-xl bg-violet-950/60 dark:bg-slate-800/80 border border-violet-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial">
+              <span className="text-[10px] font-bold text-violet-300 uppercase block tracking-wider">Channelings</span>
               <span className="text-lg font-bold font-mono">{bookings.length}</span>
             </div>
             <div
               onClick={() => onTabChange && onTabChange('orders')}
-              className="px-4 py-2 rounded-xl bg-teal-900/60 hover:bg-teal-900 dark:bg-slate-800/80 border border-teal-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial cursor-pointer transition-all active:scale-95"
+              className="px-4 py-2 rounded-xl bg-violet-950/60 hover:bg-violet-900/80 dark:bg-slate-800/80 border border-violet-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial cursor-pointer transition-all active:scale-95"
               title="Click to view My Orders"
             >
-              <span className="text-[10px] font-bold text-teal-200 uppercase block tracking-wider">Invoices</span>
+              <span className="text-[10px] font-bold text-violet-300 uppercase block tracking-wider">Invoices</span>
               <span className="text-lg font-bold font-mono">{invoices.length}</span>
             </div>
           </div>
         </div>
 
         {/* Dedicated Portal Tabs */}
-        <div className="flex flex-wrap gap-2 pt-5 mt-6 border-t border-teal-700/50 dark:border-slate-800">
+        <div className="flex flex-wrap gap-2 pt-5 mt-6 border-t border-violet-700/50 dark:border-slate-800">
           <button
             onClick={() => handleTabSwitch('pets')}
             className={`py-2 px-4 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'pets'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-teal-900/60 hover:bg-teal-900 text-teal-100'
+                ? 'bg-violet-600 text-white shadow-xs'
+                : 'bg-violet-950/60 hover:bg-violet-900/80 text-violet-200'
             }`}
           >
             <PawPrint className="w-4 h-4" />
@@ -297,8 +321,8 @@ const CustomerPortal = ({
             onClick={() => handleTabSwitch('channeling')}
             className={`py-2 px-4 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'channeling'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-teal-900/60 hover:bg-teal-900 text-teal-100'
+                ? 'bg-violet-600 text-white shadow-xs'
+                : 'bg-violet-950/60 hover:bg-violet-900/80 text-violet-200'
             }`}
           >
             <Stethoscope className="w-4 h-4" />
@@ -309,8 +333,8 @@ const CustomerPortal = ({
             onClick={() => handleTabSwitch('store')}
             className={`py-2 px-4 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'store'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-teal-900/60 hover:bg-teal-900 text-teal-100'
+                ? 'bg-violet-600 text-white shadow-xs'
+                : 'bg-violet-950/60 hover:bg-violet-900/80 text-violet-200'
             }`}
           >
             <ShoppingBag className="w-4 h-4" />
@@ -321,7 +345,7 @@ const CustomerPortal = ({
             onClick={() => {
               if (onTabChange) onTabChange('orders');
             }}
-            className="py-2 px-4 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer bg-teal-900/60 hover:bg-teal-900 text-teal-100"
+            className="py-2 px-4 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer bg-violet-950/60 hover:bg-violet-900/80 text-violet-200"
           >
             <Receipt className="w-4 h-4" />
             <span>Invoices & Receipts ({invoices.length})</span>
@@ -352,7 +376,7 @@ const CustomerPortal = ({
       {activeTab === 'channeling' && (
         <div className="space-y-8">
           {/* Channeling Booking Form Card */}
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-teal-150 dark:border-slate-800 shadow-xl space-y-6">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-violet-100 dark:border-slate-800 shadow-xl space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-md">
@@ -391,7 +415,7 @@ const CustomerPortal = ({
                       required
                       value={selectedPetId}
                       onChange={(e) => setSelectedPetId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-violet-500 focus:outline-none"
                     >
                       {portalPets.map((p) => (
                         <option key={p._id} value={p._id}>
@@ -414,7 +438,7 @@ const CustomerPortal = ({
                   <select
                     value={selectedVet}
                     onChange={(e) => setSelectedVet(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-violet-500 focus:outline-none"
                   >
                     {VET_DOCTORS.map((doc) => (
                       <option key={doc.id} value={doc.id}>
@@ -432,7 +456,7 @@ const CustomerPortal = ({
                   <select
                     value={selectedService}
                     onChange={(e) => setSelectedService(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-violet-500 focus:outline-none"
                   >
                     {SERVICE_TYPES.map((st) => (
                       <option key={st} value={st}>
@@ -453,7 +477,7 @@ const CustomerPortal = ({
                     min={new Date().toISOString().split('T')[0]}
                     value={channelingDate}
                     onChange={(e) => setChannelingDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-violet-500 focus:outline-none"
                   />
                 </div>
 
@@ -467,7 +491,7 @@ const CustomerPortal = ({
                     value={channelingNotes}
                     onChange={(e) => setChannelingNotes(e.target.value)}
                     placeholder="e.g. Lethargy, routine booster checkup, itching on ear..."
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:border-violet-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -485,7 +509,7 @@ const CustomerPortal = ({
                       onClick={() => setSelectedSlot(slot)}
                       className={`py-2 px-3.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         selectedSlot === slot
-                          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md scale-105'
+                          ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md scale-105'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
                       }`}
                     >
@@ -501,7 +525,7 @@ const CustomerPortal = ({
                 <button
                   type="submit"
                   disabled={isChannelingLoading || portalPets.length === 0}
-                  className="py-3 px-8 rounded-2xl bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-700/25 cursor-pointer disabled:opacity-50 transition-all"
+                  className="py-3 px-8 rounded-2xl bg-gradient-to-r from-violet-700 via-purple-600 to-indigo-700 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-700/25 cursor-pointer disabled:opacity-50 transition-all"
                 >
                   {isChannelingLoading ? (
                     <span>Verifying Slot & Confirming...</span>
@@ -517,7 +541,7 @@ const CustomerPortal = ({
           </div>
 
           {/* My Upcoming Channelings List */}
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-teal-150 dark:border-slate-800 shadow-xl space-y-4">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-violet-100 dark:border-slate-800 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <span>📅</span>
@@ -593,7 +617,7 @@ const CustomerPortal = ({
       {activeTab === 'pets' && (
         <div className="space-y-6">
           {/* Top Header & Search Bar */}
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-5 sm:p-6 rounded-3xl border border-teal-150 dark:border-slate-800 shadow-xl space-y-4">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-5 sm:p-6 rounded-3xl border border-violet-100 dark:border-slate-800 shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center text-2xl font-black shadow-md">
@@ -602,7 +626,7 @@ const CustomerPortal = ({
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
                     <span>My Registered Pets & Clinical Reports</span>
-                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-teal-100 text-violet-800 dark:bg-teal-950 dark:text-teal-300">
                       {portalPets.length} Patients
                     </span>
                   </h2>
@@ -620,7 +644,7 @@ const CustomerPortal = ({
                     onClick={() => setPetViewMode('cards')}
                     className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       petViewMode === 'cards'
-                        ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs'
+                        ? 'bg-white dark:bg-slate-700 text-violet-700 dark:text-teal-300 shadow-xs'
                         : 'text-slate-500 hover:text-slate-900'
                     }`}
                     title="Card Grid View"
@@ -632,7 +656,7 @@ const CustomerPortal = ({
                     onClick={() => setPetViewMode('table')}
                     className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       petViewMode === 'table'
-                        ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs'
+                        ? 'bg-white dark:bg-slate-700 text-violet-700 dark:text-teal-300 shadow-xs'
                         : 'text-slate-500 hover:text-slate-900'
                     }`}
                     title="Directory Table View"
@@ -644,7 +668,7 @@ const CustomerPortal = ({
                 <button
                   type="button"
                   onClick={onOpenRegisterPetModal}
-                  className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                  className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
                 >
                   <Plus className="w-4 h-4" />
                   <span>+ Register Another Pet</span>
@@ -661,7 +685,7 @@ const CustomerPortal = ({
                   placeholder="Filter your pets by name, PIN, breed..."
                   value={petSearchTerm}
                   onChange={(e) => setPetSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:border-violet-500 focus:outline-none transition-all placeholder:text-slate-400"
                 />
               </div>
 
@@ -670,7 +694,7 @@ const CustomerPortal = ({
                 <select
                   value={petSpeciesFilter}
                   onChange={(e) => setPetSpeciesFilter(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-teal-500 focus:outline-none cursor-pointer"
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:border-violet-500 focus:outline-none cursor-pointer"
                 >
                   <option value="All">All Species</option>
                   <option value="Dog">Dog 🐕</option>
@@ -688,8 +712,8 @@ const CustomerPortal = ({
 
           {/* Empty State when 0 pets registered */}
           {portalPets.length === 0 ? (
-            <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-10 rounded-3xl border-2 border-dashed border-teal-200 dark:border-slate-800 shadow-xl text-center space-y-4 max-w-2xl mx-auto">
-              <div className="w-16 h-16 rounded-3xl bg-teal-50 dark:bg-teal-950/80 text-teal-600 dark:text-teal-300 flex items-center justify-center mx-auto border border-teal-200 dark:border-teal-800 shadow-md">
+            <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-10 rounded-3xl border-2 border-dashed border-violet-200 dark:border-slate-800 shadow-xl text-center space-y-4 max-w-2xl mx-auto">
+              <div className="w-16 h-16 rounded-3xl bg-violet-50 dark:bg-teal-950/80 text-violet-600 dark:text-teal-300 flex items-center justify-center mx-auto border border-violet-200 dark:border-violet-800 shadow-md">
                 <PawPrint className="w-8 h-8 animate-bounce" />
               </div>
               <div className="space-y-1">
@@ -703,7 +727,7 @@ const CustomerPortal = ({
               <button
                 type="button"
                 onClick={onOpenRegisterPetModal}
-                className="py-3 px-6 rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs inline-flex items-center gap-2 shadow-lg shadow-teal-700/20 active:scale-95 cursor-pointer transition-all"
+                className="py-3 px-6 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-xs inline-flex items-center gap-2 shadow-lg shadow-teal-700/20 active:scale-95 cursor-pointer transition-all"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Register Your First Pet</span>
@@ -735,7 +759,7 @@ const CustomerPortal = ({
                     {filteredPets.map((pet) => (
                       <tr key={pet._id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="py-3.5 px-5">
-                          <span className="bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 font-mono text-[11px] px-2.5 py-1 rounded-md border border-teal-200 dark:border-teal-800 font-black inline-block">
+                          <span className="bg-violet-50 dark:bg-teal-950 text-violet-700 dark:text-teal-300 font-mono text-[11px] px-2.5 py-1 rounded-md border border-violet-200 dark:border-violet-800 font-black inline-block">
                             {pet.uniquePin}
                           </span>
                         </td>
@@ -769,7 +793,7 @@ const CustomerPortal = ({
                           <button
                             type="button"
                             onClick={() => setSelectedPetForReport(pet)}
-                            className="py-1.5 px-3 rounded-xl bg-teal-50 dark:bg-teal-950 hover:bg-teal-100 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300 font-extrabold text-[11px] border border-teal-200 dark:border-teal-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            className="py-1.5 px-3 rounded-xl bg-violet-50 dark:bg-teal-950 hover:bg-teal-100 dark:hover:bg-teal-900 text-violet-700 dark:text-teal-300 font-extrabold text-[11px] border border-violet-200 dark:border-violet-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
                             title="View Complete Clinical Diagnostic Report"
                           >
                             <FileText className="w-3.5 h-3.5" />
@@ -850,9 +874,9 @@ const CustomerPortal = ({
                       </div>
 
                       {/* Extended Details Chip */}
-                      <div className="p-2.5 rounded-xl bg-teal-50/40 dark:bg-slate-800/40 border border-teal-100 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+                      <div className="p-2.5 rounded-xl bg-violet-50/40 dark:bg-slate-800/40 border border-teal-100 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
                         <span className="text-slate-500 dark:text-slate-400 font-bold">Registration Intake:</span>
-                        <span className="font-mono font-bold text-teal-800 dark:text-teal-300">
+                        <span className="font-mono font-bold text-violet-800 dark:text-teal-300">
                           {new Date(pet.createdAt || Date.now()).toLocaleDateString()}
                         </span>
                       </div>
@@ -863,7 +887,7 @@ const CustomerPortal = ({
                         <button
                           type="button"
                           onClick={() => setSelectedPetForReport(pet)}
-                          className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-teal-700/20 cursor-pointer transition-all"
+                          className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-teal-700/20 cursor-pointer transition-all"
                         >
                           <FileText className="w-3.5 h-3.5" />
                           <span>📋 Clinical Report</span>
@@ -875,7 +899,7 @@ const CustomerPortal = ({
                           onClick={() => setSelectedPetForPassport(pet)}
                           className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer transition-all"
                         >
-                          <Printer className="w-3.5 h-3.5 text-teal-600" />
+                          <Printer className="w-3.5 h-3.5 text-violet-600" />
                           <span>🩺 Health Passport</span>
                         </button>
                       </div>
@@ -888,7 +912,7 @@ const CustomerPortal = ({
                           className="w-full py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-between border border-slate-200 dark:border-slate-700 cursor-pointer transition-all"
                         >
                           <div className="flex items-center gap-1.5">
-                            <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+                            <Stethoscope className="w-3.5 h-3.5 text-violet-600" />
                             <span>Doctor Consultation Visits ({logs.length})</span>
                           </div>
                           {isTimelineOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -900,10 +924,10 @@ const CustomerPortal = ({
                         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 animate-fadeIn">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                              <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+                              <Stethoscope className="w-3.5 h-3.5 text-violet-600" />
                               Doctor Clinical Visit Notes & Prescriptions
                             </span>
-                            <span className="text-[10px] text-teal-600 font-mono font-bold">
+                            <span className="text-[10px] text-violet-600 font-mono font-bold">
                               {logs.length} Recorded Visits
                             </span>
                           </div>
@@ -918,7 +942,7 @@ const CustomerPortal = ({
                                 return (
                                   <div
                                     key={idx}
-                                    className="p-3.5 rounded-2xl bg-teal-50/50 dark:bg-slate-800/70 border border-teal-200/60 dark:border-slate-700 space-y-2 text-xs"
+                                    className="p-3.5 rounded-2xl bg-violet-50/50 dark:bg-slate-800/70 border border-violet-200/60 dark:border-slate-700 space-y-2 text-xs"
                                   >
                                     <div className="flex items-center justify-between">
                                       <span className="font-bold text-teal-900 dark:text-teal-200 flex items-center gap-1">
@@ -931,7 +955,7 @@ const CustomerPortal = ({
 
                                     {/* Diagnosis */}
                                     <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                                      <span className="text-[10px] font-black uppercase text-teal-700 dark:text-teal-300 block">
+                                      <span className="text-[10px] font-black uppercase text-violet-700 dark:text-teal-300 block">
                                         Clinical Diagnosis
                                       </span>
                                       <p className="font-bold text-slate-800 dark:text-white mt-0.5">
@@ -991,7 +1015,7 @@ const CustomerPortal = ({
                                   setSelectedPetId(pet._id);
                                   handleTabSwitch('channeling');
                                 }}
-                                className="text-[11px] font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 underline cursor-pointer"
+                                className="text-[11px] font-bold text-violet-600 hover:text-violet-700 dark:text-teal-400 underline cursor-pointer"
                               >
                                 + Book Consultation for {pet.petName}
                               </button>

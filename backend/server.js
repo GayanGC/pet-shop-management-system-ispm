@@ -77,6 +77,9 @@ app.use('/api/suppliers', require('./routes/supplierRoutes'));
 // User & Client Directory Routes
 app.use('/api/users', require('./routes/userRoutes'));
 
+// System Settings & Dynamic Branding Routes
+app.use('/api/settings', require('./routes/settingsRoutes'));
+
 // ============================================================================
 // GLOBAL ERROR HANDLING & 404 MIDDLEWARE
 // ============================================================================

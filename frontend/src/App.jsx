@@ -25,6 +25,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Sparkles,
+  Palette,
   Zap,
   Clock,
   Globe,
@@ -59,6 +60,8 @@ import GuestClinicOverview from './components/guest/GuestClinicOverview';
 import RegisterStaffModal from './components/admin/RegisterStaffModal';
 import StaffDirectory from './components/admin/StaffDirectory';
 import ProTierModal from './components/common/ProTierModal';
+import ThemeSettingsModal from './components/admin/ThemeSettingsModal';
+import { useTheme } from './context/ThemeContext';
 
 import { getCurrentUser, logout, login } from './services/authService';
 import { fetchPets, fetchPetByPin, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
@@ -239,6 +242,7 @@ function App() {
   const [notification, setNotification] = useState({ message: '', type: '' });
   const [isRegisterStaffModalOpen, setIsRegisterStaffModalOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
+  const { isThemeModalOpen, setIsThemeModalOpen, customerFontScale, setCustomerFontScale, customerScales } = useTheme();
 
   // Cashier POS Patient Link & Real-time Query State
   const [posPatient, setPosPatient] = useState(null);
@@ -1099,26 +1103,26 @@ function App() {
   return (
     <div className={theme === 'dark' 
       ? 'min-h-screen bg-slate-950 text-slate-100 transition-colors duration-300' 
-      : 'min-h-screen bg-slate-100 text-slate-900 transition-colors duration-300'}>
+      : 'min-h-screen bg-violet-50/40 text-slate-900 transition-colors duration-300'}>
       
       {/* 1. TOP HEADER BAR */}
-      <header className="bg-teal-800 dark:bg-slate-900 text-white shadow-md border-b border-teal-700/60 dark:border-slate-800 transition-colors sticky top-0 z-50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+      <header className="bg-gradient-to-r from-violet-900 via-purple-900 to-indigo-950 text-white shadow-md border-b border-violet-700/60 dark:border-slate-800 transition-colors sticky top-0 z-50 backdrop-blur-md">
+        <div className="w-full max-w-none px-4 sm:px-6 lg:px-10 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
           
           {/* Logo & Brand Identity */}
           <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-teal-900/90 border border-teal-600/60 dark:border-slate-700 flex items-center justify-center text-white shadow-xs">
-                <Activity className="w-5 h-5 text-teal-300" />
+              <div className="w-10 h-10 rounded-xl bg-violet-950/80 border border-violet-500/50 dark:border-slate-700 flex items-center justify-center text-white shadow-xs">
+                <Activity className="w-5 h-5 text-violet-300" />
               </div>
               <div>
                 <h1 className="text-base sm:text-lg font-bold tracking-tight leading-none text-white flex items-center gap-2">
                   4 Paw Animal Clinic
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-teal-700/80 text-teal-100 border border-teal-500/40 font-mono font-semibold uppercase tracking-wider">
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-violet-800/80 text-violet-100 border border-violet-500/40 font-mono font-semibold uppercase tracking-wider">
                     Clinical HMS
                   </span>
                 </h1>
-                <p className="text-xs text-teal-100/80 dark:text-slate-400 font-normal mt-0.5">
+                <p className="text-xs text-violet-200/80 dark:text-slate-400 font-normal mt-0.5">
                   Hospital Management & Clinical Operations
                 </p>
               </div>
@@ -1128,7 +1132,7 @@ function App() {
             <div className="flex items-center gap-2 md:hidden">
               <button
                 onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-                className="p-2 rounded-lg border border-teal-700 dark:border-slate-700 bg-teal-900/60 dark:bg-slate-800 text-teal-200 dark:text-slate-200 transition shadow-xs cursor-pointer"
+                className="p-2 rounded-lg border border-violet-700/60 dark:border-slate-700 bg-violet-950/60 dark:bg-slate-800 text-violet-200 dark:text-slate-200 transition shadow-xs cursor-pointer"
                 title="Toggle Theme"
               >
                 {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-slate-100" />}
@@ -1151,12 +1155,12 @@ function App() {
                   if (activeTab === 'pharmacy') setProductSearch(val);
                   if (activeTab === 'pos') setPosProductQuery(val);
                 }}
-                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs rounded-lg border border-teal-600/40 dark:border-slate-700 focus:ring-2 focus:ring-teal-400 focus:outline-none placeholder:text-slate-400 font-medium shadow-xs"
+                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs rounded-lg border border-violet-700/40 dark:border-slate-700 focus:ring-2 focus:ring-violet-400 focus:outline-none placeholder:text-slate-400 font-medium shadow-xs"
               />
             </div>
             <button
               type="submit"
-              className="bg-teal-700 hover:bg-teal-600 text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition-all duration-150 border border-teal-500/40 shadow-xs active:scale-95 cursor-pointer shrink-0"
+              className="bg-violet-700 hover:bg-violet-600 text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition-all duration-150 border border-violet-500/40 shadow-xs active:scale-95 cursor-pointer shrink-0"
             >
               Search
             </button>
@@ -1165,8 +1169,8 @@ function App() {
           {/* Right Header Controls */}
           <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
             {/* Phone Hot-line */}
-            <div className="hidden xl:flex items-center gap-1.5 bg-teal-900/70 dark:bg-slate-800/90 px-3 py-1.5 rounded-lg text-xs font-semibold text-teal-100 dark:text-slate-300 border border-teal-700/60 dark:border-slate-700 shadow-xs">
-              <Phone className="w-3.5 h-3.5 text-teal-300" />
+            <div className="hidden xl:flex items-center gap-1.5 bg-violet-950/70 dark:bg-slate-800/90 px-3 py-1.5 rounded-lg text-xs font-semibold text-violet-100 dark:text-slate-300 border border-violet-700/60 dark:border-slate-700 shadow-xs">
+              <Phone className="w-3.5 h-3.5 text-violet-300" />
               <span className="font-mono">+94 11 234 5678</span>
             </div>
 
@@ -1180,15 +1184,50 @@ function App() {
               <span>Upgrade to Pro</span>
             </button>
 
+            {/* Admin Theme & Branding Settings Button */}
+            {role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => setIsThemeModalOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-800/80 hover:bg-violet-700 text-violet-100 border border-violet-500/50 text-xs font-semibold shadow-xs transition cursor-pointer"
+                title="Admin Theme & Branding Settings (System-Wide Persistence)"
+              >
+                <Palette className="w-3.5 h-3.5 text-violet-300" />
+                <span className="hidden xl:inline">Theme</span>
+              </button>
+            )}
+
+            {/* Customer Accessibility Font Size Controller (A- / A / A+) */}
+            {role === 'customer' && (
+              <div className="flex items-center gap-1 bg-violet-950/80 border border-violet-600/50 rounded-lg p-0.5 text-xs shadow-xs" title="Adjust Text Readability Size">
+                <span className="text-[10px] font-bold text-violet-300 uppercase px-1 hidden lg:inline">Text</span>
+                {customerScales.map((item) => (
+                  <button
+                    key={item.scale}
+                    type="button"
+                    onClick={() => setCustomerFontScale(item.scale)}
+                    className={`px-1.5 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
+                      customerFontScale === item.scale
+                        ? 'bg-violet-600 text-white shadow-xs'
+                        : 'text-violet-200 hover:bg-violet-800/70'
+                    }`}
+                    title={item.title}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
 
             {/* Shopping Cart Shortcut Button */}
             {(!currentUser || role === 'customer') && (
               <button
                 onClick={() => handleActionWithAuth(() => setIsCheckoutModalOpen(true), 'Please sign in to view your cart and checkout.')}
-                className="relative p-2 rounded-lg bg-teal-900/70 hover:bg-teal-700 dark:bg-slate-800 dark:hover:bg-slate-700 text-teal-200 dark:text-slate-200 transition cursor-pointer border border-teal-700/60 dark:border-slate-700 flex items-center gap-1.5 shadow-xs"
+                className="relative p-2 rounded-lg bg-violet-950/70 hover:bg-violet-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-violet-200 dark:text-slate-200 transition cursor-pointer border border-violet-700/60 dark:border-slate-700 flex items-center gap-1.5 shadow-xs"
                 title="Shopping Bag & Checkout"
               >
-                <ShoppingCart className="w-4 h-4 text-teal-200" />
+                <ShoppingCart className="w-4 h-4 text-violet-200" />
                 {cartItemCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white font-mono font-bold text-[10px]">
                     {cartItemCount}
@@ -1200,14 +1239,14 @@ function App() {
             {/* Theme Toggler */}
             <button
               onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-              className="hidden md:flex p-2 rounded-lg border border-teal-700 dark:border-slate-700 bg-teal-900/70 hover:bg-teal-700 dark:bg-slate-800 dark:hover:bg-slate-700 text-teal-200 dark:text-slate-200 transition shadow-xs cursor-pointer"
+              className="hidden md:flex p-2 rounded-lg border border-violet-700/60 dark:border-slate-700 bg-violet-950/70 hover:bg-violet-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-violet-200 dark:text-slate-200 transition shadow-xs cursor-pointer"
               title="Toggle Light/Dark Theme"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-teal-100" />}
             </button>
 
             {/* Live Server Status */}
-            <div className="hidden sm:flex items-center gap-1.5 bg-teal-900/70 dark:bg-slate-800/90 px-3 py-1.5 rounded-lg text-teal-100 dark:text-slate-300 font-medium border border-teal-700/60 dark:border-slate-700 shadow-xs">
+            <div className="hidden sm:flex items-center gap-1.5 bg-violet-950/70 dark:bg-slate-800/90 px-3 py-1.5 rounded-lg text-violet-100 dark:text-slate-300 font-medium border border-violet-700/60 dark:border-slate-700 shadow-xs">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -1221,12 +1260,12 @@ function App() {
                 <button
                   type="button"
                   onClick={() => { setAuthModalMessage(''); setIsAuthModalOpen(true); }}
-                  className="flex items-center gap-2 bg-teal-900/90 hover:bg-teal-900/70 dark:bg-slate-800 dark:hover:bg-slate-750 px-3 py-1.5 rounded-lg text-white font-medium border border-teal-700/60 dark:border-slate-700 shadow-xs transition cursor-pointer"
+                  className="flex items-center gap-2 bg-violet-950/90 hover:bg-violet-900/80 dark:bg-slate-800 dark:hover:bg-slate-750 px-3 py-1.5 rounded-lg text-white font-medium border border-violet-700/60 dark:border-slate-700 shadow-xs transition cursor-pointer"
                   title="Switch Clinical Account"
                 >
-                  <UserIcon className="w-3.5 h-3.5 text-teal-300" />
+                  <UserIcon className="w-3.5 h-3.5 text-violet-300" />
                   <span className="font-semibold text-xs truncate max-w-[150px]">{currentUser.name || currentUser.email}</span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-700 text-teal-100 uppercase font-mono font-bold tracking-wider">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-700 text-violet-100 uppercase font-mono font-bold tracking-wider">
                     {role === 'inventory_officer' ? 'INVENTORY' : role}
                   </span>
                 </button>
@@ -1242,7 +1281,7 @@ function App() {
             ) : (
               <button
                 onClick={() => { setAuthModalMessage(''); setIsAuthModalOpen(true); }}
-                className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white font-semibold px-3.5 py-2 rounded-lg text-xs transition shadow-xs border border-teal-400/40 active:scale-95 cursor-pointer"
+                className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold px-3.5 py-2 rounded-lg text-xs transition shadow-xs border border-violet-400/40 active:scale-95 cursor-pointer"
               >
                 <LogIn className="w-4 h-4" />
                 <span>Sign In / Register</span>
@@ -1254,7 +1293,7 @@ function App() {
 
       {/* 2. SECONDARY CLINICAL NAVIGATION BAR */}
       <nav className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 shadow-xs sticky top-[58px] z-40 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto py-2.5 gap-2 text-xs font-medium">
+        <div className="w-full max-w-none px-4 sm:px-6 lg:px-10 flex overflow-x-auto py-2.5 gap-2 text-xs font-medium">
           {navTabs.map((tab) => (
             <button
               key={tab.id}
@@ -1264,7 +1303,7 @@ function App() {
               }}
               className={`py-2 px-4 rounded-lg flex items-center gap-2 whitespace-nowrap transition-all duration-150 cursor-pointer text-xs font-semibold ${
                 activeTab === tab.id
-                  ? 'bg-teal-700 text-white shadow-xs border border-teal-600'
+                  ? 'bg-violet-700 text-white shadow-xs border border-violet-600'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent'
               }`}
             >
@@ -1285,7 +1324,7 @@ function App() {
       )}
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <main className="w-full max-w-none px-4 sm:px-6 lg:px-10 py-6 space-y-8">
         {!currentUser ? (
           /* GUEST (LOGGED-OUT) STRICT VIEW */
           <div ref={mainContentRef} className="pt-2">
@@ -1316,7 +1355,7 @@ function App() {
         ) : (
           <>
             {/* 3. DYNAMIC HERO PHOTO CAROUSEL BANNER */}
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl min-h-[320px] md:min-h-[360px] flex items-center border border-teal-100/50 dark:border-emerald-500/20">
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl min-h-[320px] md:min-h-[360px] flex items-center border border-violet-200/60 dark:border-violet-500/20">
           {heroSlides.map((slide, index) => (
             <div
               key={index}
@@ -1329,7 +1368,7 @@ function App() {
                 alt={slide.title}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-teal-950/95 via-teal-900/80 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-950/95 via-purple-900/80 to-transparent" />
             </div>
           ))}
 
@@ -1360,7 +1399,7 @@ function App() {
               {heroSlides[currentHeroSlide].title}
             </h2>
 
-            <p className="text-xs md:text-sm text-teal-100 font-medium leading-relaxed drop-shadow-sm max-w-xl">
+            <p className="text-xs md:text-sm text-violet-100 font-medium leading-relaxed drop-shadow-sm max-w-xl">
               {heroSlides[currentHeroSlide].subtitle}
             </p>
 
@@ -1392,7 +1431,7 @@ function App() {
                 <>
                   <button
                     onClick={() => handleActionWithAuth(() => setIsPetModalOpen(true), 'Please sign in to register a pet patient.')}
-                    className="bg-teal-700 hover:bg-teal-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs border border-teal-500/40"
+                    className="bg-violet-700 hover:bg-violet-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs border border-violet-500/40"
                   >
                     <Plus className="w-4 h-4" /> Register Patient
                   </button>
@@ -1401,7 +1440,7 @@ function App() {
                     onClick={() => handleActionWithAuth(() => setIsBookingModalOpen(true), 'Please sign in to book a clinical appointment.')}
                     className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
                   >
-                    <Calendar className="w-4 h-4 text-teal-200" /> Book Consultation
+                    <Calendar className="w-4 h-4 text-violet-200" /> Book Consultation
                   </button>
 
                   {(!currentUser || role === 'admin' || role === 'inventory_officer') && (
@@ -1409,7 +1448,7 @@ function App() {
                       onClick={() => handleActionWithAuth(() => setIsProductModalOpen(true), 'Please sign in as Admin or Inventory Officer to add stock.')}
                       className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
                     >
-                      <Package className="w-4 h-4 text-teal-200" /> Add Inventory Item
+                      <Package className="w-4 h-4 text-violet-200" /> Add Inventory Item
                     </button>
                   )}
 
@@ -1434,7 +1473,7 @@ function App() {
                 onClick={() => setCurrentHeroSlide(idx)}
                 className={`transition-all duration-300 rounded-full cursor-pointer ${
                   idx === currentHeroSlide
-                    ? 'w-7 h-2 bg-teal-400 shadow-xs'
+                    ? 'w-7 h-2 bg-violet-400 shadow-xs'
                     : 'w-2 h-2 bg-white/40 hover:bg-white/80'
                 }`}
                 title={`Go to slide ${idx + 1}`}
@@ -1447,10 +1486,10 @@ function App() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <Activity className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
               {isCashier ? 'POS & Cashier Billing Operations' : role === 'inventory_officer' ? 'Inventory & Supply Operations' : role === 'staff' ? 'Clinical Operations Hubs' : 'Clinical Service Hubs'}
             </h3>
-            <span className="text-[11px] text-teal-700 dark:text-teal-400 font-semibold">
+            <span className="text-[11px] text-violet-700 dark:text-violet-400 font-semibold">
               {isCashier ? 'Cashier Operations' : role === 'inventory_officer' ? 'Supply Operations' : role === 'staff' ? 'Doctor Operations' : 'Core Services'}
             </span>
           </div>
@@ -1464,12 +1503,12 @@ function App() {
                     setActiveTab('pos');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <ShoppingCart className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">POS Terminal</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">POS Terminal</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">New Checkout</span>
                 </div>
 
@@ -1479,12 +1518,12 @@ function App() {
                     setActiveTab('orders');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Receipt className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Sales Ledger</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Sales Ledger</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{invoices.length} Total Invoices</span>
                 </div>
 
@@ -1526,12 +1565,12 @@ function App() {
                     setActiveTab('orders');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <TrendingUp className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Today's Sales</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Today's Sales</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Rs. {invoices.filter(inv => {
                     const today = new Date().toDateString();
                     return new Date(inv.createdAt || inv.updatedAt).toDateString() === today;
@@ -1546,12 +1585,12 @@ function App() {
                     setActiveTab('pharmacy');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Package className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Pharmacy & Stock</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Pharmacy & Stock</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Formulary Ledger</span>
                 </div>
 
@@ -1576,12 +1615,12 @@ function App() {
                     setActiveTab('suppliers');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Building2 className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Supplier Directory</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Supplier Directory</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{suppliers.length} Distributors</span>
                 </div>
 
@@ -1603,12 +1642,12 @@ function App() {
                 {/* Hub 5: Add Medication */}
                 <div
                   onClick={() => setIsProductModalOpen(true)}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Plus className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Register Drug</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Register Drug</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">New Batch & Stock</span>
                 </div>
               </>
@@ -1621,12 +1660,12 @@ function App() {
                     setPetSpeciesFilter('Dog');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Activity className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Canine Patients</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Canine Patients</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Passports & Vitals</span>
                 </div>
 
@@ -1637,12 +1676,12 @@ function App() {
                     setPetSpeciesFilter('Cat');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Activity className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Feline Patients</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Feline Patients</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Passports & Vitals</span>
                 </div>
 
@@ -1653,12 +1692,12 @@ function App() {
                     setBookingSubTab('calendar');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Calendar className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Doctor Calendar</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Doctor Calendar</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Slots & Appointments</span>
                 </div>
 
@@ -1668,24 +1707,24 @@ function App() {
                     setActiveTab('pharmacy');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Package className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Clinic Formulary</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Clinic Formulary</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Meds & Vaccines</span>
                 </div>
 
                 {/* Hub 5: Register Patient */}
                 <div
                   onClick={() => setIsPetModalOpen(true)}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Plus className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Register Patient</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Register Patient</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Issue Microchip PIN</span>
                 </div>
               </>
@@ -1698,12 +1737,12 @@ function App() {
                     setPetSpeciesFilter('Dog');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Activity className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Canine Patients</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Canine Patients</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Medical Profiles</span>
                 </div>
 
@@ -1714,12 +1753,12 @@ function App() {
                     setPetSpeciesFilter('Cat');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Activity className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Feline Patients</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Feline Patients</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Medical Profiles</span>
                 </div>
 
@@ -1730,12 +1769,12 @@ function App() {
                     setProductCategoryFilter('All');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Package className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Pharmacy Store</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Pharmacy Store</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Meds & Healthcare</span>
                 </div>
 
@@ -1745,12 +1784,12 @@ function App() {
                     setActiveTab('appointments');
                     scrollToContent();
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                     <Calendar className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Appointments</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Appointments</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Doctor Channeling</span>
                 </div>
 
@@ -1761,12 +1800,12 @@ function App() {
                       setActiveTab('pharmacy');
                       scrollToContent();
                     }}
-                    className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                    className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                       <ShoppingBag className="w-4 h-4" />
                     </div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Store & Cart</span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">Store & Cart</span>
                     <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Prescription Care</span>
                   </div>
                 ) : (
@@ -1775,12 +1814,12 @@ function App() {
                       setActiveTab('pos');
                       scrollToContent();
                     }}
-                    className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                    className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 group-hover:bg-violet-700 group-hover:text-white flex items-center justify-center transition-colors">
                       <Receipt className="w-4 h-4" />
                     </div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">POS Terminal</span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">POS Terminal</span>
                     <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Checkout Cashier</span>
                   </div>
                 )}
@@ -1794,7 +1833,7 @@ function App() {
           {role === 'customer' ? (
             <>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Activity className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1803,7 +1842,7 @@ function App() {
                 </div>
               </div>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Package className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1812,7 +1851,7 @@ function App() {
                 </div>
               </div>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1821,7 +1860,7 @@ function App() {
                 </div>
               </div>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Receipt className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1833,7 +1872,7 @@ function App() {
           ) : role === 'staff' ? (
             <>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Activity className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1842,7 +1881,7 @@ function App() {
                 </div>
               </div>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1851,7 +1890,7 @@ function App() {
                 </div>
               </div>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Package className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1872,7 +1911,7 @@ function App() {
           ) : role === 'inventory_officer' ? (
             <>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Package className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1899,7 +1938,7 @@ function App() {
                 </div>
               </div>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1912,7 +1951,7 @@ function App() {
             <>
               {/* Cashier KPI: Today's Invoice Count */}
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Receipt className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1927,7 +1966,7 @@ function App() {
               </div>
               {/* Total Sales Invoices */}
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1937,7 +1976,7 @@ function App() {
               </div>
               {/* Cash Sales */}
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Receipt className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1949,7 +1988,7 @@ function App() {
               </div>
               {/* Card + QR Sales */}
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1963,7 +2002,7 @@ function App() {
           ) : (
             <>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Activity className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1981,7 +2020,7 @@ function App() {
                 </div>
               </div>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -2009,7 +2048,7 @@ function App() {
               <div className="space-y-6 animate-fadeIn">
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-slate-800 text-violet-700 dark:text-violet-400 flex items-center justify-center shrink-0">
                       <Receipt className="w-5 h-5" />
                     </div>
                     <div>
@@ -2399,8 +2438,8 @@ function App() {
 
                   {/* Cashier header banner */}
                   {role === 'cashier' && (
-                    <div className="p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-800/50 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center text-teal-700 dark:text-teal-300">
+                    <div className="p-4 rounded-2xl bg-violet-50/70 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-800/50 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center text-violet-700 dark:text-teal-300">
                         <Receipt className="w-5 h-5" />
                       </div>
                       <div>
@@ -2622,6 +2661,13 @@ function App() {
           }}
         />
       )}
+
+      {/* Theme & Branding Settings Modal (Admin) */}
+      <ThemeSettingsModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        onShowToast={showToast}
+      />
 
       {/* 9. Pro & Enterprise Edition Roadmap Modal */}
       {isProModalOpen && (
