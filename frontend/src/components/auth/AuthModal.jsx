@@ -91,34 +91,25 @@ export const SPECIES_CATALOG = [
   }
 ];
 
-// ─── 1-Click Demo Accounts (5 Roles) ────────────────────────────────────────
-const DEMO_ACCOUNTS = [
+// ─── Authorized Clinical & Client Profiles (Instant Sign In) ───────────────
+const CLINICAL_ACCOUNTS = [
   {
     role: 'admin',
-    label: 'Admin',
+    label: 'Clinic Admin',
     icon: '👑',
     identifier: 'admin@4paw.lk',
     password: 'admin123',
-    badge: 'Full Clinic Control',
-    color: 'border-purple-300 bg-purple-50 text-purple-800 dark:bg-purple-950/50 dark:border-purple-800 dark:text-purple-300'
-  },
-  {
-    role: 'customer',
-    label: 'Customer',
-    icon: '👤',
-    identifier: 'customer@gmail.com',
-    password: 'customer123',
-    badge: 'Patient Pet Owner',
-    color: 'border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/50 dark:border-blue-800 dark:text-blue-300'
+    badge: 'Chief Administrator',
+    color: 'border-purple-300/80 bg-purple-50 hover:bg-purple-100 text-purple-900 dark:bg-purple-950/40 dark:border-purple-800 dark:text-purple-300'
   },
   {
     role: 'staff',
-    label: 'Staff',
+    label: 'Clinical Staff',
     icon: '🩺',
     identifier: 'staff@4paw.lk',
     password: 'staff123',
-    badge: 'Vet & Clinical Logs',
-    color: 'border-teal-300 bg-teal-50 text-teal-800 dark:bg-teal-950/50 dark:border-teal-800 dark:text-teal-300'
+    badge: 'Veterinary Surgeon',
+    color: 'border-teal-300/80 bg-teal-50 hover:bg-teal-100 text-teal-900 dark:bg-teal-950/40 dark:border-teal-800 dark:text-teal-300'
   },
   {
     role: 'inventory_officer',
@@ -127,7 +118,7 @@ const DEMO_ACCOUNTS = [
     identifier: 'inventory@4paw.lk',
     password: 'inv123',
     badge: 'Pharmacy & Stock Lead',
-    color: 'border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300'
+    color: 'border-amber-300/80 bg-amber-50 hover:bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
   },
   {
     role: 'cashier',
@@ -135,8 +126,17 @@ const DEMO_ACCOUNTS = [
     icon: '💵',
     identifier: 'cashier@4paw.lk',
     password: 'cashier123',
-    badge: 'POS Terminal & Sales',
-    color: 'border-green-300 bg-green-50 text-green-800 dark:bg-green-950/50 dark:border-green-800 dark:text-green-300'
+    badge: 'POS & Billing Terminal',
+    color: 'border-emerald-300/80 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
+  },
+  {
+    role: 'customer',
+    label: 'Pet Parent',
+    icon: '👤',
+    identifier: 'customer@gmail.com',
+    password: 'customer123',
+    badge: 'Client Portal',
+    color: 'border-blue-300/80 bg-blue-50 hover:bg-blue-100 text-blue-900 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300'
   }
 ];
 
@@ -323,33 +323,33 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, initialMessage }) => {
           </button>
         </div>
 
-        {/* 1-Click Demo Login Chips (5 Roles) */}
-        <div className="px-6 pt-4 pb-2 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
+        {/* Quick Clinical Profile Access (Fast Role Selection) */}
+        <div className="px-6 pt-4 pb-3 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              1-Click Demo Roles (Instant Login)
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              Quick Role Switcher & Authorized Access
             </span>
-            <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold">5 Roles Seeded</span>
+            <span className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold">5 Clinical Profiles</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
+            {CLINICAL_ACCOUNTS.map((account) => (
               <button
                 key={account.role}
                 type="button"
                 onClick={() => handleDemoLogin(account)}
                 disabled={loading}
-                className={`p-2 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between ${account.color}`}
-                title={`Login as ${account.label} (${account.identifier})`}
+                className={`p-2.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between shadow-xs ${account.color}`}
+                title={`Sign in as ${account.label} (${account.identifier})`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-base">{account.icon}</span>
-                  <span className="text-[9px] font-mono font-bold opacity-75">DEMO</span>
+                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider opacity-75">ACCESS</span>
                 </div>
-                <div className="mt-1">
-                  <span className="text-xs font-black block leading-tight">{account.label}</span>
-                  <span className="text-[9px] opacity-75 truncate block">{account.badge}</span>
+                <div className="mt-1.5">
+                  <span className="text-xs font-bold block leading-tight">{account.label}</span>
+                  <span className="text-[9px] opacity-75 truncate block mt-0.5">{account.badge}</span>
                 </div>
               </button>
             ))}

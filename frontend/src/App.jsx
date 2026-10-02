@@ -64,49 +64,6 @@ import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from '
 import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
 import { fetchInvoices as fetchInvoicesApi, createInvoice, voidInvoice } from './services/billingService';
 
-// Fast Role Switcher Configuration
-const DEMO_ROLES = [
-  {
-    role: 'admin',
-    label: 'Admin',
-    icon: ShieldAlert,
-    identifier: 'admin@4paw.lk',
-    password: 'admin123',
-    badge: 'Master Control'
-  },
-  {
-    role: 'staff',
-    label: 'Clinical Staff',
-    icon: Stethoscope,
-    identifier: 'staff@4paw.lk',
-    password: 'staff123',
-    badge: 'Vets & Clinical'
-  },
-  {
-    role: 'inventory_officer',
-    label: 'Inventory',
-    icon: Package,
-    identifier: 'inventory@4paw.lk',
-    password: 'inv123',
-    badge: 'Supply & Stock'
-  },
-  {
-    role: 'cashier',
-    label: 'Cashier',
-    icon: Receipt,
-    identifier: 'cashier@4paw.lk',
-    password: 'cashier123',
-    badge: 'POS Terminal'
-  },
-  {
-    role: 'customer',
-    label: 'Customer',
-    icon: UserIcon,
-    identifier: 'customer@gmail.com',
-    password: 'customer123',
-    badge: 'Pet Owner'
-  }
-];
 
 const DEFAULT_FALLBACK_PRODUCTS = [
   {
@@ -318,7 +275,9 @@ function App() {
     setCurrentUser(null);
     setActiveTab('overview');
     setCartItems([]);
-    showToast('Signed out successfully. Switched to Public Guest View.');
+    showToast('Signed out. Please select an authorized clinical account to sign in.');
+    setAuthModalMessage('');
+    setIsAuthModalOpen(true);
   };
 
   // 1-Click Fast Role Switcher Handler (Instantly morphs dashboard view)
@@ -1142,17 +1101,22 @@ function App() {
             {/* Auth User Status / Login Button */}
             {currentUser ? (
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-teal-900/90 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-white font-medium border border-teal-700/60 dark:border-slate-700 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => { setAuthModalMessage(''); setIsAuthModalOpen(true); }}
+                  className="flex items-center gap-2 bg-teal-900/90 hover:bg-teal-900/70 dark:bg-slate-800 dark:hover:bg-slate-750 px-3 py-1.5 rounded-lg text-white font-medium border border-teal-700/60 dark:border-slate-700 shadow-xs transition cursor-pointer"
+                  title="Switch Clinical Account"
+                >
                   <UserIcon className="w-3.5 h-3.5 text-teal-300" />
-                  <span className="font-semibold text-xs truncate max-w-[120px]">{currentUser.name || currentUser.email}</span>
+                  <span className="font-semibold text-xs truncate max-w-[150px]">{currentUser.name || currentUser.email}</span>
                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-700 text-teal-100 uppercase font-mono font-bold tracking-wider">
                     {role === 'inventory_officer' ? 'INVENTORY' : role}
                   </span>
-                </div>
+                </button>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-1 bg-rose-700 hover:bg-rose-800 px-3 py-1.5 rounded-lg text-white font-semibold text-[11px] transition cursor-pointer shadow-xs"
-                  title="Sign Out"
+                  className="flex items-center gap-1.5 bg-rose-700 hover:bg-rose-800 px-3 py-1.5 rounded-lg text-white font-semibold text-[11px] transition cursor-pointer shadow-xs"
+                  title="Sign Out / Switch Account"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Exit</span>
@@ -1171,58 +1135,9 @@ function App() {
         </div>
       </header>
 
-      {/* 1.5. FAST ROLE SWITCHER SEGMENTED TOOLBAR */}
-      <div className="bg-slate-900 dark:bg-slate-950 text-white text-xs px-4 sm:px-6 lg:px-8 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 shadow-inner z-40">
-        <div className="flex items-center gap-2">
-          <span className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-          </span>
-          <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">
-            Fast Role Switcher:
-          </span>
-          <span className="text-[11px] text-slate-300 hidden sm:inline">
-            Active: <strong className="text-white capitalize">{currentUser ? `${role.replace('_', ' ')} (${currentUser.name})` : 'Public Guest'}</strong>
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {DEMO_ROLES.map((acc) => {
-            const RoleIcon = acc.icon;
-            const isActive = currentUser && role === acc.role;
-            return (
-              <button
-                key={acc.role}
-                onClick={() => handleFastRoleSwitch(acc)}
-                className={`px-3 py-1 rounded-lg font-semibold text-[11px] transition-all flex items-center gap-1.5 cursor-pointer border ${
-                  isActive
-                    ? 'bg-teal-700 text-white border-teal-500 shadow-xs'
-                    : 'bg-slate-800/90 hover:bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
-                }`}
-                title={`Switch to ${acc.label} (${acc.identifier})`}
-              >
-                <RoleIcon className="w-3.5 h-3.5" />
-                <span>{acc.label}</span>
-              </button>
-            );
-          })}
-
-          {currentUser && (
-            <button
-              onClick={handleLogout}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-semibold text-[11px] transition-all flex items-center gap-1 cursor-pointer"
-              title="Switch to Public Guest (Logged Out)"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              <span>Guest</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. SECONDARY NAVIGATION BAR (ROLE-ADAPTIVE TABS) */}
-      <nav className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 shadow-xs sticky top-[57px] z-40 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto py-2 gap-1.5 text-xs font-medium">
+      {/* 2. SECONDARY CLINICAL NAVIGATION BAR */}
+      <nav className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 shadow-xs sticky top-[58px] z-40 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto py-2.5 gap-2 text-xs font-medium">
           {navTabs.map((tab) => (
             <button
               key={tab.id}
@@ -1230,10 +1145,10 @@ function App() {
                 setActiveTab(tab.id);
                 scrollToContent();
               }}
-              className={`py-1.5 px-3.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition-all duration-150 cursor-pointer ${
+              className={`py-2 px-4 rounded-lg flex items-center gap-2 whitespace-nowrap transition-all duration-150 cursor-pointer text-xs font-semibold ${
                 activeTab === tab.id
-                  ? 'bg-teal-700 text-white font-bold shadow-xs'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'bg-teal-700 text-white shadow-xs border border-teal-600'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent'
               }`}
             >
               <span>{tab.label}</span>
