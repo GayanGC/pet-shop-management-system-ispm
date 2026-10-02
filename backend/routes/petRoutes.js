@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   petHealthCheck,
   createPet,
+  getPetByPin,
   getAllPets,
   getPetById,
   updatePet,
@@ -14,6 +15,7 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 
 router.get('/health', petHealthCheck);
+router.get('/pin/:pin', protect, getPetByPin);
 
 router.patch('/:id/archive', protect, archivePet);
 router.get('/:id/health-passport', protect, getPetHealthSummary);

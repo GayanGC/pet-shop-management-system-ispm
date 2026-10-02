@@ -8,6 +8,27 @@ const mongoose = require('mongoose');
 const Appointment = require('../models/Appointment');
 const Pet = require('../models/Pet');
 
+const parseTimeSlotToMinutes = (timeSlotStr) => {
+  if (!timeSlotStr) return null;
+  const match = timeSlotStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const modifier = match[3] ? match[3].toUpperCase() : null;
+
+  if (modifier === 'PM' && hours < 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+
+  return hours * 60 + minutes;
+};
+
+const isWithinOperatingHours = (timeSlotStr) => {
+  const mins = parseTimeSlotToMinutes(timeSlotStr);
+  if (mins === null) return false;
+  // 08:30 AM = 510 mins, 07:30 PM (19:30) = 1170 mins
+  return mins >= 510 && mins <= 1170;
+};
+
 const bookingHealthCheck = async (req, res) => {
   return res.status(200).json({
     success: true,
@@ -19,12 +40,41 @@ const bookingHealthCheck = async (req, res) => {
 
 const createBooking = async (req, res) => {
   try {
-    const { petId, customerId, serviceType, assignedStaff, appointmentDate, timeSlot, notes } = req.body;
+    const { petId, petPin, customerId, serviceType, assignedStaff, appointmentDate, timeSlot, notes } = req.body;
 
-    if (!petId || !serviceType || !appointmentDate || !timeSlot) {
+    if ((!petId && !petPin) || !serviceType || !appointmentDate || !timeSlot) {
       return res.status(400).json({
         success: false,
-        message: 'Validation Error: Please provide petId, serviceType, appointmentDate, and timeSlot'
+        message: 'Validation Error: Please provide petId/petPin, serviceType, appointmentDate, and timeSlot'
+      });
+    }
+
+    // 1. Operating Hours Restriction (08:30 AM - 07:30 PM)
+    if (!isWithinOperatingHours(timeSlot)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Selected time slot is outside clinical operating hours (08:30 AM to 07:30 PM).'
+      });
+    }
+
+    // 2. Past Date & Time Guard
+    const apptDate = new Date(appointmentDate);
+    if (isNaN(apptDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Invalid appointment date format.'
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDay = new Date(apptDate);
+    targetDay.setHours(0, 0, 0, 0);
+
+    if (targetDay < today) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Cannot schedule appointments for dates in the past.'
       });
     }
 
@@ -36,11 +86,19 @@ const createBooking = async (req, res) => {
       });
     }
 
-    const pet = await Pet.findById(petId);
+    // 3. Patient Linkage Validation (Verified Pet PIN or Patient Record)
+    let pet = null;
+    if (petId && mongoose.Types.ObjectId.isValid(petId)) {
+      pet = await Pet.findById(petId);
+    } else if (petPin || petId) {
+      const pinToFind = String(petPin || petId).trim().toUpperCase();
+      pet = await Pet.findOne({ uniquePin: pinToFind });
+    }
+
     if (!pet || pet.isArchived) {
       return res.status(404).json({
         success: false,
-        message: 'Selected pet patient record does not exist or is archived'
+        message: 'Validation Error: Selected pet patient record does not exist or is archived. A verified patient record is required.'
       });
     }
 
@@ -48,7 +106,7 @@ const createBooking = async (req, res) => {
     const startOfDay = new Date(`${dateOnly}T00:00:00.000Z`);
     const endOfDay = new Date(`${dateOnly}T23:59:59.999Z`);
     const staffToUse = assignedStaff || 'Dr. Perera (Senior Vet)';
-    const targetPetId = mongoose.Types.ObjectId.isValid(petId) ? new mongoose.Types.ObjectId(petId) : petId;
+    const targetPetId = pet._id;
 
     // 1. Strict Double Booking Guard (Doctor + Date + Slot)
     const existingConflict = await Appointment.findOne({
@@ -199,6 +257,28 @@ const updateBooking = async (req, res) => {
         success: false,
         message: 'Appointment booking record not found for update'
       });
+    }
+
+    if (timeSlot && !isWithinOperatingHours(timeSlot)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Selected time slot is outside clinical operating hours (08:30 AM to 07:30 PM).'
+      });
+    }
+
+    if (appointmentDate) {
+      const apptDate = new Date(appointmentDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const targetDay = new Date(apptDate);
+      targetDay.setHours(0, 0, 0, 0);
+
+      if (targetDay < today) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Cannot reschedule appointment to a past date.'
+        });
+      }
     }
 
     const docToUse = assignedStaff || booking.assignedStaff;

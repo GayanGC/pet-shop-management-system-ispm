@@ -3,6 +3,7 @@ import { PawPrint, Tag, User, Scale, Activity, Plus, X, AlertCircle } from 'luci
 
 // ─── Validation rules ────────────────────────────────────────────────────────
 const PET_NAME_RE = /^[a-zA-Z\s\-'\.]{2,30}$/; // 2-30 chars, letters/spaces/hyphens/apostrophes only
+const PET_PIN_RE = /^PET-[A-Z0-9]{4,8}$/i;
 
 const validate = (data) => {
   const errors = {};
@@ -31,6 +32,12 @@ const validate = (data) => {
     }
   }
 
+  if (data.uniquePin && data.uniquePin.trim()) {
+    if (!PET_PIN_RE.test(data.uniquePin.trim())) {
+      errors.uniquePin = 'PIN must match PET-XXXX format (e.g., PET-1234).';
+    }
+  }
+
   return errors;
 };
 
@@ -53,7 +60,10 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
   const [touched, setTouched] = useState({});
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+    if (name === 'uniquePin') {
+      value = value.toUpperCase();
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
     // Clear error on change
     if (fieldErrors[name]) {

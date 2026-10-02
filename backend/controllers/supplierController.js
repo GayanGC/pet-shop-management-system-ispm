@@ -73,22 +73,50 @@ const getSuppliers = async (req, res) => {
  * @desc Create new supplier
  * @route POST /api/suppliers
  */
+const SL_SUPPLIER_PHONE_REGEX = /^(?:0|94|\+94)?[0-9]{7,10}$/;
+const RFC_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 const createSupplier = async (req, res) => {
   try {
-    const { name, contactPerson, phone, email, address, suppliedCategories, status } = req.body;
+    const { name, regNo, contactPerson, phone, email, address, suppliedCategories, status } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Supplier name is required'
+        message: 'Validation Error: Supplier name is required'
+      });
+    }
+
+    if (!regNo || !regNo.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Supplier company registration number (regNo) is required'
       });
     }
 
     if (!phone || !phone.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Phone number is required'
+        message: 'Validation Error: Contact phone number is required'
       });
+    }
+
+    const cleanPhone = String(phone).trim().replace(/[\s-]/g, '');
+    if (!SL_SUPPLIER_PHONE_REGEX.test(cleanPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Invalid contact phone number format (must be 7-10 numeric digits)'
+      });
+    }
+
+    if (email && email.trim()) {
+      const cleanEmail = String(email).trim();
+      if (!RFC_EMAIL_REGEX.test(cleanEmail)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Invalid RFC-compliant email address format'
+        });
+      }
     }
 
     let categoriesArray = [];
@@ -100,8 +128,9 @@ const createSupplier = async (req, res) => {
 
     const supplier = await Supplier.create({
       name: name.trim(),
+      regNo: regNo.trim().toUpperCase(),
       contactPerson: contactPerson ? contactPerson.trim() : '',
-      phone: phone.trim(),
+      phone: cleanPhone,
       email: email ? email.trim() : '',
       address: address ? address.trim() : '',
       suppliedCategories: categoriesArray.length > 0 ? categoriesArray : ['Medicines'],

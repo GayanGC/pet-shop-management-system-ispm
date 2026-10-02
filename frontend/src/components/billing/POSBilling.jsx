@@ -71,17 +71,27 @@ const POSBilling = ({
     }
   };
 
+  const round2 = (val) => Math.round((Number(val) + Number.EPSILON) * 100) / 100;
+
   const handleAddToCart = () => {
     if (selectedProductId) {
       const prod = availableProducts.find((p) => p._id === selectedProductId);
       if (!prod) return;
 
+      const qtyToAdd = Math.max(1, parseInt(itemQty || 1, 10));
       const existingIndex = cartItems.findIndex((item) => item.product === prod._id);
+      const currentInCart = existingIndex > -1 ? cartItems[existingIndex].quantity : 0;
+      const totalRequested = currentInCart + qtyToAdd;
+
+      if (prod.stockQuantity !== undefined && totalRequested > prod.stockQuantity) {
+        alert(`Stock Limit Exceeded: Only ${prod.stockQuantity} units available for '${prod.itemName}'. You currently have ${currentInCart} in cart.`);
+        return;
+      }
 
       if (existingIndex > -1) {
         const updated = [...cartItems];
-        updated[existingIndex].quantity += Number(itemQty);
-        updated[existingIndex].subtotal = updated[existingIndex].quantity * updated[existingIndex].unitPrice;
+        updated[existingIndex].quantity = totalRequested;
+        updated[existingIndex].subtotal = round2(totalRequested * updated[existingIndex].unitPrice);
         setCartItems(updated);
       } else {
         setCartItems([
@@ -89,23 +99,30 @@ const POSBilling = ({
           {
             product: prod._id,
             itemName: prod.itemName,
-            unitPrice: Number(prod.price),
-            quantity: Number(itemQty),
-            subtotal: Number(prod.price) * Number(itemQty)
+            unitPrice: round2(Number(prod.price)),
+            quantity: qtyToAdd,
+            subtotal: round2(Number(prod.price) * qtyToAdd)
           }
         ]);
       }
       setSelectedProductId('');
       setItemQty(1);
     } else if (customItemName && customPrice) {
+      const qtyToAdd = Math.max(1, parseInt(itemQty || 1, 10));
+      const unitPrice = round2(Number(customPrice));
+      if (unitPrice <= 0) {
+        alert('Item price must be greater than zero.');
+        return;
+      }
+
       setCartItems([
         ...cartItems,
         {
           product: null,
-          itemName: customItemName,
-          unitPrice: Number(customPrice),
-          quantity: Number(itemQty),
-          subtotal: Number(customPrice) * Number(itemQty)
+          itemName: customItemName.trim(),
+          unitPrice,
+          quantity: qtyToAdd,
+          subtotal: round2(unitPrice * qtyToAdd)
         }
       ]);
       setCustomItemName('');
@@ -121,22 +138,24 @@ const POSBilling = ({
   };
 
   const calculateSubtotal = () => {
-    return cartItems.reduce((acc, item) => acc + item.subtotal, 0);
+    return round2(cartItems.reduce((acc, item) => acc + item.subtotal, 0));
   };
 
   const calculateTax = () => {
-    return (calculateSubtotal() * (Number(taxRate) / 100));
+    const subtotal = calculateSubtotal();
+    const discount = calculateDiscount();
+    return round2((subtotal - discount) * (Number(taxRate) / 100));
   };
 
   const calculateDiscount = () => {
-    return (calculateSubtotal() * (Number(discountRate) / 100));
+    return round2(calculateSubtotal() * (Number(discountRate) / 100));
   };
 
   const calculateGrandTotal = () => {
     const subtotal = calculateSubtotal();
     const discount = calculateDiscount();
     const tax = calculateTax();
-    return Math.max(0, subtotal - discount + tax);
+    return round2(Math.max(0, subtotal - discount + tax));
   };
   const calculateFinalTotal = calculateGrandTotal;
 

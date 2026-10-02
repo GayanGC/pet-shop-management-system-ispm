@@ -19,25 +19,46 @@ const createProduct = async (req, res) => {
   try {
     const { itemName, category, price, stockQuantity, supplier, batchNo, expiryDate, unit } = req.body;
 
-    if (!itemName || price === undefined || stockQuantity === undefined) {
+    if (!itemName || !itemName.trim() || price === undefined || stockQuantity === undefined) {
       return res.status(400).json({
         success: false,
         message: 'Validation Error: Please provide itemName, price, and stockQuantity'
       });
     }
 
-    if (Number(price) <= 0) {
+    const numPrice = Number(price);
+    if (isNaN(numPrice) || numPrice <= 0) {
       return res.status(400).json({
         success: false,
         message: 'Validation Error: Price must be greater than zero'
       });
     }
 
-    if (Number(stockQuantity) < 0) {
+    if (!/^\d+(\.\d{1,2})?$/.test(String(price))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Price must have at most 2 decimal places for valid currency'
+      });
+    }
+
+    const numStock = Number(stockQuantity);
+    if (isNaN(numStock) || numStock < 0) {
       return res.status(400).json({
         success: false,
         message: 'Validation Error: Stock quantity cannot be negative'
       });
+    }
+
+    // Discrete items check
+    const discreteUnits = ['piece', 'unit', 'tablet', 'pill', 'vial', 'capsule', 'bottle', 'box'];
+    const targetUnit = unit || 'Piece';
+    if (discreteUnits.includes(String(targetUnit).toLowerCase())) {
+      if (!Number.isInteger(numStock)) {
+        return res.status(400).json({
+          success: false,
+          message: `Validation Error: Stock quantity for discrete items (${targetUnit}) must be a whole integer.`
+        });
+      }
     }
 
     if (expiryDate) {
@@ -53,14 +74,14 @@ const createProduct = async (req, res) => {
     }
 
     const product = await Product.create({
-      itemName,
+      itemName: itemName.trim(),
       category: category || 'General',
-      price: Number(price),
-      stockQuantity: Number(stockQuantity),
+      price: numPrice,
+      stockQuantity: numStock,
       supplier: supplier || 'Direct Supplier',
       batchNo: batchNo || 'BATCH-2026-01',
       expiryDate: expiryDate ? new Date(expiryDate) : null,
-      unit: unit || 'Piece'
+      unit: targetUnit
     });
 
     return res.status(201).json({
@@ -157,10 +178,47 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    if (itemName) product.itemName = itemName;
+    if (itemName && !itemName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Item name cannot be empty'
+      });
+    }
+
+    if (price !== undefined) {
+      const numPrice = Number(price);
+      if (isNaN(numPrice) || numPrice <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Price must be greater than zero'
+        });
+      }
+      product.price = numPrice;
+    }
+
+    if (stockQuantity !== undefined) {
+      const numStock = Number(stockQuantity);
+      if (isNaN(numStock) || numStock < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Stock quantity cannot be negative'
+        });
+      }
+      const targetUnit = unit || product.unit || 'Piece';
+      const discreteUnits = ['piece', 'unit', 'tablet', 'pill', 'vial', 'capsule', 'bottle', 'box'];
+      if (discreteUnits.includes(String(targetUnit).toLowerCase())) {
+        if (!Number.isInteger(numStock)) {
+          return res.status(400).json({
+            success: false,
+            message: `Validation Error: Stock quantity for discrete items (${targetUnit}) must be a whole integer.`
+          });
+        }
+      }
+      product.stockQuantity = numStock;
+    }
+
+    if (itemName) product.itemName = itemName.trim();
     if (category) product.category = category;
-    if (price !== undefined) product.price = Number(price);
-    if (stockQuantity !== undefined) product.stockQuantity = Number(stockQuantity);
     if (supplier) product.supplier = supplier;
     if (batchNo) product.batchNo = batchNo;
     if (expiryDate) product.expiryDate = new Date(expiryDate);
@@ -174,6 +232,13 @@ const updateProduct = async (req, res) => {
       data: updatedProduct
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: `Validation Error: ${messages.join(', ')}`
+      });
+    }
     return res.status(500).json({
       success: false,
       message: 'Server Error updating product record',

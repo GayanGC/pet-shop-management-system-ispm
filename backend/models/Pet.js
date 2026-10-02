@@ -58,7 +58,14 @@ const petSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Unique Pet PIN code is required'],
       unique: true,
-      trim: true
+      uppercase: true,
+      trim: true,
+      match: [/^PET-[A-Z0-9]{4,8}$/, 'PIN must match PET-XXXX format (alphanumeric)']
+    },
+    microchipNumber: {
+      type: String,
+      trim: true,
+      default: ''
     },
     petName: {
       type: String,
@@ -78,7 +85,18 @@ const petSchema = new mongoose.Schema(
     age: {
       type: Number,
       required: [true, 'Pet age is required'],
-      min: [0, 'Age cannot be negative']
+      min: [0, 'Age cannot be negative'],
+      max: [35, 'Age cannot exceed 35 years']
+    },
+    dob: {
+      type: Date,
+      default: null,
+      validate: {
+        validator: function (v) {
+          return !v || v <= new Date();
+        },
+        message: 'Date of birth cannot be in the future'
+      }
     },
     weight: {
       type: Number,
@@ -88,6 +106,7 @@ const petSchema = new mongoose.Schema(
     gender: {
       type: String,
       enum: ['Male', 'Female', 'Unknown'],
+      required: [true, 'Pet gender is required'],
       default: 'Male'
     },
     ownerId: {
@@ -103,7 +122,26 @@ const petSchema = new mongoose.Schema(
     ownerPhone: {
       type: String,
       trim: true,
-      default: ''
+      default: '',
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return /^(?:0|94|\+94)?7[0-9]{8}$/.test(v.replace(/[\s-]/g, ''));
+        },
+        message: 'Invalid Sri Lankan phone number format'
+      }
+    },
+    ownerEmail: {
+      type: String,
+      trim: true,
+      default: '',
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v);
+        },
+        message: 'Invalid email address format'
+      }
     },
     ownerAddress: {
       type: String,

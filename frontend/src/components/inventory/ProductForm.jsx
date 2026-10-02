@@ -23,14 +23,23 @@ const validate = (data) => {
     errors.price = 'Price is required.';
   } else if (price <= 0) {
     errors.price = 'Price must be greater than Rs. 0.';
+  } else if (!/^\d+(\.\d{1,2})?$/.test(String(data.price))) {
+    errors.price = 'Price must have at most 2 decimal places (e.g. 1500.00).';
   }
 
-  // Stock Quantity >= 0
-  const qty = parseInt(data.stockQuantity, 10);
+  // Stock Quantity >= 0 and discrete check
+  const qty = parseFloat(data.stockQuantity);
   if (data.stockQuantity === '' || isNaN(qty)) {
     errors.stockQuantity = 'Stock quantity is required.';
   } else if (qty < 0) {
     errors.stockQuantity = 'Stock quantity cannot be negative.';
+  } else {
+    const discreteUnits = ['piece', 'unit', 'tablet', 'pill', 'vial', 'capsule', 'bottle', 'box'];
+    if (data.unit && discreteUnits.includes(String(data.unit).toLowerCase())) {
+      if (!Number.isInteger(qty)) {
+        errors.stockQuantity = `Stock for discrete units (${data.unit}) must be a whole integer.`;
+      }
+    }
   }
 
   // Batch No: uppercase alphanumeric if provided

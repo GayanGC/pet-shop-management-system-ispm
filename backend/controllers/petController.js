@@ -24,18 +24,87 @@ const petHealthCheck = async (req, res) => {
   });
 };
 
+const SL_PHONE_REGEX = /^(?:0|94|\+94)?7[0-9]{8}$/;
+const RFC_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const PET_PIN_REGEX = /^PET-[A-Z0-9]{4,8}$/;
+
 const createPet = async (req, res) => {
   try {
-    const { uniquePin, petName, species, breed, age, weight, ownerId, status, clinicStatus } = req.body;
+    const { uniquePin, petName, species, breed, age, weight, ownerId, status, clinicStatus, microchipNumber, dob, ownerPhone, ownerEmail, gender } = req.body;
 
-    if (!petName || !species || age === undefined) {
+    if (!petName || !petName.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation Error: Please provide petName, species, and age'
+        message: 'Validation Error: Pet name is required'
       });
     }
 
-    let finalPin = uniquePin;
+    if (!species || !species.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Species type is required'
+      });
+    }
+
+    if (age === undefined || age === null || age === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Pet age is required'
+      });
+    }
+
+    const ageNum = Number(age);
+    if (isNaN(ageNum) || ageNum < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Pet age cannot be negative'
+      });
+    }
+
+    if (ageNum > 35) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Pet age cannot exceed 35 years'
+      });
+    }
+
+    // Date of Birth validation (no future dates)
+    if (dob) {
+      const birthDate = new Date(dob);
+      if (isNaN(birthDate.getTime()) || birthDate > new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Date of birth cannot be in the future'
+        });
+      }
+    }
+
+    // Owner Phone Validation (Sri Lankan standard)
+    const phoneToTest = ownerPhone || req.body.phone;
+    if (phoneToTest) {
+      const cleanPhone = String(phoneToTest).trim().replace(/[\s-]/g, '');
+      if (!SL_PHONE_REGEX.test(cleanPhone)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Invalid Sri Lankan owner phone number format (must be 07XXXXXXXX or +947XXXXXXXX)'
+        });
+      }
+    }
+
+    // Owner Email Validation (RFC regex)
+    const emailToTest = ownerEmail || req.body.email;
+    if (emailToTest) {
+      const cleanEmail = String(emailToTest).trim();
+      if (!RFC_EMAIL_REGEX.test(cleanEmail)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Invalid RFC-compliant owner email address format'
+        });
+      }
+    }
+
+    // Pet PIN Validation & Normalization
+    let finalPin = uniquePin ? String(uniquePin).trim().toUpperCase() : null;
     if (!finalPin) {
       finalPin = generatePetPin();
       let pinExists = await Pet.findOne({ uniquePin: finalPin });
@@ -44,11 +113,28 @@ const createPet = async (req, res) => {
         pinExists = await Pet.findOne({ uniquePin: finalPin });
       }
     } else {
+      if (!PET_PIN_REGEX.test(finalPin)) {
+        return res.status(400).json({
+          success: false,
+          message: `Validation Error: Pet PIN '${finalPin}' is malformed. Must follow PET-XXXX format (e.g., PET-1234).`
+        });
+      }
       const existingPin = await Pet.findOne({ uniquePin: finalPin });
       if (existingPin) {
         return res.status(400).json({
           success: false,
-          message: `Pet PIN '${finalPin}' already exists.`
+          message: `Duplicate Error: Pet PIN '${finalPin}' already exists in registry.`
+        });
+      }
+    }
+
+    // Microchip Duplicate Check
+    if (microchipNumber && microchipNumber.trim()) {
+      const existingMicrochip = await Pet.findOne({ microchipNumber: microchipNumber.trim() });
+      if (existingMicrochip) {
+        return res.status(400).json({
+          success: false,
+          message: `Duplicate Error: Pet with microchip '${microchipNumber}' is already registered.`
         });
       }
     }
@@ -67,17 +153,33 @@ const createPet = async (req, res) => {
       });
     }
 
+    // Prevent duplicate active pet name under same owner
+    const existingPetForOwner = await Pet.findOne({
+      ownerId: targetOwner,
+      petName: { $regex: new RegExp(`^${petName.trim()}$`, 'i') },
+      isArchived: false
+    });
+    if (existingPetForOwner) {
+      return res.status(400).json({
+        success: false,
+        message: `Duplicate Error: Owner already has an active pet registered named '${petName.trim()}'.`
+      });
+    }
+
     const pet = await Pet.create({
       uniquePin: finalPin,
-      petName,
-      species,
+      microchipNumber: microchipNumber ? microchipNumber.trim() : '',
+      dob: dob ? new Date(dob) : null,
+      petName: petName.trim(),
+      species: species.trim(),
       breed: breed || 'Unknown/Mixed',
-      age: Number(age),
+      age: ageNum,
       weight: weight ? Number(weight) : 0,
-      gender: req.body.gender || 'Male',
+      gender: gender || 'Male',
       ownerId: targetOwner,
       ownerName: req.body.ownerName || '',
-      ownerPhone: req.body.ownerPhone || '',
+      ownerPhone: phoneToTest || '',
+      ownerEmail: emailToTest || '',
       ownerAddress: req.body.ownerAddress || '',
       status: status || 'Available',
       clinicStatus: clinicStatus || 'Registered',
@@ -87,10 +189,10 @@ const createPet = async (req, res) => {
     await pet.populate('ownerId', 'name email phone address role');
 
     const petObj = pet.toObject ? pet.toObject() : { ...pet };
-    petObj.ownerName = pet.ownerId?.name || 'Registered Owner';
-    petObj.ownerPhone = pet.ownerId?.phone || '';
-    petObj.ownerEmail = pet.ownerId?.email || '';
-    petObj.ownerAddress = pet.ownerId?.address || '';
+    petObj.ownerName = pet.ownerId?.name || petObj.ownerName || 'Registered Owner';
+    petObj.ownerPhone = pet.ownerId?.phone || petObj.ownerPhone || '';
+    petObj.ownerEmail = pet.ownerId?.email || petObj.ownerEmail || '';
+    petObj.ownerAddress = pet.ownerId?.address || petObj.ownerAddress || '';
     petObj.petId = petObj._id;
 
     return res.status(201).json({
@@ -99,10 +201,52 @@ const createPet = async (req, res) => {
       data: petObj
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: `Validation Error: ${messages.join(', ')}`
+      });
+    }
     console.error('[Create Pet Error]:', error.message);
     return res.status(500).json({
       success: false,
       message: 'Server Error creating pet record',
+      error: error.message
+    });
+  }
+};
+
+const getPetByPin = async (req, res) => {
+  try {
+    const rawPin = req.params.pin || '';
+    const cleanPin = String(rawPin).trim().toUpperCase();
+
+    if (!PET_PIN_REGEX.test(cleanPin)) {
+      return res.status(400).json({
+        success: false,
+        message: `Malformed Pet PIN '${cleanPin}'. Must follow uppercase alphanumeric format PET-XXXX.`
+      });
+    }
+
+    const pet = await Pet.findOne({ uniquePin: cleanPin, isArchived: false })
+      .populate('ownerId', 'name email phone address role');
+
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: `Pet Patient record with PIN '${cleanPin}' was not found in the clinic database.`
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: pet
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error retrieving pet by PIN',
       error: error.message
     });
   }
@@ -475,6 +619,7 @@ const getPetHealthSummary = async (req, res) => {
 module.exports = {
   petHealthCheck,
   createPet,
+  getPetByPin,
   getAllPets,
   getPets: getAllPets,
   getPetById,

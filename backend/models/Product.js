@@ -22,13 +22,23 @@ const productSchema = new mongoose.Schema(
     price: {
       type: Number,
       required: [true, 'Product price is required'],
-      min: [0, 'Price cannot be negative']
+      min: [0.01, 'Price must be greater than zero']
     },
     stockQuantity: {
       type: Number,
       required: [true, 'Stock quantity is required'],
       min: [0, 'Stock quantity cannot be negative'],
-      default: 0
+      default: 0,
+      validate: {
+        validator: function (v) {
+          const discreteUnits = ['piece', 'unit', 'tablet', 'pill', 'vial', 'capsule', 'bottle', 'box'];
+          if (this.unit && discreteUnits.includes(String(this.unit).toLowerCase())) {
+            return Number.isInteger(v);
+          }
+          return true;
+        },
+        message: 'Stock quantity for discrete units (pills, vials, pieces, bottles) must be a whole integer'
+      }
     },
     supplier: {
       type: String,

@@ -85,27 +85,34 @@ const invoiceSchema = new mongoose.Schema(
     totalAmount: {
       type: Number,
       required: [true, 'Total amount is required'],
-      min: [0, 'Total amount cannot be negative']
+      min: [0.01, 'Total amount must be greater than zero']
     },
     discountRate: {
       type: Number,
-      default: 0
+      default: 0,
+      min: [0, 'Discount rate cannot be negative'],
+      max: [50, 'Maximum allowable discount rate is 50%']
     },
     discountAmount: {
       type: Number,
-      default: 0
+      default: 0,
+      min: [0, 'Discount amount cannot be negative']
     },
     taxRate: {
       type: Number,
-      default: 0
+      default: 0,
+      min: [0, 'Tax rate cannot be negative'],
+      max: [15, 'Maximum allowable sales tax rate is 15%']
     },
     taxAmount: {
       type: Number,
-      default: 0
+      default: 0,
+      min: [0, 'Tax amount cannot be negative']
     },
     finalTotal: {
       type: Number,
-      required: true
+      required: true,
+      min: [0.01, 'Final total must be greater than zero']
     },
     paymentMethod: {
       type: String,

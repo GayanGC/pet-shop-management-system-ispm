@@ -121,6 +121,24 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
       return;
     }
 
+    const checkOperatingHours = (slot) => {
+      if (!slot) return false;
+      const match = slot.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (!match) return false;
+      let h = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10);
+      const mod = match[3] ? match[3].toUpperCase() : null;
+      if (mod === 'PM' && h < 12) h += 12;
+      if (mod === 'AM' && h === 12) h = 0;
+      const mins = h * 60 + m;
+      return mins >= 510 && mins <= 1170; // 08:30 AM to 07:30 PM
+    };
+
+    if (!checkOperatingHours(formData.timeSlot)) {
+      setFormError('Selected time slot is outside clinic operating hours (08:30 AM to 07:30 PM).');
+      return;
+    }
+
     try {
       await onSubmit(formData, initialData?._id);
       if (!isEditMode) {

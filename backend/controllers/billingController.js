@@ -41,11 +41,13 @@ const createInvoice = async (req, res) => {
       invoiceExists = await Invoice.findOne({ invoiceNo });
     }
 
+    const round2 = (val) => Math.round((Number(val) + Number.EPSILON) * 100) / 100;
+
     const sanitizedItems = (items || []).map((item) => {
       const itemName = item.itemName || item.name || 'Product Item';
-      const unitPrice = Number(item.unitPrice !== undefined ? item.unitPrice : (item.price || 0));
-      const quantity = Number(item.quantity || 1);
-      const subtotal = Number(item.subtotal !== undefined ? item.subtotal : (unitPrice * quantity));
+      const unitPrice = round2(Number(item.unitPrice !== undefined ? item.unitPrice : (item.price || 0)));
+      const quantity = Math.max(1, parseInt(item.quantity || 1, 10));
+      const subtotal = round2(unitPrice * quantity);
       const rawProd = item.productId || item.product || item._id;
       const productId = (rawProd && mongoose.Types.ObjectId.isValid(rawProd)) ? rawProd : null;
 
@@ -62,23 +64,25 @@ const createInvoice = async (req, res) => {
 
     // Validation check
     for (const item of sanitizedItems) {
-      if (!item.itemName || item.unitPrice <= 0 || !item.quantity) {
+      if (!item.itemName || item.unitPrice <= 0 || !item.quantity || item.quantity <= 0) {
         return res.status(400).json({
           success: false,
-          message: 'Each item must have itemName, unitPrice, and quantity'
+          message: 'Validation Error: Each item must have a valid itemName, positive unitPrice, and positive integer quantity'
         });
       }
     }
 
-    // Stock availability validation
+    // Over-Stock selling guard: Pre-check inventory availability
     for (const item of sanitizedItems) {
       if (item.product) {
         const productDoc = await Product.findById(item.product);
-        if (productDoc && productDoc.stockQuantity < item.quantity) {
-          return res.status(400).json({
-            success: false,
-            message: `Insufficient stock for product '${productDoc.itemName || item.itemName}'. Available: ${productDoc.stockQuantity}, Requested: ${item.quantity}`
-          });
+        if (productDoc) {
+          if (productDoc.stockQuantity < item.quantity) {
+            return res.status(400).json({
+              success: false,
+              message: `Insufficient stock for product '${productDoc.itemName || item.itemName}'. Available in inventory: ${productDoc.stockQuantity}, Requested: ${item.quantity}`
+            });
+          }
         }
       }
     }
@@ -87,7 +91,7 @@ const createInvoice = async (req, res) => {
     const processedItems = [];
 
     for (const item of sanitizedItems) {
-      calculatedTotal += item.subtotal;
+      calculatedTotal = round2(calculatedTotal + item.subtotal);
       processedItems.push({
         product: item.product,
         itemName: item.itemName,
@@ -97,14 +101,42 @@ const createInvoice = async (req, res) => {
       });
     }
 
-    // Calculate discount and tax
-    const discRate = discountRate ? Number(discountRate) : 0;
-    const tRate = taxRate ? Number(taxRate) : 0;
+    if (calculatedTotal <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Invoice subtotal must be greater than zero'
+      });
+    }
 
-    const discountAmount = calculatedTotal * (discRate / 100);
-    const amountAfterDiscount = calculatedTotal - discountAmount;
-    const taxAmount = amountAfterDiscount * (tRate / 100);
-    const finalTotal = amountAfterDiscount + taxAmount;
+    // Discount rate bounds (0% to 50%)
+    const discRate = discountRate ? Number(discountRate) : 0;
+    if (isNaN(discRate) || discRate < 0 || discRate > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Discount rate must be between 0% and 50%'
+      });
+    }
+
+    // Tax rate bounds (0% to 15%)
+    const tRate = taxRate ? Number(taxRate) : 0;
+    if (isNaN(tRate) || tRate < 0 || tRate > 15) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Tax rate must be between 0% and 15%'
+      });
+    }
+
+    const discountAmount = round2(calculatedTotal * (discRate / 100));
+    const amountAfterDiscount = round2(calculatedTotal - discountAmount);
+    const taxAmount = round2(amountAfterDiscount * (tRate / 100));
+    const finalTotal = round2(amountAfterDiscount + taxAmount);
+
+    if (finalTotal <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Final invoice amount must be greater than zero'
+      });
+    }
 
     // Normalize Payment Method
     let pMethod = paymentMethod || 'Cash';
@@ -119,7 +151,7 @@ const createInvoice = async (req, res) => {
 
     // Normalize tendered amount
     let finalTendered = req.body.tenderedAmount !== undefined && req.body.tenderedAmount !== null && req.body.tenderedAmount !== ''
-      ? Number(req.body.tenderedAmount)
+      ? round2(Number(req.body.tenderedAmount))
       : (pMethod === 'Cash' ? 0 : finalTotal);
 
     // Strict Validation: For Cash sales, tendered cash cannot be less than total amount
@@ -127,21 +159,29 @@ const createInvoice = async (req, res) => {
       if (finalTendered < finalTotal) {
         return res.status(400).json({
           success: false,
-          message: `Tendered cash (Rs. ${finalTendered.toFixed(2)}) cannot be less than invoice total (Rs. ${finalTotal.toFixed(2)}).`
+          message: `Tendered cash (Rs. ${finalTendered.toFixed(2)}) cannot be less than invoice total (Rs. ${finalTotal.toFixed(2)}). Shortfall: Rs. ${(finalTotal - finalTendered).toFixed(2)}`
         });
       }
     } else {
       finalTendered = finalTotal;
     }
 
-    const changeAmount = Math.max(0, finalTendered - finalTotal);
+    const changeAmount = round2(Math.max(0, finalTendered - finalTotal));
 
-    // Atomic Stock Auto-Deduction Verification via $inc
+    // Atomic Stock Deduction using $inc with $gte guard to prevent race conditions
     for (const item of processedItems) {
       if (item.product) {
-        await Product.findByIdAndUpdate(item.product, {
-          $inc: { stockQuantity: -item.quantity }
-        });
+        const updated = await Product.findOneAndUpdate(
+          { _id: item.product, stockQuantity: { $gte: item.quantity } },
+          { $inc: { stockQuantity: -item.quantity } },
+          { new: true }
+        );
+        if (!updated) {
+          return res.status(400).json({
+            success: false,
+            message: `Concurrent transaction conflict: Stock for '${item.itemName}' was modified concurrently or is insufficient.`
+          });
+        }
       }
     }
 
