@@ -32,7 +32,8 @@ import {
   Receipt,
   Activity,
   FileText,
-  Users
+  Users,
+  UserPlus
 } from 'lucide-react';
 
 import PetForm from './components/pet/PetForm';
@@ -55,6 +56,8 @@ import AuthModal from './components/auth/AuthModal';
 import CustomerCheckoutModal from './components/store/CustomerCheckoutModal';
 import CustomerPortal from './components/customer/CustomerPortal';
 import GuestClinicOverview from './components/guest/GuestClinicOverview';
+import RegisterStaffModal from './components/admin/RegisterStaffModal';
+import StaffDirectory from './components/admin/StaffDirectory';
 
 import { getCurrentUser, logout, login } from './services/authService';
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
@@ -225,6 +228,7 @@ function App() {
   const [prefilledBookingData, setPrefilledBookingData] = useState(null);
   const [activeReceiptInvoice, setActiveReceiptInvoice] = useState(null);
   const [notification, setNotification] = useState({ message: '', type: '' });
+  const [isRegisterStaffModalOpen, setIsRegisterStaffModalOpen] = useState(false);
 
   // Role Auto-Landing & Active Tab Sanitization
   useEffect(() => {
@@ -969,7 +973,8 @@ function App() {
         { id: 'pharmacy', label: `Formulary (${products.length})` },
         { id: 'appointments', label: `Appointments (${activeBookingsCount})` },
         { id: 'suppliers', label: `Suppliers (${suppliers.length})` },
-        { id: 'pos', label: `POS & Financial BI` }
+        { id: 'pos', label: `POS & Financial BI` },
+        { id: 'staff', label: 'Staff Directory' }
       ];
     }
     // Guest Fallback
@@ -1280,6 +1285,15 @@ function App() {
                   className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
                 >
                   <Package className="w-4 h-4 text-teal-200" /> Add Inventory Item
+                </button>
+              )}
+
+              {role === 'admin' && (
+                <button
+                  onClick={() => setIsRegisterStaffModalOpen(true)}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-indigo-400/50 hover:border-indigo-300 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
+                >
+                  <UserPlus className="w-4 h-4 text-indigo-200" /> Register Staff Member
                 </button>
               )}
             </div>
@@ -2231,6 +2245,13 @@ function App() {
                 </div>
               )}
 
+              {/* TAB: STAFF DIRECTORY & PROVISIONING (ADMIN ONLY) */}
+              {activeTab === 'staff' && role === 'admin' && (
+                <div className="space-y-6 animate-fadeIn">
+                  <StaffDirectory onOpenRegisterModal={() => setIsRegisterStaffModalOpen(true)} />
+                </div>
+              )}
+
               {/* TAB: SALES LEDGER & INVOICES (CASHIER ONLY) */}
               {activeTab === 'orders' && role === 'cashier' && (
                 <div className="space-y-6 animate-fadeIn">
@@ -2363,6 +2384,17 @@ function App() {
         <PrintableInvoiceModal
           invoice={activeReceiptInvoice}
           onClose={() => setActiveReceiptInvoice(null)}
+        />
+      )}
+
+      {/* 8. Admin Staff Provisioning Modal */}
+      {isRegisterStaffModalOpen && (
+        <RegisterStaffModal
+          isOpen={isRegisterStaffModalOpen}
+          onClose={() => setIsRegisterStaffModalOpen(false)}
+          onStaffCreated={(newStaff) => {
+            showToast(`Staff member ${newStaff?.name || ''} provisioned successfully! Credentials dispatched via email.`);
+          }}
         />
       )}
     </div>

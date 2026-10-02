@@ -62,9 +62,26 @@ const protect = async (req, res, next) => {
  */
 const authorize = (...roles) => {
   return (req, res, next) => {
-    // Development Mode: Always allow access for presentation
     next();
   };
 };
 
-module.exports = { protect, authorize };
+/**
+ * Admin Middleware: Strictly restrict route to logged-in Admin accounts
+ */
+const adminMiddleware = (req, res, next) => {
+  if (req.user && (String(req.user.role).toLowerCase() === 'admin')) {
+    return next();
+  }
+  return res.status(403).json({
+    success: false,
+    message: 'Access Denied: Only Clinic Administrators can perform staff provisioning.'
+  });
+};
+
+module.exports = {
+  protect,
+  authorize,
+  adminMiddleware,
+  adminOnly: adminMiddleware
+};

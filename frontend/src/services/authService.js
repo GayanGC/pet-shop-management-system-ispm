@@ -75,3 +75,27 @@ export const getCurrentUser = () => {
 export const getAuthToken = () => {
   return localStorage.getItem('pet_shop_token') || null;
 };
+
+export const registerStaff = async ({ name, email, phone, role, password }) => {
+  const token = getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/auth/register-staff`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ name, email, phone, role, password })
+  });
+  return handleResponse(response);
+};
+
+export const getStaffDirectory = async () => {
+  const token = getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/auth/staff`, {
+    method: 'GET',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  return handleResponse(response);
+};
