@@ -526,8 +526,14 @@ const updatePet = async (req, res) => {
     if (breed) pet.breed = breed;
     if (age !== undefined) pet.age = Number(age);
     if (weight !== undefined) pet.weight = Number(weight);
-    if (status) pet.status = status;
-    if (clinicStatus) pet.clinicStatus = clinicStatus;
+    if (status) {
+      pet.status = status;
+      if (status === 'Deceased') pet.clinicStatus = 'Deceased';
+    }
+    if (clinicStatus) {
+      pet.clinicStatus = clinicStatus;
+      if (clinicStatus === 'Deceased') pet.status = 'Deceased';
+    }
     
     // Only admin can transfer ownership
     const finalOwner = ownerId || owner;

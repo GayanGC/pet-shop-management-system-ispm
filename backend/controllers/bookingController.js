@@ -95,10 +95,17 @@ const createBooking = async (req, res) => {
       pet = await Pet.findOne({ uniquePin: pinToFind });
     }
 
-    if (!pet || pet.isArchived) {
+    if (!pet) {
       return res.status(404).json({
         success: false,
-        message: 'Validation Error: Selected pet patient record does not exist or is archived. A verified patient record is required.'
+        message: 'Validation Error: Selected pet patient record does not exist. A verified patient record is required.'
+      });
+    }
+
+    if (pet.isArchived || pet.clinicStatus === 'Deceased' || pet.status === 'Deceased' || pet.archivalDetails?.reason === 'Deceased') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Cannot schedule appointments for deceased or archived patients.'
       });
     }
 

@@ -158,7 +158,7 @@ const petSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Available', 'Adopted', 'Medical Care'],
+      enum: ['Available', 'Adopted', 'Medical Care', 'Deceased'],
       default: 'Available'
     },
     clinicStatus: {

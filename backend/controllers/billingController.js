@@ -150,8 +150,9 @@ const createInvoice = async (req, res) => {
     }
 
     // Normalize tendered amount
-    let finalTendered = req.body.tenderedAmount !== undefined && req.body.tenderedAmount !== null && req.body.tenderedAmount !== ''
-      ? round2(Number(req.body.tenderedAmount))
+    const rawTendered = req.body.tenderedAmount !== undefined ? req.body.tenderedAmount : req.body.cashTendered;
+    let finalTendered = rawTendered !== undefined && rawTendered !== null && rawTendered !== ''
+      ? round2(Number(rawTendered))
       : (pMethod === 'Cash' ? 0 : finalTotal);
 
     // Strict Validation: For Cash sales, tendered cash cannot be less than total amount
