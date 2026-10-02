@@ -58,6 +58,7 @@ import CustomerPortal from './components/customer/CustomerPortal';
 import GuestClinicOverview from './components/guest/GuestClinicOverview';
 import RegisterStaffModal from './components/admin/RegisterStaffModal';
 import StaffDirectory from './components/admin/StaffDirectory';
+import ProTierModal from './components/common/ProTierModal';
 
 import { getCurrentUser, logout, login } from './services/authService';
 import { fetchPets, fetchPetByPin, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
@@ -237,6 +238,7 @@ function App() {
   const [activeReceiptInvoice, setActiveReceiptInvoice] = useState(null);
   const [notification, setNotification] = useState({ message: '', type: '' });
   const [isRegisterStaffModalOpen, setIsRegisterStaffModalOpen] = useState(false);
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
 
   // Cashier POS Patient Link & Real-time Query State
   const [posPatient, setPosPatient] = useState(null);
@@ -1167,6 +1169,17 @@ function App() {
               <Phone className="w-3.5 h-3.5 text-teal-300" />
               <span className="font-mono">+94 11 234 5678</span>
             </div>
+
+            {/* Pro Tier Roadmap Button */}
+            <button
+              onClick={() => setIsProModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-amber-900 bg-gradient-to-r from-amber-200 via-amber-300 to-yellow-300 rounded-full border border-amber-400 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-pointer"
+              title="View Pro Enterprise Edition Roadmap"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-800 animate-pulse"/>
+              <span>Upgrade to Pro</span>
+            </button>
+
 
             {/* Shopping Cart Shortcut Button */}
             {(!currentUser || role === 'customer') && (
@@ -2607,6 +2620,14 @@ function App() {
           onStaffCreated={(newStaff) => {
             showToast(`Staff member ${newStaff?.name || ''} provisioned successfully! Credentials dispatched via email.`);
           }}
+        />
+      )}
+
+      {/* 9. Pro & Enterprise Edition Roadmap Modal */}
+      {isProModalOpen && (
+        <ProTierModal
+          isOpen={isProModalOpen}
+          onClose={() => setIsProModalOpen(false)}
         />
       )}
     </div>
