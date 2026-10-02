@@ -15,6 +15,8 @@ const {
   getAllBookings,
   getBookingById,
   updateBooking,
+  rescheduleBooking,
+  cancelBooking,
   deleteBooking,
   getBookingReport,
   getDoctorDaySchedule
@@ -30,7 +32,12 @@ router.get('/schedule', getDoctorDaySchedule);
 // Clinical Appointment Summary Report Endpoint
 router.get('/report', protect, getBookingReport);
 
-// Booking Endpoints
+// Specific Appointment Actions
+router.put('/:id/reschedule', protect, rescheduleBooking);
+router.put('/:id/cancel', protect, cancelBooking);
+router.get('/:id/slip', protect, getBookingById);
+
+// Booking CRUD Endpoints
 router.route('/')
   .get(protect, getAllBookings)
   .post(protect, createBooking);

@@ -110,16 +110,19 @@ const createBooking = async (req, res) => {
 
     // 1. Strict Double Booking Guard (Doctor + Date + Slot)
     const existingConflict = await Appointment.findOne({
-      assignedStaff: staffToUse,
+      $or: [
+        { assignedStaff: staffToUse },
+        { doctor: staffToUse }
+      ],
       appointmentDate: { $gte: startOfDay, $lte: endOfDay },
       timeSlot,
-      status: { $ne: 'Cancelled' }
+      status: { $nin: ['Cancelled'] }
     });
 
     if (existingConflict) {
       return res.status(409).json({
         success: false,
-        message: `Slot Conflict: ${staffToUse} is already booked on ${dateOnly} at ${timeSlot}. Please select a different slot.`
+        message: 'Selected Doctor is already booked for this time slot. Please choose another slot or doctor.'
       });
     }
 
@@ -135,7 +138,7 @@ const createBooking = async (req, res) => {
       const sameDayPetBooking = await Appointment.findOne({
         petId: targetPetId,
         appointmentDate: { $gte: startOfDay, $lte: endOfDay },
-        status: { $ne: 'Cancelled' }
+        status: { $nin: ['Cancelled'] }
       });
 
       if (sameDayPetBooking) {
@@ -146,19 +149,35 @@ const createBooking = async (req, res) => {
       }
     }
 
+    const activeCount = await Appointment.countDocuments({
+      $or: [
+        { assignedStaff: staffToUse },
+        { doctor: staffToUse }
+      ],
+      appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+      status: { $nin: ['Cancelled'] }
+    });
+    const queueNumber = activeCount + 1;
+    let roomNumber = 'Consultation Room 1';
+    if (staffToUse.includes('Silva')) roomNumber = 'Consultation Room 2';
+    else if (staffToUse.includes('Fernando')) roomNumber = 'Consultation Room 3';
+
     const appointment = await Appointment.create({
       petId,
       customerId: targetCustomer,
       serviceType,
       assignedStaff: staffToUse,
+      doctor: staffToUse,
       appointmentDate: new Date(appointmentDate),
       timeSlot,
       notes: notes || '',
+      queueNumber,
+      roomNumber,
       status: 'Pending'
     });
 
-    await appointment.populate('petId', 'petName species breed uniquePin');
-    await appointment.populate('customerId', 'name email role');
+    await appointment.populate('petId', 'petName name species breed uniquePin age weight gender ownerName ownerPhone');
+    await appointment.populate('customerId', 'name email phone role address');
 
     return res.status(201).json({
       success: true,
@@ -223,8 +242,8 @@ const getAllBookings = async (req, res) => {
 const getBookingById = async (req, res) => {
   try {
     const booking = await Appointment.findById(req.params.id)
-      .populate('petId', 'petName species breed uniquePin')
-      .populate('customerId', 'name email role');
+      .populate('petId', 'petName name species breed uniquePin age weight gender ownerName ownerPhone ownerEmail')
+      .populate('customerId', 'name email phone role address');
 
     if (!booking) {
       return res.status(404).json({
@@ -233,9 +252,23 @@ const getBookingById = async (req, res) => {
       });
     }
 
+    const doc = booking.assignedStaff || booking.doctor || 'Dr. Perera (Senior Vet)';
+    let room = booking.roomNumber;
+    if (!room || room === 'Consultation Room 1') {
+      if (doc.includes('Silva')) room = 'Consultation Room 2';
+      else if (doc.includes('Fernando')) room = 'Consultation Room 3';
+      else room = 'Consultation Room 1';
+    }
+
+    const obj = booking.toObject ? booking.toObject() : { ...booking };
+    obj.doctor = doc;
+    obj.assignedStaff = doc;
+    obj.roomNumber = room;
+    obj.queueNumber = obj.queueNumber || 1;
+
     return res.status(200).json({
       success: true,
-      data: booking
+      data: obj
     });
   } catch (error) {
     return res.status(500).json({
@@ -246,9 +279,165 @@ const getBookingById = async (req, res) => {
   }
 };
 
+/**
+ * Reschedule Appointment Lifecycle
+ * PUT /api/bookings/:id/reschedule
+ * Payload: { newDate, newTimeSlot, reason }
+ */
+const rescheduleBooking = async (req, res) => {
+  try {
+    const { newDate, newTimeSlot, reason } = req.body;
+
+    if (!newDate || !newTimeSlot) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Please provide both newDate and newTimeSlot for rescheduling.'
+      });
+    }
+
+    if (!isWithinOperatingHours(newTimeSlot)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Selected time slot is outside clinical operating hours (08:30 AM to 07:30 PM).'
+      });
+    }
+
+    const apptDate = new Date(newDate);
+    if (isNaN(apptDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Invalid appointment date format.'
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDay = new Date(apptDate);
+    targetDay.setHours(0, 0, 0, 0);
+
+    if (targetDay < today) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Cannot reschedule appointments to past dates.'
+      });
+    }
+
+    const booking = await Appointment.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment booking record not found for rescheduling'
+      });
+    }
+
+    const dateOnly = typeof newDate === 'string' ? newDate.slice(0, 10) : new Date(newDate).toISOString().slice(0, 10);
+    const startOfDay = new Date(`${dateOnly}T00:00:00.000Z`);
+    const endOfDay = new Date(`${dateOnly}T23:59:59.999Z`);
+    const docToUse = booking.assignedStaff || booking.doctor || 'Dr. Perera (Senior Vet)';
+
+    const conflict = await Appointment.findOne({
+      _id: { $ne: booking._id },
+      $or: [
+        { assignedStaff: docToUse },
+        { doctor: docToUse }
+      ],
+      appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+      timeSlot: newTimeSlot,
+      status: { $nin: ['Cancelled'] }
+    });
+
+    if (conflict) {
+      return res.status(409).json({
+        success: false,
+        message: 'Selected Doctor is already booked for this time slot. Please choose another slot or doctor.'
+      });
+    }
+
+    // Append to reschedule audit history
+    if (!booking.rescheduleHistory) booking.rescheduleHistory = [];
+    booking.rescheduleHistory.push({
+      previousDate: booking.appointmentDate,
+      previousTimeSlot: booking.timeSlot,
+      newDate: new Date(newDate),
+      newTimeSlot,
+      reason: reason || 'Patient / Clinic schedule modification',
+      rescheduledAt: new Date(),
+      rescheduledBy: req.user?.name || 'Authorized Staff'
+    });
+
+    booking.appointmentDate = new Date(newDate);
+    booking.timeSlot = newTimeSlot;
+    booking.status = 'Rescheduled';
+    if (reason) {
+      booking.notes = booking.notes ? `${booking.notes} | Rescheduled: ${reason}` : `Rescheduled: ${reason}`;
+    }
+
+    await booking.save();
+    await booking.populate('petId', 'petName name species breed uniquePin age weight gender ownerName ownerPhone');
+    await booking.populate('customerId', 'name email phone role address');
+
+    return res.status(200).json({
+      success: true,
+      message: `Appointment successfully rescheduled to ${dateOnly} at ${newTimeSlot}.`,
+      data: booking
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error rescheduling appointment',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Cancel Appointment Lifecycle
+ * PUT /api/bookings/:id/cancel
+ * Payload: { reason }
+ */
+const cancelBooking = async (req, res) => {
+  try {
+    const booking = await Appointment.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment booking record not found for cancellation'
+      });
+    }
+
+    booking.status = 'Cancelled';
+    booking.cancelledAt = new Date();
+    if (req.body && req.body.reason) {
+      booking.cancellationReason = req.body.reason;
+      booking.notes = booking.notes ? `${booking.notes} | Cancelled: ${req.body.reason}` : `Cancelled: ${req.body.reason}`;
+    }
+    await booking.save();
+    await booking.populate('petId', 'petName name species breed uniquePin');
+    await booking.populate('customerId', 'name email phone');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Appointment successfully cancelled and slot released for other patients.',
+      data: {
+        _id: booking._id,
+        status: 'Cancelled',
+        cancelledAt: booking.cancelledAt,
+        cancellationReason: booking.cancellationReason
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error cancelling appointment',
+      error: error.message
+    });
+  }
+};
+
 const updateBooking = async (req, res) => {
   try {
-    const { serviceType, assignedStaff, appointmentDate, timeSlot, status, notes } = req.body;
+    const { serviceType, assignedStaff, doctor, appointmentDate, timeSlot, status, notes } = req.body;
 
     let booking = await Appointment.findById(req.params.id);
 
@@ -281,7 +470,7 @@ const updateBooking = async (req, res) => {
       }
     }
 
-    const docToUse = assignedStaff || booking.assignedStaff;
+    const docToUse = assignedStaff || doctor || booking.assignedStaff;
     const dateOnly = appointmentDate 
       ? (typeof appointmentDate === 'string' ? appointmentDate.slice(0, 10) : new Date(appointmentDate).toISOString().slice(0, 10))
       : (typeof booking.appointmentDate === 'string' ? booking.appointmentDate.slice(0, 10) : new Date(booking.appointmentDate).toISOString().slice(0, 10));
@@ -292,19 +481,22 @@ const updateBooking = async (req, res) => {
     const targetId = mongoose.Types.ObjectId.isValid(req.params.id) ? new mongoose.Types.ObjectId(req.params.id) : req.params.id;
 
     // 1. Strict Double Booking Guard for Updates / Rescheduling (Doctor + Date + Slot)
-    if (assignedStaff || appointmentDate || timeSlot) {
+    if (assignedStaff || doctor || appointmentDate || timeSlot) {
       const existingConflict = await Appointment.findOne({
         _id: { $ne: targetId },
-        assignedStaff: docToUse,
+        $or: [
+          { assignedStaff: docToUse },
+          { doctor: docToUse }
+        ],
         appointmentDate: { $gte: startOfDay, $lte: endOfDay },
         timeSlot: slotToUse,
-        status: { $ne: 'Cancelled' }
+        status: { $nin: ['Cancelled'] }
       });
 
       if (existingConflict) {
         return res.status(409).json({
           success: false,
-          message: `Slot Conflict: ${docToUse} is already booked on ${dateOnly} at ${slotToUse}. Please select a different slot.`
+          message: 'Selected Doctor is already booked for this time slot. Please choose another slot or doctor.'
         });
       }
     }
@@ -323,7 +515,7 @@ const updateBooking = async (req, res) => {
         _id: { $ne: targetId },
         petId: targetPetId,
         appointmentDate: { $gte: startOfDay, $lte: endOfDay },
-        status: { $ne: 'Cancelled' }
+        status: { $nin: ['Cancelled'] }
       });
       if (sameDayPet) {
         return res.status(400).json({
@@ -335,6 +527,7 @@ const updateBooking = async (req, res) => {
 
     if (serviceType) booking.serviceType = serviceType;
     if (assignedStaff) booking.assignedStaff = assignedStaff;
+    if (doctor) booking.doctor = doctor;
     if (appointmentDate) booking.appointmentDate = new Date(appointmentDate);
     if (timeSlot) booking.timeSlot = timeSlot;
     if (status) {
@@ -348,8 +541,8 @@ const updateBooking = async (req, res) => {
     if (notes !== undefined) booking.notes = notes;
 
     const updatedBooking = await booking.save();
-    await updatedBooking.populate('petId', 'petName species breed uniquePin');
-    await updatedBooking.populate('customerId', 'name email role');
+    await updatedBooking.populate('petId', 'petName name species breed uniquePin age weight gender ownerName ownerPhone');
+    await updatedBooking.populate('customerId', 'name email phone role address');
 
     return res.status(200).json({
       success: true,
@@ -365,39 +558,7 @@ const updateBooking = async (req, res) => {
   }
 };
 
-const deleteBooking = async (req, res) => {
-  try {
-    const booking = await Appointment.findById(req.params.id);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Appointment booking record not found'
-      });
-    }
-
-    // Strict Soft-Delete: NEVER delete appointment documents from MongoDB Atlas
-    booking.status = 'Cancelled';
-    booking.cancelledAt = new Date();
-    await booking.save();
-
-    return res.status(200).json({
-      success: true,
-      message: 'Appointment successfully cancelled and slot released',
-      data: {
-        _id: booking._id,
-        status: 'Cancelled',
-        cancelledAt: booking.cancelledAt
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Server Error cancelling appointment',
-      error: error.message
-    });
-  }
-};
+const deleteBooking = cancelBooking;
 
 /**
  * Clinical Appointment Summary Report
@@ -510,6 +671,8 @@ module.exports = {
   getBookings: getAllBookings,
   getBookingById,
   updateBooking,
+  rescheduleBooking,
+  cancelBooking,
   deleteBooking,
   getBookingReport,
   getDoctorDaySchedule

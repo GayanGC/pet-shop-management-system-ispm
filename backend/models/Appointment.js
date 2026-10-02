@@ -40,6 +40,10 @@ const appointmentSchema = new mongoose.Schema(
       default: 'Dr. Perera (Senior Vet)',
       trim: true
     },
+    doctor: {
+      type: String,
+      trim: true
+    },
     appointmentDate: {
       type: Date,
       required: [true, 'Appointment date is required']
@@ -51,13 +55,37 @@ const appointmentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled'],
+      enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled', 'Rescheduled'],
       default: 'Pending'
     },
     cancelledAt: {
       type: Date,
       default: null
     },
+    cancellationReason: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    queueNumber: {
+      type: Number,
+      default: 1
+    },
+    roomNumber: {
+      type: String,
+      default: 'Consultation Room 1'
+    },
+    rescheduleHistory: [
+      {
+        previousDate: Date,
+        previousTimeSlot: String,
+        newDate: Date,
+        newTimeSlot: String,
+        reason: { type: String, default: '' },
+        rescheduledAt: { type: Date, default: Date.now },
+        rescheduledBy: { type: String, default: 'Staff' }
+      }
+    ],
     notes: {
       type: String,
       default: '',
@@ -68,5 +96,15 @@ const appointmentSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+// Synchronize assignedStaff <-> doctor
+appointmentSchema.pre('validate', function (next) {
+  if (this.assignedStaff && !this.doctor) {
+    this.doctor = this.assignedStaff;
+  } else if (this.doctor && !this.assignedStaff) {
+    this.assignedStaff = this.doctor;
+  }
+  next();
+});
 
 module.exports = mongoose.model('Appointment', appointmentSchema);

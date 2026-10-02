@@ -37,32 +37,6 @@ const PrintableHealthPassportModal = ({ pet, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md overflow-y-auto transition-all duration-300">
-      {/* Print Styles Injection */}
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          #health-passport-document, #health-passport-document * {
-            visibility: visible !important;
-          }
-          #health-passport-document {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            padding: 20px !important;
-            margin: 0 !important;
-            background: white !important;
-            color: black !important;
-            box-shadow: none !important;
-            border: none !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
 
       {/* Modal Container */}
       <div className="bg-white/95 backdrop-blur-lg rounded-3xl max-w-4xl w-full p-6 shadow-2xl border border-slate-200/80 space-y-6 max-h-[90vh] overflow-y-auto relative transform transition-all duration-300 animate-in fade-in zoom-in-95">
@@ -102,7 +76,7 @@ const PrintableHealthPassportModal = ({ pet, onClose }) => {
           </div>
         ) : (
           /* Printable Document Wrapper */
-          <div id="health-passport-document" className="bg-white p-8 rounded-2xl border border-slate-200 space-y-6 text-slate-900">
+          <div id="health-passport-document" className="printable-clinical-record bg-white p-8 rounded-2xl border border-slate-200 space-y-6 text-slate-900">
             {/* Header / Logo */}
             <div className="border-b-2 border-slate-900 pb-6 flex justify-between items-start">
               <div>

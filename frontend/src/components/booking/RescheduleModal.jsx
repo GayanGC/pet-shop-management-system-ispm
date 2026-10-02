@@ -5,6 +5,7 @@ const RescheduleModal = ({ booking, onClose, onReschedule }) => {
   const [appointmentDate, setAppointmentDate] = useState('');
   const [timeSlot, setTimeSlot] = useState('09:00 AM');
   const [assignedStaff, setAssignedStaff] = useState(booking?.assignedStaff || 'Dr. Perera (Senior Vet)');
+  const [reason, setReason] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!booking) return null;
@@ -17,7 +18,14 @@ const RescheduleModal = ({ booking, onClose, onReschedule }) => {
       return;
     }
     try {
-      await onReschedule(booking._id, { appointmentDate, timeSlot, assignedStaff });
+      await onReschedule(booking._id, {
+        newDate: appointmentDate,
+        newTimeSlot: timeSlot,
+        appointmentDate,
+        timeSlot,
+        assignedStaff,
+        reason
+      });
       onClose();
     } catch (err) {
       setErrorMsg(err.message || 'Slot conflict or rescheduling error');
@@ -89,6 +97,16 @@ const RescheduleModal = ({ booking, onClose, onReschedule }) => {
               <option value="Dr. Silva (Consultant Physician)">Dr. Silva (Consultant Physician)</option>
               <option value="Nurse Silva">Nurse Silva</option>
             </select>
+          </div>
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Reason for Rescheduling</label>
+            <input
+              type="text"
+              placeholder="e.g. Pet parent travel delay, clinician request"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-blue-500 focus:outline-none placeholder:text-slate-400"
+            />
           </div>
 
           <div className="pt-2">

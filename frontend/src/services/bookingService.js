@@ -32,9 +32,32 @@ export const updateBooking = async (id, bookingData) => {
   return handleResponse(res);
 };
 
-export const cancelBooking = async (id) => {
-  const res = await fetch(`${API_BASE_URL}/bookings/${id}`, {
-    method: 'DELETE',
+export const rescheduleBooking = async (id, { newDate, newTimeSlot, reason }) => {
+  const res = await fetch(`${API_BASE_URL}/bookings/${id}/reschedule`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader()
+    },
+    body: JSON.stringify({ newDate, newTimeSlot, reason })
+  });
+  return handleResponse(res);
+};
+
+export const cancelBooking = async (id, reason = '') => {
+  const res = await fetch(`${API_BASE_URL}/bookings/${id}/cancel`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader()
+    },
+    body: JSON.stringify({ reason })
+  });
+  return handleResponse(res);
+};
+
+export const fetchBookingSlip = async (id) => {
+  const res = await fetch(`${API_BASE_URL}/bookings/${id}/slip`, {
     headers: getAuthHeader()
   });
   return handleResponse(res);

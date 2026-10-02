@@ -64,7 +64,7 @@ import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet }
 import { fetchCustomers } from './services/userService';
 import productService, { fetchProducts as fetchProductsApi, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
-import { fetchBookings, createBooking, updateBooking, cancelBooking } from './services/bookingService';
+import { fetchBookings, createBooking, updateBooking, rescheduleBooking, cancelBooking } from './services/bookingService';
 import { fetchInvoices as fetchInvoicesApi, createInvoice, voidInvoice } from './services/billingService';
 
 
@@ -825,11 +825,10 @@ function App() {
     }
   };
 
-  const handleCancelBooking = async (id) => {
-    if (!window.confirm('Cancel this consultation appointment?')) return;
+  const handleCancelBooking = async (id, reason = '') => {
     try {
-      const res = await cancelBooking(id);
-      showToast(res.message);
+      const res = await cancelBooking(id, reason);
+      showToast(res.message || 'Appointment cancelled successfully');
       loadBookings();
     } catch (err) {
       showToast(err.message, 'error');
@@ -838,11 +837,17 @@ function App() {
 
   const handleRescheduleBooking = async (id, updateData) => {
     try {
-      const res = await updateBooking(id, updateData);
-      showToast(`Appointment rescheduled to ${new Date(res.data.appointmentDate).toLocaleDateString()} at ${res.data.timeSlot}!`);
+      const res = await rescheduleBooking(id, {
+        newDate: updateData.newDate || updateData.appointmentDate,
+        newTimeSlot: updateData.newTimeSlot || updateData.timeSlot,
+        reason: updateData.reason || ''
+      });
+      showToast(`Appointment rescheduled to ${new Date(res.data?.appointmentDate || updateData.newDate).toLocaleDateString()} at ${res.data?.timeSlot || updateData.newTimeSlot}!`);
       loadBookings();
+      return res;
     } catch (err) {
       showToast(err.message, 'error');
+      throw err;
     }
   };
 
