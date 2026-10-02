@@ -1,19 +1,99 @@
-import React, { useState } from 'react';
-import { Search, Filter, Package, AlertTriangle, Edit3, Trash2, CheckCircle2, SlidersHorizontal, Calendar } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Filter, Package, AlertTriangle, Edit3, Trash2, CheckCircle2, SlidersHorizontal, Calendar, X } from 'lucide-react';
 import StockAdjustModal from './StockAdjustModal';
 
 const InventoryList = ({ 
   products = [], 
+  items = [],
   onDelete, 
   onEdit, 
   onAdjustStock, 
-  searchTerm, 
-  setSearchTerm, 
-  categoryFilter, 
-  setCategoryFilter,
+  searchTerm: propSearchTerm, 
+  setSearchTerm: propSetSearchTerm, 
+  categoryFilter: propCategoryFilter, 
+  setCategoryFilter: propSetCategoryFilter,
+  selectedCategory: propSelectedCategory,
+  setSelectedCategory: propSetSelectedCategory,
   readOnly = false 
 }) => {
+  const [searchTerm, setSearchTerm] = useState(propSearchTerm || '');
+  const [selectedCategory, setSelectedCategory] = useState(propCategoryFilter || propSelectedCategory || 'All');
   const [selectedProductForAdjust, setSelectedProductForAdjust] = useState(null);
+
+  // Sync with prop values if provided by parent
+  useEffect(() => {
+    if (propSearchTerm !== undefined) {
+      setSearchTerm(propSearchTerm);
+    }
+  }, [propSearchTerm]);
+
+  useEffect(() => {
+    const parentCat = propCategoryFilter !== undefined ? propCategoryFilter : propSelectedCategory;
+    if (parentCat !== undefined) {
+      setSelectedCategory(parentCat);
+    }
+  }, [propCategoryFilter, propSelectedCategory]);
+
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+    if (propSetSearchTerm) {
+      propSetSearchTerm(value);
+    }
+  };
+
+  const handleCategoryChange = (value) => {
+    setSelectedCategory(value);
+    if (propSetCategoryFilter) {
+      propSetCategoryFilter(value);
+    }
+    if (propSetSelectedCategory) {
+      propSetSelectedCategory(value);
+    }
+  };
+
+  // Determine active dataset (support both products and items props)
+  const sourceList = useMemo(() => {
+    if (Array.isArray(products) && products.length > 0) return products;
+    if (Array.isArray(items) && items.length > 0) return items;
+    if (Array.isArray(products)) return products;
+    if (Array.isArray(items)) return items;
+    return [];
+  }, [products, items]);
+
+  // Real-time reactive filtering
+  const filteredProducts = useMemo(() => {
+    const term = (searchTerm || '').trim().toLowerCase();
+    const cat = selectedCategory || 'All';
+
+    return sourceList.filter((item) => {
+      if (!item) return false;
+
+      // Match item name (supporting both itemName and name schemas)
+      const name = (item.itemName || item.name || '').toLowerCase();
+      const supplier = (item.supplier || '').toLowerCase();
+      const batchNo = (item.batchNo || item.batch || '').toLowerCase();
+      const itemCategory = (item.category || '').toLowerCase();
+
+      const matchesSearch = !term || (
+        name.includes(term) ||
+        supplier.includes(term) ||
+        batchNo.includes(term) ||
+        itemCategory.includes(term)
+      );
+
+      // Match category
+      const targetCat = cat.toLowerCase();
+      const matchesCategory = 
+        !cat || 
+        cat === 'All' || 
+        itemCategory === targetCat ||
+        (targetCat === 'medicine' && itemCategory.startsWith('medicine')) ||
+        (targetCat === 'medicines' && itemCategory.startsWith('medicine')) ||
+        itemCategory.includes(targetCat);
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [sourceList, searchTerm, selectedCategory]);
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden space-y-0 transition-colors">
@@ -25,7 +105,7 @@ const InventoryList = ({
               {readOnly ? '💊 Clinical Medication & Formulary Catalog' : 'Pharmacy & Stock Catalog'}
             </h2>
             <span className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800">
-              {products.length} Items
+              {filteredProducts.length} Items {filteredProducts.length !== sourceList.length && `(filtered from ${sourceList.length})`}
             </span>
             {readOnly && (
               <span className="bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
@@ -48,21 +128,32 @@ const InventoryList = ({
               type="text"
               placeholder="Search products, suppliers, or batch..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all placeholder:text-slate-400"
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all placeholder:text-slate-400"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => handleSearchChange('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="relative">
-            <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all appearance-none cursor-pointer"
+              value={selectedCategory}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="pl-8 pr-8 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="All">All Categories</option>
               <option value="Healthcare">Healthcare</option>
               <option value="Medicine">Prescription Medicine</option>
+              <option value="Medicines">Medicines</option>
               <option value="Vaccines">Vaccines & Biologics</option>
               <option value="Supplements">Supplements & Vitamins</option>
               <option value="Food">Pet Nutrition & Diets</option>
@@ -86,8 +177,8 @@ const InventoryList = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-            {products.length > 0 ? (
-              products.map((item) => {
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((item) => {
                 const isLowStock = item.stockQuantity <= 5;
                 const expiry = item.expiryDate ? new Date(item.expiryDate) : null;
                 const daysToExpiry = expiry ? Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24)) : 999;
@@ -101,7 +192,7 @@ const InventoryList = ({
                           <Package className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <span>{item.itemName}</span>
+                          <span>{item.itemName || item.name}</span>
                           <span className="block text-[10px] text-slate-400 font-normal">Supplier: {item.supplier || 'Direct'}</span>
                         </div>
                       </div>
@@ -168,7 +259,7 @@ const InventoryList = ({
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => onDelete(item._id)}
+                            onClick={() => onDelete && onDelete(item._id)}
                             className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-all cursor-pointer"
                             title="Discontinue Product"
                           >
@@ -184,15 +275,26 @@ const InventoryList = ({
               <tr>
                 <td colSpan="6" className="py-12 px-4 text-center">
                   <div className="max-w-xs mx-auto text-center space-y-2">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-100">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-500 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-100 dark:border-emerald-800">
                       <Package className="w-6 h-6" />
                     </div>
-                    <h3 className="text-sm font-bold text-slate-700">No inventory products found</h3>
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">No inventory products found</h3>
                     <p className="text-xs text-slate-400">
-                      {searchTerm || categoryFilter !== 'All'
-                        ? 'No stock items match your search or filter.'
+                      {searchTerm || selectedCategory !== 'All'
+                        ? `No items match "${searchTerm || selectedCategory}". Try a different keyword or clear filters.`
                         : 'Add your first medication or stock item above!'}
                     </p>
+                    {(searchTerm || selectedCategory !== 'All') && (
+                      <button
+                        onClick={() => {
+                          handleSearchChange('');
+                          handleCategoryChange('All');
+                        }}
+                        className="mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                      >
+                        Reset filters
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -207,7 +309,7 @@ const InventoryList = ({
           product={selectedProductForAdjust}
           onClose={() => setSelectedProductForAdjust(null)}
           onAdjust={(id, delta) => {
-            onAdjustStock(id, delta);
+            if (onAdjustStock) onAdjustStock(id, delta);
             setSelectedProductForAdjust(null);
           }}
         />
@@ -217,3 +319,4 @@ const InventoryList = ({
 };
 
 export default InventoryList;
+
