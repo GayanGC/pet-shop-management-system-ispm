@@ -71,11 +71,25 @@ export const fetchPetHealthPassport = async (id) => {
   return handleResponse(res);
 };
 
+export const getMyPets = async (params = {}) => {
+  const qs = toQueryString(params);
+  const res = await fetch(`${API_BASE_URL}/pets/my-pets${qs}`, {
+    headers: getAuthHeader()
+  });
+  return handleResponse(res);
+};
+
+export const searchMyPets = async (searchTerm, params = {}) => {
+  return getMyPets({ ...params, search: searchTerm });
+};
+
 export const getAllPets = fetchPets;
 
 const petService = {
   getAllPets,
   fetchPets,
+  getMyPets,
+  searchMyPets,
   createPet,
   updatePet,
   deletePet,

@@ -4,6 +4,8 @@ const {
   petHealthCheck,
   createPet,
   getPetByPin,
+  getMyPets,
+  searchMyPets,
   getAllPets,
   getPetById,
   updatePet,
@@ -15,6 +17,9 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 
 router.get('/health', petHealthCheck);
+router.get('/my-pets', protect, getMyPets);
+router.get('/my', protect, getMyPets);
+router.get('/search/my', protect, searchMyPets);
 router.get('/pin/:pin', protect, getPetByPin);
 
 router.patch('/:id/archive', protect, archivePet);

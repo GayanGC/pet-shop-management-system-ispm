@@ -155,9 +155,21 @@ const createPet = async (req, res) => {
 
     // Prevent duplicate active pet name under same owner
     const existingPetForOwner = await Pet.findOne({
-      ownerId: targetOwner,
-      petName: { $regex: new RegExp(`^${petName.trim()}$`, 'i') },
-      isArchived: false
+      $and: [
+        {
+          $or: [
+            { ownerId: targetOwner },
+            { owner: targetOwner }
+          ]
+        },
+        {
+          $or: [
+            { petName: { $regex: new RegExp(`^${petName.trim()}$`, 'i') } },
+            { name: { $regex: new RegExp(`^${petName.trim()}$`, 'i') } }
+          ]
+        },
+        { isArchived: { $ne: true } }
+      ]
     });
     if (existingPetForOwner) {
       return res.status(400).json({
@@ -171,12 +183,14 @@ const createPet = async (req, res) => {
       microchipNumber: microchipNumber ? microchipNumber.trim() : '',
       dob: dob ? new Date(dob) : null,
       petName: petName.trim(),
+      name: petName.trim(),
       species: species.trim(),
       breed: breed || 'Unknown/Mixed',
       age: ageNum,
       weight: weight ? Number(weight) : 0,
       gender: gender || 'Male',
       ownerId: targetOwner,
+      owner: targetOwner,
       ownerName: req.body.ownerName || '',
       ownerPhone: phoneToTest || '',
       ownerEmail: emailToTest || '',
@@ -187,12 +201,17 @@ const createPet = async (req, res) => {
     });
 
     await pet.populate('ownerId', 'name email phone address role');
+    await pet.populate('owner', 'name email phone address role');
 
     const petObj = pet.toObject ? pet.toObject() : { ...pet };
-    petObj.ownerName = pet.ownerId?.name || petObj.ownerName || 'Registered Owner';
-    petObj.ownerPhone = pet.ownerId?.phone || petObj.ownerPhone || '';
-    petObj.ownerEmail = pet.ownerId?.email || petObj.ownerEmail || '';
-    petObj.ownerAddress = pet.ownerId?.address || petObj.ownerAddress || '';
+    petObj.name = petObj.name || petObj.petName;
+    petObj.petName = petObj.petName || petObj.name;
+    petObj.owner = petObj.owner || petObj.ownerId;
+    petObj.ownerId = petObj.ownerId || petObj.owner;
+    petObj.ownerName = pet.ownerId?.name || pet.owner?.name || petObj.ownerName || 'Registered Owner';
+    petObj.ownerPhone = pet.ownerId?.phone || pet.owner?.phone || petObj.ownerPhone || '';
+    petObj.ownerEmail = pet.ownerId?.email || pet.owner?.email || petObj.ownerEmail || '';
+    petObj.ownerAddress = pet.ownerId?.address || pet.owner?.address || petObj.ownerAddress || '';
     petObj.petId = petObj._id;
 
     return res.status(201).json({
@@ -252,70 +271,158 @@ const getPetByPin = async (req, res) => {
   }
 };
 
-const getAllPets = async (req, res) => {
+/**
+ * CUSTOMER-SCOPED PET RETRIEVAL & SEARCH
+ * Enforces strict tenant ownership isolation (OWASP BOLA defense)
+ * Multi-tenant safe: Customer A searching "Tommy" only receives Customer A's "Tommy"
+ */
+const getMyPets = async (req, res) => {
   try {
-    const { species, search, ownerId, customerId, includeArchived } = req.query;
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required to access personal pets'
+      });
+    }
 
-    let query = {};
+    const searchTerm = req.query.search || req.query.q || req.query.searchTerm;
+    const { species, includeArchived } = req.query;
+
+    const andConditions = [
+      {
+        $or: [
+          { owner: req.user._id },
+          { ownerId: req.user._id }
+        ]
+      }
+    ];
+
     if (includeArchived !== 'true') {
-      query.isArchived = false;
+      andConditions.push({ isArchived: { $ne: true } });
     }
 
     if (species && species !== 'All' && species !== 'undefined' && species !== 'null') {
-      query.species = species;
+      andConditions.push({ species });
     }
 
-    // Private Scoping for Customer Role: only see own pets
-    const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
-    if (isCustomer) {
-      const customerIds = [req.user._id];
-      if (req.user.phone || req.user.email) {
-        const matchingUsers = await User.find({
-          $or: [
-            ...(req.user.phone ? [{ phone: req.user.phone }] : []),
-            ...(req.user.email ? [{ email: req.user.email }] : [])
-          ]
-        }).select('_id');
-        matchingUsers.forEach((u) => {
-          if (!customerIds.some((cid) => cid.toString() === u._id.toString())) {
-            customerIds.push(u._id);
-          }
-        });
-      }
-      query.ownerId = { $in: customerIds };
-    } else if (customerId && customerId !== 'undefined' && customerId !== 'null') {
-      query.ownerId = customerId;
-    } else if (ownerId && ownerId !== 'undefined' && ownerId !== 'null') {
-      query.ownerId = ownerId;
+    if (searchTerm && searchTerm.trim() !== '') {
+      const cleanTerm = searchTerm.trim();
+      andConditions.push({
+        $or: [
+          { name: { $regex: cleanTerm, $options: 'i' } },
+          { petName: { $regex: cleanTerm, $options: 'i' } },
+          { uniquePin: { $regex: cleanTerm.toUpperCase(), $options: 'i' } },
+          { breed: { $regex: cleanTerm, $options: 'i' } }
+        ]
+      });
     }
 
-    if (search && search !== 'undefined' && search !== 'null' && search.trim() !== '') {
-      const trimmedSearch = search.trim();
-      const searchConditions = [
-        { petName: { $regex: trimmedSearch, $options: 'i' } },
-        { uniquePin: { $regex: trimmedSearch, $options: 'i' } },
-        { breed: { $regex: trimmedSearch, $options: 'i' } }
-      ];
-      if (query.ownerId) {
-        query = {
-          ...query,
-          $and: [{ $or: searchConditions }]
-        };
-      } else {
-        query.$or = searchConditions;
-      }
-    }
+    const query = { $and: andConditions };
 
     const pets = await Pet.find(query)
       .populate('ownerId', 'name email phone address role')
+      .populate('owner', 'name email phone address role')
       .sort({ createdAt: -1 });
 
     const serializedPets = pets.map((p) => {
       const obj = p.toObject ? p.toObject() : { ...p };
-      obj.ownerName = p.ownerId?.name || obj.ownerName || 'Registered Owner';
-      obj.ownerPhone = p.ownerId?.phone || obj.ownerPhone || '';
-      obj.ownerEmail = p.ownerId?.email || obj.ownerEmail || '';
-      obj.ownerAddress = p.ownerId?.address || obj.ownerAddress || '';
+      obj.name = obj.name || obj.petName;
+      obj.petName = obj.petName || obj.name;
+      obj.owner = obj.owner || obj.ownerId;
+      obj.ownerId = obj.ownerId || obj.owner;
+      obj.ownerName = p.ownerId?.name || p.owner?.name || obj.ownerName || req.user.name;
+      obj.ownerPhone = p.ownerId?.phone || p.owner?.phone || obj.ownerPhone || req.user.phone || '';
+      obj.ownerEmail = p.ownerId?.email || p.owner?.email || obj.ownerEmail || req.user.email || '';
+      obj.ownerAddress = p.ownerId?.address || p.owner?.address || obj.ownerAddress || '';
+      obj.petId = obj._id;
+      return obj;
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: serializedPets.length,
+      data: serializedPets,
+      pets: serializedPets
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve personal customer pets',
+      error: error.message
+    });
+  }
+};
+
+const searchMyPets = getMyPets;
+
+const getAllPets = async (req, res) => {
+  try {
+    const { species, search, ownerId, customerId, includeArchived } = req.query;
+
+    const andConditions = [];
+
+    if (includeArchived !== 'true') {
+      andConditions.push({ isArchived: { $ne: true } });
+    }
+
+    if (species && species !== 'All' && species !== 'undefined' && species !== 'null') {
+      andConditions.push({ species });
+    }
+
+    // Private Scoping for Customer Role: strictly isolate to own pets (Zero data leakage)
+    const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
+    if (isCustomer) {
+      andConditions.push({
+        $or: [
+          { owner: req.user._id },
+          { ownerId: req.user._id }
+        ]
+      });
+    } else if (customerId && customerId !== 'undefined' && customerId !== 'null') {
+      andConditions.push({
+        $or: [
+          { owner: customerId },
+          { ownerId: customerId }
+        ]
+      });
+    } else if (ownerId && ownerId !== 'undefined' && ownerId !== 'null') {
+      andConditions.push({
+        $or: [
+          { owner: ownerId },
+          { ownerId: ownerId }
+        ]
+      });
+    }
+
+    if (search && search !== 'undefined' && search !== 'null' && search.trim() !== '') {
+      const trimmedSearch = search.trim();
+      andConditions.push({
+        $or: [
+          { name: { $regex: trimmedSearch, $options: 'i' } },
+          { petName: { $regex: trimmedSearch, $options: 'i' } },
+          { uniquePin: { $regex: trimmedSearch.toUpperCase(), $options: 'i' } },
+          { breed: { $regex: trimmedSearch, $options: 'i' } }
+        ]
+      });
+    }
+
+    const query = andConditions.length > 0 ? { $and: andConditions } : {};
+
+    const pets = await Pet.find(query)
+      .populate('ownerId', 'name email phone address role')
+      .populate('owner', 'name email phone address role')
+      .sort({ createdAt: -1 });
+
+    const serializedPets = pets.map((p) => {
+      const obj = p.toObject ? p.toObject() : { ...p };
+      obj.name = obj.name || obj.petName;
+      obj.petName = obj.petName || obj.name;
+      obj.owner = obj.owner || obj.ownerId;
+      obj.ownerId = obj.ownerId || obj.owner;
+      obj.ownerName = p.ownerId?.name || p.owner?.name || obj.ownerName || 'Registered Owner';
+      obj.ownerPhone = p.ownerId?.phone || p.owner?.phone || obj.ownerPhone || '';
+      obj.ownerEmail = p.ownerId?.email || p.owner?.email || obj.ownerEmail || '';
+      obj.ownerAddress = p.ownerId?.address || p.owner?.address || obj.ownerAddress || '';
       obj.petId = obj._id;
       return obj;
     });
@@ -339,7 +446,8 @@ const getAllPets = async (req, res) => {
 const getPetById = async (req, res) => {
   try {
     const pet = await Pet.findOne({ _id: req.params.id, isArchived: false })
-      .populate('ownerId', 'name email phone address role');
+      .populate('ownerId', 'name email phone address role')
+      .populate('owner', 'name email phone address role');
 
     if (!pet) {
       return res.status(404).json({
@@ -348,9 +456,32 @@ const getPetById = async (req, res) => {
       });
     }
 
+    // OWASP BOLA Protection: Customer can only view their own pet
+    const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
+    if (isCustomer) {
+      const petOwnerId = (pet.ownerId?._id || pet.ownerId || pet.owner?._id || pet.owner || '').toString();
+      if (petOwnerId !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: You are not authorized to view another customer’s pet profile.'
+        });
+      }
+    }
+
+    const obj = pet.toObject ? pet.toObject() : { ...pet };
+    obj.name = obj.name || obj.petName;
+    obj.petName = obj.petName || obj.name;
+    obj.owner = obj.owner || obj.ownerId;
+    obj.ownerId = obj.ownerId || obj.owner;
+    obj.ownerName = pet.ownerId?.name || pet.owner?.name || obj.ownerName || 'Registered Owner';
+    obj.ownerPhone = pet.ownerId?.phone || pet.owner?.phone || obj.ownerPhone || '';
+    obj.ownerEmail = pet.ownerId?.email || pet.owner?.email || obj.ownerEmail || '';
+    obj.ownerAddress = pet.ownerId?.address || pet.owner?.address || obj.ownerAddress || '';
+    obj.petId = obj._id;
+
     return res.status(200).json({
       success: true,
-      data: pet
+      data: obj
     });
   } catch (error) {
     return res.status(500).json({
@@ -363,7 +494,7 @@ const getPetById = async (req, res) => {
 
 const updatePet = async (req, res) => {
   try {
-    const { petName, species, breed, age, weight, status, clinicStatus, ownerId } = req.body;
+    const { petName, name, species, breed, age, weight, status, clinicStatus, ownerId, owner } = req.body;
 
     let pet = await Pet.findOne({ _id: req.params.id, isArchived: false });
 
@@ -374,17 +505,40 @@ const updatePet = async (req, res) => {
       });
     }
 
-    if (petName) pet.petName = petName;
+    // OWASP BOLA Protection: Customer can only update their own pet
+    const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
+    if (isCustomer) {
+      const petOwnerId = (pet.ownerId?._id || pet.ownerId || pet.owner?._id || pet.owner || '').toString();
+      if (petOwnerId !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: You are not authorized to modify another customer’s pet profile.'
+        });
+      }
+    }
+
+    const finalName = petName || name;
+    if (finalName) {
+      pet.petName = finalName;
+      pet.name = finalName;
+    }
     if (species) pet.species = species;
     if (breed) pet.breed = breed;
     if (age !== undefined) pet.age = Number(age);
     if (weight !== undefined) pet.weight = Number(weight);
     if (status) pet.status = status;
     if (clinicStatus) pet.clinicStatus = clinicStatus;
-    if (ownerId) pet.ownerId = ownerId;
+    
+    // Only admin can transfer ownership
+    const finalOwner = ownerId || owner;
+    if (finalOwner && !isCustomer) {
+      pet.ownerId = finalOwner;
+      pet.owner = finalOwner;
+    }
 
     const updatedPet = await pet.save();
     await updatedPet.populate('ownerId', 'name email role');
+    await updatedPet.populate('owner', 'name email role');
 
     return res.status(200).json({
       success: true,
@@ -409,6 +563,18 @@ const deletePet = async (req, res) => {
         success: false,
         message: 'Pet record not found or already archived'
       });
+    }
+
+    // OWASP BOLA Protection: Customer can only delete their own pet
+    const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
+    if (isCustomer) {
+      const petOwnerId = (pet.ownerId?._id || pet.ownerId || pet.owner?._id || pet.owner || '').toString();
+      if (petOwnerId !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: You are not authorized to delete another customer’s pet profile.'
+        });
+      }
     }
 
     pet.isArchived = true;
@@ -620,6 +786,8 @@ module.exports = {
   petHealthCheck,
   createPet,
   getPetByPin,
+  getMyPets,
+  searchMyPets,
   getAllPets,
   getPets: getAllPets,
   getPetById,

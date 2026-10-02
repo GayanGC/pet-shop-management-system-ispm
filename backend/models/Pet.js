@@ -72,6 +72,10 @@ const petSchema = new mongoose.Schema(
       required: [true, 'Pet name is required'],
       trim: true
     },
+    name: {
+      type: String,
+      trim: true
+    },
     species: {
       type: String,
       required: [true, 'Species type is required'],
@@ -113,6 +117,10 @@ const petSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'Pet must belong to a registered owner']
+    },
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     },
     ownerName: {
       type: String,
@@ -191,5 +199,20 @@ const petSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+// Synchronize name <-> petName and owner <-> ownerId automatically
+petSchema.pre('validate', function (next) {
+  if (this.petName && !this.name) {
+    this.name = this.petName;
+  } else if (this.name && !this.petName) {
+    this.petName = this.name;
+  }
+  if (this.ownerId && !this.owner) {
+    this.owner = this.ownerId;
+  } else if (this.owner && !this.ownerId) {
+    this.ownerId = this.owner;
+  }
+  next();
+});
 
 module.exports = mongoose.model('Pet', petSchema);

@@ -93,7 +93,7 @@ const CustomerPortal = ({
   const loadCustomerPets = async () => {
     setIsPetsLoading(true);
     try {
-      const res = await petService.getAllPets();
+      const res = await (petService.getMyPets ? petService.getMyPets() : petService.getAllPets());
       const list = Array.isArray(res) ? res : (res?.data || res?.pets || []);
       if (Array.isArray(list)) {
         setPortalPets(list.filter((p) => !p.isArchived));
@@ -225,6 +225,7 @@ const CustomerPortal = ({
     const matchesSearch =
       !term ||
       (pet.petName || '').toLowerCase().includes(term) ||
+      (pet.name || '').toLowerCase().includes(term) ||
       (pet.uniquePin || '').toLowerCase().includes(term) ||
       (pet.breed || '').toLowerCase().includes(term);
     const matchesSpecies = petSpeciesFilter === 'All' || pet.species === petSpeciesFilter;
