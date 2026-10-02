@@ -60,7 +60,7 @@ import RegisterStaffModal from './components/admin/RegisterStaffModal';
 import StaffDirectory from './components/admin/StaffDirectory';
 
 import { getCurrentUser, logout, login } from './services/authService';
-import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
+import { fetchPets, fetchPetByPin, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
 import { fetchCustomers } from './services/userService';
 import productService, { fetchProducts as fetchProductsApi, createProduct, updateProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
@@ -207,6 +207,7 @@ function App() {
 
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser() || null);
   const role = normalizeRole(currentUser?.role);
+  const isCashier = currentUser?.role?.toLowerCase() === 'cashier' || role === 'cashier';
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMessage, setAuthModalMessage] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
@@ -216,7 +217,14 @@ function App() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
 
   // 4. Navigation & Subtab State
-  const [activeTab, setActiveTab] = useState(() => (getCurrentUser() ? 'pets' : 'overview'));
+  const [activeTab, setActiveTab] = useState(() => {
+    const user = getCurrentUser();
+    if (!user) return 'overview';
+    const uRole = normalizeRole(user.role);
+    if (uRole === 'cashier') return 'pos';
+    if (uRole === 'inventory_officer') return 'pharmacy';
+    return 'pets';
+  });
   const [posSubTab, setPosSubTab] = useState('terminal');
   const [bookingSubTab, setBookingSubTab] = useState('directory');
   const [pharmacySubTab, setPharmacySubTab] = useState('showcase'); // 'showcase' | 'inventory' | 'suppliers' | 'expiry'
@@ -230,6 +238,11 @@ function App() {
   const [notification, setNotification] = useState({ message: '', type: '' });
   const [isRegisterStaffModalOpen, setIsRegisterStaffModalOpen] = useState(false);
 
+  // Cashier POS Patient Link & Real-time Query State
+  const [posPatient, setPosPatient] = useState(null);
+  const [posProductQuery, setPosProductQuery] = useState('');
+  const [headerSearch, setHeaderSearch] = useState('');
+
   // Role Auto-Landing & Active Tab Sanitization
   useEffect(() => {
     if (!currentUser) {
@@ -239,7 +252,11 @@ function App() {
       return;
     }
     const userRole = normalizeRole(currentUser.role);
-    if (userRole === 'inventory_officer') {
+    if (userRole === 'cashier') {
+      if (activeTab !== 'pos' && activeTab !== 'orders') {
+        setActiveTab('pos');
+      }
+    } else if (userRole === 'inventory_officer') {
       if (activeTab !== 'pos' && activeTab !== 'suppliers') {
         setActiveTab('pharmacy');
         setPharmacySubTab('inventory');
@@ -941,14 +958,62 @@ function App() {
   const totalRevenue = invoices.reduce((acc, inv) => acc + (inv.finalTotal || inv.totalAmount || 0), 0);
   const cartItemCount = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
-  // Search Submit Handler
-  const handleGlobalSearchSubmit = (e) => {
-    e.preventDefault();
-    if (!currentUser || activeTab === 'overview') {
-      setActiveTab('pharmacy');
+  // Search Submit Handler with Instant Pet PIN Resolution to POS
+  const handleGlobalSearchSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const rawTerm = headerSearch.trim();
+    if (!rawTerm) return;
+
+    // 1. Pet PIN format detection (^PET-[A-Z0-9]+)
+    const pinRegex = /^PET-[A-Z0-9]+/i;
+    if (pinRegex.test(rawTerm)) {
+      const cleanPin = rawTerm.toUpperCase();
+      try {
+        const res = await fetchPetByPin(cleanPin);
+        const pet = res?.data || res;
+        if (pet && (pet._id || pet.uniquePin)) {
+          const owner = pet.ownerId || {};
+          const patientData = {
+            petId: pet._id,
+            petName: pet.petName,
+            uniquePin: pet.uniquePin,
+            species: pet.species,
+            breed: pet.breed,
+            ownerId: owner._id || owner.id,
+            ownerName: pet.ownerName || owner.name || 'Walk-in Client',
+            ownerPhone: pet.ownerPhone || owner.phone || '',
+            ownerEmail: pet.ownerEmail || owner.email || ''
+          };
+          setPosPatient(patientData);
+          setActiveTab('pos');
+          showToast(`Patient ${pet.petName} (PIN: ${pet.uniquePin}) loaded into POS!`, 'success');
+          scrollToContent();
+          return;
+        } else {
+          showToast(`Patient with PIN '${cleanPin}' not found in clinic records.`, 'error');
+        }
+      } catch (err) {
+        console.error('Error loading pet by PIN:', err);
+        showToast(err.message || `Patient with PIN '${cleanPin}' not found.`, 'error');
+      }
+      return;
     }
-    if (activeTab === 'pets') setPetSearch(petSearch);
-    if (activeTab === 'pharmacy' || activeTab === 'overview' || !currentUser) setProductSearch(productSearch);
+
+    // 2. Tab-specific routing & medication filter
+    if (activeTab === 'pharmacy' || activeTab === 'overview' || !currentUser) {
+      if (activeTab !== 'pharmacy') setActiveTab('pharmacy');
+      setProductSearch(rawTerm);
+      scrollToContent();
+    } else if (activeTab === 'pets') {
+      setPetSearch(rawTerm);
+      scrollToContent();
+    } else if (activeTab === 'pos') {
+      setPosProductQuery(rawTerm);
+      scrollToContent();
+    } else {
+      setProductSearch(rawTerm);
+      scrollToContent();
+    }
   };
 
   // Dynamic Navigation Tabs Strictly Isolated Based on Role
@@ -1076,10 +1141,13 @@ function App() {
               <input
                 type="text"
                 placeholder="Search patient PIN, medications, appointments..."
-                value={activeTab === 'pets' ? petSearch : activeTab === 'pharmacy' ? productSearch : ''}
+                value={headerSearch}
                 onChange={(e) => {
-                  if (activeTab === 'pets') setPetSearch(e.target.value);
-                  if (activeTab === 'pharmacy') setProductSearch(e.target.value);
+                  const val = e.target.value;
+                  setHeaderSearch(val);
+                  if (activeTab === 'pets') setPetSearch(val);
+                  if (activeTab === 'pharmacy') setProductSearch(val);
+                  if (activeTab === 'pos') setPosProductQuery(val);
                 }}
                 className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs rounded-lg border border-teal-600/40 dark:border-slate-700 focus:ring-2 focus:ring-teal-400 focus:outline-none placeholder:text-slate-400 font-medium shadow-xs"
               />
@@ -1285,36 +1353,62 @@ function App() {
 
             {/* Quick Action Buttons with Guest Protection */}
             <div className="flex flex-wrap items-center gap-2.5 pt-2">
-              <button
-                onClick={() => handleActionWithAuth(() => setIsPetModalOpen(true), 'Please sign in to register a pet patient.')}
-                className="bg-teal-700 hover:bg-teal-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs border border-teal-500/40"
-              >
-                <Plus className="w-4 h-4" /> Register Patient
-              </button>
+              {isCashier ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setActiveTab('pos');
+                      scrollToContent();
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-md border border-emerald-400/40"
+                  >
+                    <ShoppingCart className="w-4 h-4 text-emerald-100" /> New POS Transaction
+                  </button>
 
-              <button
-                onClick={() => handleActionWithAuth(() => setIsBookingModalOpen(true), 'Please sign in to book a clinical appointment.')}
-                className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
-              >
-                <Calendar className="w-4 h-4 text-teal-200" /> Book Consultation
-              </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('orders');
+                      scrollToContent();
+                    }}
+                    className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    <Receipt className="w-4 h-4 text-teal-200" /> View Sales Ledger
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleActionWithAuth(() => setIsPetModalOpen(true), 'Please sign in to register a pet patient.')}
+                    className="bg-teal-700 hover:bg-teal-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs border border-teal-500/40"
+                  >
+                    <Plus className="w-4 h-4" /> Register Patient
+                  </button>
 
-              {(!currentUser || role === 'admin' || role === 'inventory_officer') && (
-                <button
-                  onClick={() => handleActionWithAuth(() => setIsProductModalOpen(true), 'Please sign in as Admin or Inventory Officer to add stock.')}
-                  className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
-                >
-                  <Package className="w-4 h-4 text-teal-200" /> Add Inventory Item
-                </button>
-              )}
+                  <button
+                    onClick={() => handleActionWithAuth(() => setIsBookingModalOpen(true), 'Please sign in to book a clinical appointment.')}
+                    className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    <Calendar className="w-4 h-4 text-teal-200" /> Book Consultation
+                  </button>
 
-              {role === 'admin' && (
-                <button
-                  onClick={() => setIsRegisterStaffModalOpen(true)}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-indigo-400/50 hover:border-indigo-300 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
-                >
-                  <UserPlus className="w-4 h-4 text-indigo-200" /> Register Staff Member
-                </button>
+                  {(!currentUser || role === 'admin' || role === 'inventory_officer') && (
+                    <button
+                      onClick={() => handleActionWithAuth(() => setIsProductModalOpen(true), 'Please sign in as Admin or Inventory Officer to add stock.')}
+                      className="bg-white/15 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-white/30 hover:border-white/50 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <Package className="w-4 h-4 text-teal-200" /> Add Inventory Item
+                    </button>
+                  )}
+
+                  {role === 'admin' && (
+                    <button
+                      onClick={() => setIsRegisterStaffModalOpen(true)}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs backdrop-blur-md border border-indigo-400/50 hover:border-indigo-300 transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <UserPlus className="w-4 h-4 text-indigo-200" /> Register Staff Member
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -1341,15 +1435,97 @@ function App() {
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              {role === 'inventory_officer' ? 'Inventory & Supply Operations' : role === 'staff' ? 'Clinical Operations Hubs' : 'Clinical Service Hubs'}
+              {isCashier ? 'POS & Cashier Billing Operations' : role === 'inventory_officer' ? 'Inventory & Supply Operations' : role === 'staff' ? 'Clinical Operations Hubs' : 'Clinical Service Hubs'}
             </h3>
             <span className="text-[11px] text-teal-700 dark:text-teal-400 font-semibold">
-              {role === 'inventory_officer' ? 'Supply Operations' : role === 'staff' ? 'Doctor Operations' : 'Core Services'}
+              {isCashier ? 'Cashier Operations' : role === 'inventory_officer' ? 'Supply Operations' : role === 'staff' ? 'Doctor Operations' : 'Core Services'}
             </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-            {role === 'inventory_officer' ? (
+            {isCashier ? (
+              <>
+                {/* Cashier Hub 1: POS Terminal */}
+                <div
+                  onClick={() => {
+                    setActiveTab('pos');
+                    scrollToContent();
+                  }}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <ShoppingCart className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">POS Terminal</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">New Checkout</span>
+                </div>
+
+                {/* Cashier Hub 2: Sales Ledger */}
+                <div
+                  onClick={() => {
+                    setActiveTab('orders');
+                    scrollToContent();
+                  }}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <Receipt className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Sales Ledger</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{invoices.length} Total Invoices</span>
+                </div>
+
+                {/* Cashier Hub 3: Cash Invoices */}
+                <div
+                  onClick={() => {
+                    setActiveTab('orders');
+                    setInvoicePaymentFilter('Cash');
+                    scrollToContent();
+                  }}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/60 dark:hover:border-emerald-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-colors">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">Cash Sales</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Rs. {invoices.filter(i => i.paymentMethod === 'Cash').reduce((s, i) => s + (i.finalTotal || 0), 0).toFixed(2)}</span>
+                </div>
+
+                {/* Cashier Hub 4: Card & Digital */}
+                <div
+                  onClick={() => {
+                    setActiveTab('orders');
+                    setInvoicePaymentFilter('Card');
+                    scrollToContent();
+                  }}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-blue-500/60 dark:hover:border-blue-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-colors">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">Card & Digital</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Rs. {invoices.filter(i => i.paymentMethod === 'Card' || i.paymentMethod === 'Online' || i.paymentMethod === 'QR').reduce((s, i) => s + (i.finalTotal || 0), 0).toFixed(2)}</span>
+                </div>
+
+                {/* Cashier Hub 5: Today's Shift Total */}
+                <div
+                  onClick={() => {
+                    setActiveTab('orders');
+                    scrollToContent();
+                  }}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/50 shadow-xs hover:shadow-md transition-all p-3.5 rounded-xl text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-slate-800 text-teal-700 dark:text-teal-400 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center transition-colors">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">Today's Sales</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Rs. {invoices.filter(inv => {
+                    const today = new Date().toDateString();
+                    return new Date(inv.createdAt || inv.updatedAt).toDateString() === today;
+                  }).reduce((s, i) => s + (i.finalTotal || 0), 0).toFixed(2)}</span>
+                </div>
+              </>
+            ) : role === 'inventory_officer' ? (
               <>
                 {/* Hub 1: Pharmacy Catalog */}
                 <div
@@ -2231,6 +2407,10 @@ function App() {
                         setCartItems={setCartItems}
                         currentUser={currentUser}
                         onRequireAuth={handleActionWithAuth}
+                        selectedPatient={posPatient}
+                        setSelectedPatient={setPosPatient}
+                        productSearchQuery={posProductQuery}
+                        setProductSearchQuery={setPosProductQuery}
                       />
                       <InvoiceList
                         invoices={invoices}

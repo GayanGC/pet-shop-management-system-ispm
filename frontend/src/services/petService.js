@@ -83,11 +83,20 @@ export const searchMyPets = async (searchTerm, params = {}) => {
   return getMyPets({ ...params, search: searchTerm });
 };
 
+export const fetchPetByPin = async (pin) => {
+  const cleanPin = String(pin).trim().toUpperCase();
+  const res = await fetch(`${API_BASE_URL}/pets/pin/${cleanPin}`, {
+    headers: getAuthHeader()
+  });
+  return handleResponse(res);
+};
+
 export const getAllPets = fetchPets;
 
 const petService = {
   getAllPets,
   fetchPets,
+  fetchPetByPin,
   getMyPets,
   searchMyPets,
   createPet,

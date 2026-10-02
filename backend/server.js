@@ -91,17 +91,27 @@ app.use((req, res, next) => {
 
 // Global Error Handler Middleware
 app.use((err, req, res, next) => {
-  console.error('[Global Error]:', err.stack);
-  res.status(err.status || 500).json({
+  console.error('[Global Error]:', err.stack || err);
+  const statusCode = err.statusCode || err.status || 500;
+  res.status(statusCode).json({
     success: false,
     message: err.message || 'Internal Server Error',
     error: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
 
+// Process-level safety guards to keep Port 5000 running stably
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Process Safety] Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Process Safety] Uncaught Exception:', err);
+});
+
 // Start Express HTTP Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`🚀 Pet Shop Management Backend Server Running!`);
   console.log(`🌐 Server URL: http://localhost:${PORT}`);

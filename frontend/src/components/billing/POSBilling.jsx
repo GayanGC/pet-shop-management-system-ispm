@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Trash2, CreditCard, DollarSign, Receipt, Percent, Stethoscope, Package } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ShoppingCart, Plus, Trash2, CreditCard, DollarSign, Receipt, Percent, Stethoscope, Package, Search, X, User } from 'lucide-react';
 import productService from '../../services/inventoryService';
 
 const CLINICAL_SERVICES = [
@@ -18,7 +18,11 @@ const POSBilling = ({
   cartItems: externalCartItems,
   setCartItems: externalSetCartItems,
   currentUser,
-  onRequireAuth
+  onRequireAuth,
+  selectedPatient,
+  setSelectedPatient,
+  productSearchQuery = '',
+  setProductSearchQuery
 }) => {
   const [internalCartItems, setInternalCartItems] = useState([]);
   const cartItems = externalCartItems !== undefined ? externalCartItems : internalCartItems;
@@ -38,6 +42,39 @@ const POSBilling = ({
   }, [products]);
 
   const availableProducts = internalProducts.length > 0 ? internalProducts : products;
+
+  const [internalProductSearch, setInternalProductSearch] = useState(productSearchQuery || '');
+  const activeProductSearch = productSearchQuery !== undefined ? productSearchQuery : internalProductSearch;
+
+  const handleProductSearchChange = (val) => {
+    setInternalProductSearch(val);
+    if (setProductSearchQuery) setProductSearchQuery(val);
+  };
+
+  useEffect(() => {
+    if (productSearchQuery !== undefined) {
+      setInternalProductSearch(productSearchQuery);
+    }
+  }, [productSearchQuery]);
+
+  const filteredAvailableProducts = useMemo(() => {
+    const q = (activeProductSearch || '').trim().toLowerCase();
+    if (!q) return availableProducts;
+
+    return availableProducts.filter((p) => {
+      const name = (p.itemName || p.name || '').toLowerCase();
+      const batch = (p.batchNo || p.batch || '').toLowerCase();
+      const supplier = (p.supplier || '').toLowerCase();
+      const category = (p.category || '').toLowerCase();
+
+      return (
+        name.includes(q) ||
+        batch.includes(q) ||
+        supplier.includes(q) ||
+        category.includes(q)
+      );
+    });
+  }, [availableProducts, activeProductSearch]);
 
   const [selectedProductId, setSelectedProductId] = useState('');
   const [itemQty, setItemQty] = useState(1);
@@ -192,7 +229,14 @@ const POSBilling = ({
       paymentMethod,
       tenderedAmount: paymentMethod === 'Cash' ? tenderedNum : finalTotal,
       changeAmount: paymentMethod === 'Cash' ? Math.max(0, tenderedNum - finalTotal) : 0,
-      paymentStatus: 'Paid'
+      paymentStatus: 'Paid',
+      customerId: selectedPatient?.ownerId || (currentUser ? (currentUser._id || currentUser.id) : undefined),
+      customerName: selectedPatient?.ownerName || (currentUser ? currentUser.name : 'Walk-in Client'),
+      customerPhone: selectedPatient?.ownerPhone || (currentUser ? currentUser.phone : ''),
+      customerEmail: selectedPatient?.ownerEmail || (currentUser ? currentUser.email : ''),
+      notes: selectedPatient 
+        ? `Patient: ${selectedPatient.petName} (PIN: ${selectedPatient.uniquePin}) · ${selectedPatient.species || ''}`
+        : 'Dispensary Direct Sale'
     };
 
     onSubmitOrder(orderPayload);
@@ -254,7 +298,40 @@ const POSBilling = ({
           {catalogTab === 'products' ? (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Select Stock Product</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Instant Medication Search
+                </label>
+                <div className="relative mb-2">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search by drug name, batch, or supplier..."
+                    value={activeProductSearch}
+                    onChange={(e) => handleProductSearchChange(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 dark:text-slate-100 font-medium"
+                  />
+                  {activeProductSearch && (
+                    <button
+                      type="button"
+                      onClick={() => handleProductSearchChange('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded cursor-pointer"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Select Stock Product
+                  </label>
+                  {activeProductSearch && (
+                    <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">
+                      Filtered ({filteredAvailableProducts.length} items)
+                    </span>
+                  )}
+                </div>
                 <select
                   value={selectedProductId}
                   onChange={(e) => {
@@ -262,15 +339,60 @@ const POSBilling = ({
                     setCustomItemName('');
                     setCustomPrice('');
                   }}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 focus:outline-none transition-all text-slate-800 dark:text-slate-100 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 focus:outline-none transition-all text-slate-800 dark:text-slate-100 cursor-pointer font-medium"
                 >
-                  <option value="">-- Choose Stock Product --</option>
-                  {availableProducts.map((prod) => (
-                    <option key={prod._id} value={prod._id}>
-                      {prod.itemName} - Rs. {prod.price} (Stock: {prod.stockQuantity})
+                  <option value="">
+                    {filteredAvailableProducts.length === 0
+                      ? `No items match "${activeProductSearch}"`
+                      : `-- Choose Stock Product (${filteredAvailableProducts.length}) --`}
+                  </option>
+                  {filteredAvailableProducts.map((prod) => (
+                    <option key={prod._id} value={prod._id} disabled={prod.stockQuantity <= 0}>
+                      {prod.itemName || prod.name} — Rs. {Number(prod.price).toFixed(2)} [Stock: {prod.stockQuantity} {prod.unit || 'units'}] {prod.batchNo ? `· ${prod.batchNo}` : ''} {prod.stockQuantity <= 0 ? '(OUT OF STOCK)' : ''}
                     </option>
                   ))}
                 </select>
+
+                {/* Instant 1-Click Fast Select Matches */}
+                {activeProductSearch && filteredAvailableProducts.length > 0 && (
+                  <div className="space-y-1.5 pt-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Quick Matches (1-Click Select):
+                    </span>
+                    <div className="space-y-1 max-h-32 overflow-y-auto pr-0.5">
+                      {filteredAvailableProducts.slice(0, 4).map((p) => {
+                        const isSelected = selectedProductId === p._id;
+                        return (
+                          <div
+                            key={p._id}
+                            onClick={() => {
+                              setSelectedProductId(p._id);
+                              setCustomItemName('');
+                              setCustomPrice('');
+                            }}
+                            className={`p-2 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-800 dark:text-teal-200 shadow-xs'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-teal-400 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1 pr-2">
+                              <span className="font-semibold block truncate">{p.itemName || p.name}</span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                Rs. {Number(p.price).toFixed(2)} · Stock: {p.stockQuantity} {p.batchNo && `· ${p.batchNo}`}
+                              </span>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              isSelected ? 'bg-teal-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
+                            }`}>
+                              {isSelected ? 'Selected' : 'Select'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="relative flex py-1 items-center">
@@ -362,6 +484,43 @@ const POSBilling = ({
 
         {/* Cart & Checkout Panel */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Patient Demographics & Owner Details Linked to POS */}
+          {selectedPatient && (
+            <div className="p-3.5 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 flex items-center justify-between gap-3 shadow-2xs animate-fadeIn">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-700 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                  🐾
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-sm text-slate-900 dark:text-white">
+                      {selectedPatient.petName}
+                    </span>
+                    <span className="font-mono text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-teal-700 text-white shadow-2xs">
+                      {selectedPatient.uniquePin}
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      ({selectedPatient.species} {selectedPatient.breed ? `· ${selectedPatient.breed}` : ''})
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                    Owner: <span className="font-semibold text-slate-800 dark:text-slate-100">{selectedPatient.ownerName}</span>
+                    {selectedPatient.ownerPhone && <span className="ml-2 font-mono">📞 {selectedPatient.ownerPhone}</span>}
+                    {selectedPatient.ownerEmail && <span className="ml-2 font-mono">✉️ {selectedPatient.ownerEmail}</span>}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPatient && setSelectedPatient(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                title="Unlink patient from transaction"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
             <ShoppingCart className="w-3.5 h-3.5 text-teal-600" /> 2. Order Cart Summary ({cartItems.length} items)
           </h3>
