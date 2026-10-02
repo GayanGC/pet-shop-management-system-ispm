@@ -63,6 +63,7 @@ app.use('/api/pets', require('./routes/petRoutes'));
 
 // Member 2 Module: Inventory & Stock Control Routes
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
+app.use('/api/products', require('./routes/inventoryRoutes'));
 
 // Member 3 Module: Service & Appointment Booking Routes
 app.use('/api/bookings', require('./routes/bookingRoutes'));

@@ -169,9 +169,9 @@ const updateProduct = async (req, res) => {
   try {
     const { itemName, category, price, stockQuantity, supplier, batchNo, expiryDate, unit } = req.body;
 
-    let product = await Product.findOne({ _id: req.params.id, isDiscontinued: false });
+    let product = await Product.findById(req.params.id);
 
-    if (!product) {
+    if (!product || product.isDiscontinued) {
       return res.status(404).json({
         success: false,
         message: 'Product record not found for update'

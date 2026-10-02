@@ -62,7 +62,7 @@ import StaffDirectory from './components/admin/StaffDirectory';
 import { getCurrentUser, logout, login } from './services/authService';
 import { fetchPets, createPet, updatePet, deletePet, addMedicalLog, archivePet } from './services/petService';
 import { fetchCustomers } from './services/userService';
-import productService, { fetchProducts as fetchProductsApi, createProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
+import productService, { fetchProducts as fetchProductsApi, createProduct, updateProduct, deleteProduct, adjustStock, fetchExpiringProducts, disposeBatch } from './services/inventoryService';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from './services/supplierService';
 import { fetchBookings, createBooking, updateBooking, rescheduleBooking, cancelBooking } from './services/bookingService';
 import { fetchInvoices as fetchInvoicesApi, createInvoice, voidInvoice } from './services/billingService';
@@ -451,6 +451,7 @@ function App() {
   // Modal Open States
   const [isPetModalOpen, setIsPetModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isPetLoading, setIsPetLoading] = useState(false);
   const [isProductLoading, setIsProductLoading] = useState(false);
@@ -705,12 +706,24 @@ function App() {
   };
 
   // CRUD Handlers - Products & Pharmacy
-  const handleCreateProduct = async (productData) => {
+  const handleEditProduct = (product) => {
+    setEditingProduct(product);
+    setIsProductModalOpen(true);
+  };
+
+  const handleSaveProduct = async (productData) => {
     setIsProductLoading(true);
     try {
-      const res = await createProduct(productData);
-      showToast(`Stock item ${res.data.itemName} registered successfully!`);
+      if (editingProduct && (editingProduct._id || editingProduct.id)) {
+        const id = editingProduct._id || editingProduct.id;
+        const res = await updateProduct(id, productData);
+        showToast(`Stock item "${res.data?.itemName || productData.itemName}" updated successfully!`);
+      } else {
+        const res = await createProduct(productData);
+        showToast(`Stock item "${res.data?.itemName || productData.itemName}" registered successfully!`);
+      }
       setIsProductModalOpen(false);
+      setEditingProduct(null);
       loadProducts();
       loadExpiringProducts();
     } catch (err) {
@@ -719,6 +732,8 @@ function App() {
       setIsProductLoading(false);
     }
   };
+
+  const handleCreateProduct = handleSaveProduct;
 
   const handleDeleteProduct = async (id) => {
     if (!window.confirm('Discontinue this pharmacy / inventory product?')) return;
@@ -1982,7 +1997,10 @@ function App() {
                           </p>
                         </div>
                         <button
-                          onClick={() => setIsProductModalOpen(true)}
+                          onClick={() => {
+                            setEditingProduct(null);
+                            setIsProductModalOpen(true);
+                          }}
                           className="py-2.5 px-5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
                         >
                           <Plus className="w-4 h-4" /> Add New Medication
@@ -1990,6 +2008,7 @@ function App() {
                       </div>
                       <InventoryList
                         products={products}
+                        onEdit={handleEditProduct}
                         onDelete={handleDeleteProduct}
                         onAdjustStock={handleAdjustStock}
                         searchTerm={productSearch}
@@ -2052,7 +2071,10 @@ function App() {
                         <div className="space-y-4">
                           <div className="flex justify-end">
                             <button
-                              onClick={() => setIsProductModalOpen(true)}
+                              onClick={() => {
+                                setEditingProduct(null);
+                                setIsProductModalOpen(true);
+                              }}
                               className="py-2.5 px-5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer"
                             >
                               <Plus className="w-4 h-4" /> Add New Product
@@ -2060,6 +2082,7 @@ function App() {
                           </div>
                           <InventoryList
                             products={products}
+                            onEdit={handleEditProduct}
                             onDelete={handleDeleteProduct}
                             onAdjustStock={handleAdjustStock}
                             searchTerm={productSearch}
@@ -2309,14 +2332,18 @@ function App() {
         />
       )}
 
-      {/* 2. Product Registration Modal */}
+      {/* 2. Product Registration & Edit Modal */}
       {isProductModalOpen && (
         <ProductForm
           suppliers={suppliers}
-          onSubmit={handleCreateProduct}
+          initialData={editingProduct}
+          onSubmit={handleSaveProduct}
           isLoading={isProductLoading}
           isModal={true}
-          onClose={() => setIsProductModalOpen(false)}
+          onClose={() => {
+            setIsProductModalOpen(false);
+            setEditingProduct(null);
+          }}
         />
       )}
 

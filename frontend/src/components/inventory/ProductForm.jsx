@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, DollarSign, Layers, Truck, Tag, Plus, Calendar, X, AlertCircle } from 'lucide-react';
+import { Package, DollarSign, Layers, Truck, Tag, Plus, Calendar, X, AlertCircle, Edit3, Check } from 'lucide-react';
 import { fetchSuppliers } from '../../services/supplierService';
 
 // ─── Validation ─────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ const validate = (data) => {
 };
 
 // ─── ProductForm Component ───────────────────────────────────────────────────
-const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose }) => {
+const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose, initialData = null }) => {
   const INITIAL = {
     itemName: '',
     category: 'Food',
@@ -74,6 +74,25 @@ const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose }) 
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [dynamicSuppliers, setDynamicSuppliers] = useState(suppliers || []);
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        itemName: initialData.itemName || initialData.name || '',
+        category: initialData.category || 'Food',
+        price: initialData.price !== undefined ? String(initialData.price) : '',
+        stockQuantity: initialData.stockQuantity !== undefined ? String(initialData.stockQuantity) : '',
+        supplier: initialData.supplier?._id || initialData.supplier || '',
+        batchNo: initialData.batchNo || initialData.batchNumber || '',
+        expiryDate: initialData.expiryDate ? new Date(initialData.expiryDate).toISOString().split('T')[0] : '',
+        unit: initialData.unit || 'Piece'
+      });
+    } else {
+      setFormData(INITIAL);
+    }
+    setFieldErrors({});
+    setTouched({});
+  }, [initialData]);
 
   useEffect(() => {
     if (Array.isArray(suppliers) && suppliers.length > 0) {
@@ -116,7 +135,9 @@ const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose }) 
     if (Object.keys(errors).length > 0) return;
 
     onSubmit(formData);
-    setFormData(INITIAL);
+    if (!initialData) {
+      setFormData(INITIAL);
+    }
     setFieldErrors({});
     setTouched({});
     if (isModal && onClose) onClose();
@@ -149,13 +170,15 @@ const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose }) 
       <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-800 flex items-center justify-center text-teal-700 dark:text-teal-300 font-bold shadow-xs">
-            <Package className="w-5 h-5" />
+            {initialData ? <Edit3 className="w-5 h-5" /> : <Package className="w-5 h-5" />}
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-800 dark:text-white">
-              {isModal ? 'Register New Product' : 'Quick Stock Registration'}
+              {initialData ? 'Edit Medication / Product' : (isModal ? 'Register New Product' : 'Quick Stock Registration')}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Add medicine, diet, or clinical supplies</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {initialData ? 'Update stock quantity, batch details, pricing, or catalog values' : 'Add medicine, diet, or clinical supplies'}
+            </p>
           </div>
         </div>
         {isModal && (
@@ -340,10 +363,12 @@ const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose }) 
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2.5 px-6 rounded-xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2.5 px-6 rounded-xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
-          {isLoading ? 'Adding Stock Product...' : 'Add Stock Item'}
+          {initialData ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          {isLoading
+            ? (initialData ? 'Saving Changes...' : 'Adding Stock Product...')
+            : (initialData ? 'Save Changes / Update Medication' : 'Add Stock Item')}
         </button>
       </div>
     </form>
