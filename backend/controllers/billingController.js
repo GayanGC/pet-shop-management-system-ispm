@@ -7,6 +7,7 @@
 const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
 const Product = require('../models/Product');
+const Pet = require('../models/Pet');
 
 const generateInvoiceNumber = () => {
   const year = new Date().getFullYear();
@@ -25,7 +26,18 @@ const billingHealthCheck = async (req, res) => {
 
 const createInvoice = async (req, res) => {
   try {
-    const { customerId, items, paymentMethod, paymentStatus, discountRate, taxRate, tenderedAmount } = req.body;
+    const { customerId, items, paymentMethod, paymentStatus, discountRate, taxRate, tenderedAmount, petId, pet } = req.body;
+
+    const patientId = petId || pet;
+    if (patientId && mongoose.Types.ObjectId.isValid(patientId)) {
+      const petDoc = await Pet.findById(patientId);
+      if (petDoc && (petDoc.isArchived || petDoc.clinicStatus === 'Deceased' || petDoc.status === 'Deceased' || petDoc.archivalDetails?.reason === 'Deceased')) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot process POS transaction: Patient '${petDoc.petName}' is marked as Deceased/Archived.`
+        });
+      }
+    }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({

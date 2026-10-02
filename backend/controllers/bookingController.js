@@ -293,23 +293,25 @@ const getBookingById = async (req, res) => {
  */
 const rescheduleBooking = async (req, res) => {
   try {
-    const { newDate, newTimeSlot, reason } = req.body;
+    const targetDate = req.body.newDate || req.body.appointmentDate;
+    const targetTimeSlot = req.body.newTimeSlot || req.body.timeSlot;
+    const { reason } = req.body;
 
-    if (!newDate || !newTimeSlot) {
+    if (!targetDate || !targetTimeSlot) {
       return res.status(400).json({
         success: false,
         message: 'Validation Error: Please provide both newDate and newTimeSlot for rescheduling.'
       });
     }
 
-    if (!isWithinOperatingHours(newTimeSlot)) {
+    if (!isWithinOperatingHours(targetTimeSlot)) {
       return res.status(400).json({
         success: false,
         message: 'Validation Error: Selected time slot is outside clinical operating hours (08:30 AM to 07:30 PM).'
       });
     }
 
-    const apptDate = new Date(newDate);
+    const apptDate = new Date(targetDate);
     if (isNaN(apptDate.getTime())) {
       return res.status(400).json({
         success: false,
@@ -337,7 +339,7 @@ const rescheduleBooking = async (req, res) => {
       });
     }
 
-    const dateOnly = typeof newDate === 'string' ? newDate.slice(0, 10) : new Date(newDate).toISOString().slice(0, 10);
+    const dateOnly = typeof targetDate === 'string' ? targetDate.slice(0, 10) : new Date(targetDate).toISOString().slice(0, 10);
     const startOfDay = new Date(`${dateOnly}T00:00:00.000Z`);
     const endOfDay = new Date(`${dateOnly}T23:59:59.999Z`);
     const docToUse = booking.assignedStaff || booking.doctor || 'Dr. Perera (Senior Vet)';
@@ -349,7 +351,7 @@ const rescheduleBooking = async (req, res) => {
         { doctor: docToUse }
       ],
       appointmentDate: { $gte: startOfDay, $lte: endOfDay },
-      timeSlot: newTimeSlot,
+      timeSlot: targetTimeSlot,
       status: { $nin: ['Cancelled'] }
     });
 
@@ -365,15 +367,15 @@ const rescheduleBooking = async (req, res) => {
     booking.rescheduleHistory.push({
       previousDate: booking.appointmentDate,
       previousTimeSlot: booking.timeSlot,
-      newDate: new Date(newDate),
-      newTimeSlot,
+      newDate: new Date(targetDate),
+      newTimeSlot: targetTimeSlot,
       reason: reason || 'Patient / Clinic schedule modification',
       rescheduledAt: new Date(),
       rescheduledBy: req.user?.name || 'Authorized Staff'
     });
 
-    booking.appointmentDate = new Date(newDate);
-    booking.timeSlot = newTimeSlot;
+    booking.appointmentDate = new Date(targetDate);
+    booking.timeSlot = targetTimeSlot;
     booking.status = 'Rescheduled';
     if (reason) {
       booking.notes = booking.notes ? `${booking.notes} | Rescheduled: ${reason}` : `Rescheduled: ${reason}`;
@@ -385,10 +387,11 @@ const rescheduleBooking = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `Appointment successfully rescheduled to ${dateOnly} at ${newTimeSlot}.`,
+      message: `Appointment successfully rescheduled to ${dateOnly} at ${targetTimeSlot}.`,
       data: booking
     });
   } catch (error) {
+    console.error('[Reschedule Error]:', error.message);
     return res.status(500).json({
       success: false,
       message: 'Server Error rescheduling appointment',
