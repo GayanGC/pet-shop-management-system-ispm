@@ -191,8 +191,19 @@ function App() {
   };
 
   // 2. RBAC User Authentication State
+  const normalizeRole = (r) => {
+    if (!r) return 'guest';
+    const lower = r.toLowerCase();
+    if (lower === 'veterinarian' || lower === 'clinical' || lower === 'doctor' || lower === 'vet' || lower === 'staff') return 'staff';
+    if (lower === 'inventory' || lower === 'inventory_officer') return 'inventory_officer';
+    if (lower === 'admin') return 'admin';
+    if (lower === 'cashier') return 'cashier';
+    if (lower === 'customer' || lower === 'client') return 'customer';
+    return lower;
+  };
+
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser() || null);
-  const role = currentUser?.role ? currentUser.role.toLowerCase() : 'guest';
+  const role = normalizeRole(currentUser?.role);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMessage, setAuthModalMessage] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
@@ -223,7 +234,7 @@ function App() {
       }
       return;
     }
-    const userRole = currentUser.role ? currentUser.role.toLowerCase() : 'customer';
+    const userRole = normalizeRole(currentUser.role);
     if (userRole === 'inventory_officer') {
       if (activeTab !== 'pos' && activeTab !== 'suppliers') {
         setActiveTab('pharmacy');

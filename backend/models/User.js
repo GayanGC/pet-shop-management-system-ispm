@@ -47,7 +47,12 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'customer', 'staff', 'inventory_officer', 'cashier', 'Admin', 'Customer', 'Staff', 'Inventory_Officer', 'Cashier'],
+      enum: [
+        'admin', 'customer', 'staff', 'inventory_officer', 'cashier',
+        'veterinarian', 'clinical', 'inventory', 'client',
+        'Admin', 'Customer', 'Staff', 'Inventory_Officer', 'Cashier',
+        'Veterinarian', 'Clinical', 'Inventory', 'Client'
+      ],
       default: 'customer',
       set: (v) => (v ? v.toLowerCase() : 'customer')
     },

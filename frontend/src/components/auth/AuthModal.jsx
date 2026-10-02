@@ -9,136 +9,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Eye,
-  EyeOff,
-  Sparkles
+  EyeOff
 } from 'lucide-react';
 import { login, register } from '../../services/authService';
-
-// Species catalog exported for use in pet registration forms
-export const SPECIES_CATALOG = [
-  {
-    category: 'Canine (Dogs)',
-    icon: '🐕',
-    species: 'Dog',
-    breeds: [
-      'German Shepherd', 'Golden Retriever', 'Labrador Retriever', 'Rottweiler',
-      'Husky', 'Poodle', 'Pomeranian', 'Boerboel', 'Dachshund', 'Beagle',
-      'Local/Cross Breed', 'Other Dog Breed'
-    ]
-  },
-  {
-    category: 'Feline (Cats)',
-    icon: '🐈',
-    species: 'Cat',
-    breeds: [
-      'Persian', 'Siamese', 'British Shorthair', 'Bengal', 'Maine Coon',
-      'Domestic Short Hair (DSH)', 'Ragdoll', 'Sphynx', 'Other Cat Breed'
-    ]
-  },
-  {
-    category: 'Avian (Birds)',
-    icon: '🦜',
-    species: 'Bird',
-    breeds: [
-      'Parrot', 'Lovebird', 'Cockatiel', 'Macaw', 'Budgerigar',
-      'Pigeon', 'Canary', 'Finch', 'African Grey', 'Other Bird'
-    ]
-  },
-  {
-    category: 'Small Mammals',
-    icon: '🐇',
-    species: 'Small Mammal',
-    breeds: [
-      'Rabbit (Holland Lop)', 'Rabbit (Lionhead)', 'Guinea Pig', 'Hamster (Syrian)',
-      'Hamster (Dwarf)', 'Ferret', 'Chinchilla', 'Hedgehog', 'Other Small Mammal'
-    ]
-  },
-  {
-    category: 'Primates (Monkeys)',
-    icon: '🐒',
-    species: 'Primate',
-    breeds: [
-      'Toque Macaque (Rilawa)', 'Rhesus Macaque', 'Gray Langur (Wandura)',
-      'Purple-faced Langur', 'Slender Loris (Unahapuluwa)', 'Other Primate'
-    ]
-  },
-  {
-    category: 'Reptiles & Amphibians',
-    icon: '🐢',
-    species: 'Reptile',
-    breeds: [
-      'Indian Star Tortoise', 'Red-Eared Slider Turtle', 'Green Iguana',
-      'Bearded Dragon', 'Leopard Gecko', 'Chameleon', 'Other Reptile'
-    ]
-  },
-  {
-    category: 'Aquatic (Fish)',
-    icon: '🐠',
-    species: 'Aquatic',
-    breeds: [
-      'Goldfish', 'Koi Carp', 'Betta (Siamese Fighting Fish)', 'Guppy',
-      'Angelfish', 'Discus', 'Cichlid', 'Other Aquatic'
-    ]
-  },
-  {
-    category: 'Farm & Miniature',
-    icon: '🐐',
-    species: 'Farm',
-    breeds: [
-      'Jamnapari Goat', 'Kottukachchiya Goat', 'Miniature Pig',
-      'Pony', 'Sheep', 'Other Farm Animal'
-    ]
-  }
-];
-
-// ─── Authorized Clinical & Client Profiles (Instant Sign In) ───────────────
-const CLINICAL_ACCOUNTS = [
-  {
-    role: 'admin',
-    label: 'Clinic Admin',
-    icon: '👑',
-    identifier: 'admin@4paw.lk',
-    password: 'admin123',
-    badge: 'Chief Administrator',
-    color: 'border-purple-300/80 bg-purple-50 hover:bg-purple-100 text-purple-900 dark:bg-purple-950/40 dark:border-purple-800 dark:text-purple-300'
-  },
-  {
-    role: 'staff',
-    label: 'Clinical Staff',
-    icon: '🩺',
-    identifier: 'staff@4paw.lk',
-    password: 'staff123',
-    badge: 'Veterinary Surgeon',
-    color: 'border-teal-300/80 bg-teal-50 hover:bg-teal-100 text-teal-900 dark:bg-teal-950/40 dark:border-teal-800 dark:text-teal-300'
-  },
-  {
-    role: 'inventory_officer',
-    label: 'Inventory',
-    icon: '📦',
-    identifier: 'inventory@4paw.lk',
-    password: 'inv123',
-    badge: 'Pharmacy & Stock Lead',
-    color: 'border-amber-300/80 bg-amber-50 hover:bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
-  },
-  {
-    role: 'cashier',
-    label: 'Cashier',
-    icon: '💵',
-    identifier: 'cashier@4paw.lk',
-    password: 'cashier123',
-    badge: 'POS & Billing Terminal',
-    color: 'border-emerald-300/80 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
-  },
-  {
-    role: 'customer',
-    label: 'Pet Parent',
-    icon: '👤',
-    identifier: 'customer@gmail.com',
-    password: 'customer123',
-    badge: 'Client Portal',
-    color: 'border-blue-300/80 bg-blue-50 hover:bg-blue-100 text-blue-900 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300'
-  }
-];
 
 // ─── Validation Helpers ──────────────────────────────────────────────────────
 const SRI_LANKA_PHONE_RE = /^(0[7][01245678]\d{7}|\+947[01245678]\d{7})$/;
@@ -172,26 +45,6 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, initialMessage }) => {
     const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', '+'];
     if (!allowed.includes(e.key) && !/^\d$/.test(e.key)) {
       e.preventDefault();
-    }
-  };
-
-  // ─── 1-Click Demo Login Handler ─────────────────────────────────────────
-  const handleDemoLogin = async (account) => {
-    setLoginIdentifier(account.identifier);
-    setLoginPassword(account.password);
-    setError('');
-    setLoading(true);
-    try {
-      const result = await login(account.identifier, account.password);
-      setSuccess(`Logged in as ${account.label} (${result.user.name})`);
-      setTimeout(() => {
-        onLoginSuccess(result.user);
-        onClose();
-      }, 500);
-    } catch (err) {
-      setError(err.message || 'Login failed');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -321,39 +174,6 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, initialMessage }) => {
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
-
-        {/* Quick Clinical Profile Access (Fast Role Selection) */}
-        <div className="px-6 pt-4 pb-3 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              Quick Role Switcher & Authorized Access
-            </span>
-            <span className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold">5 Clinical Profiles</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {CLINICAL_ACCOUNTS.map((account) => (
-              <button
-                key={account.role}
-                type="button"
-                onClick={() => handleDemoLogin(account)}
-                disabled={loading}
-                className={`p-2.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between shadow-xs ${account.color}`}
-                title={`Sign in as ${account.label} (${account.identifier})`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-base">{account.icon}</span>
-                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider opacity-75">ACCESS</span>
-                </div>
-                <div className="mt-1.5">
-                  <span className="text-xs font-bold block leading-tight">{account.label}</span>
-                  <span className="text-[9px] opacity-75 truncate block mt-0.5">{account.badge}</span>
-                </div>
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Tab Switcher: Sign In vs Create Account */}

@@ -59,6 +59,46 @@ const seedAtlas = async () => {
 
     // 2. SEED SYSTEM USERS & REGISTERED CLIENTS
     console.log('\n👤 Seeding System Staff & Pet Owner Accounts...');
+
+    // Official Viva Production Accounts
+    await User.create([
+      {
+        name: 'Dr. Saman Perera (Chief Medical Officer)',
+        email: 'admin@4pawclinic.lk',
+        phone: '0112345001',
+        password: 'Admin@1234',
+        role: 'admin'
+      },
+      {
+        name: 'Dr. Samantha Fernando (Senior Clinical Vet)',
+        email: 'vet@4pawclinic.lk',
+        phone: '0112345002',
+        password: 'Doctor@1234',
+        role: 'veterinarian'
+      },
+      {
+        name: 'Dilshan Gunawardena (Chief Pharmacist & Supply Lead)',
+        email: 'inventory@4pawclinic.lk',
+        phone: '0112345003',
+        password: 'Stock@1234',
+        role: 'inventory'
+      },
+      {
+        name: 'Kamal Gunasekara (Head POS Cashier)',
+        email: 'cashier@4pawclinic.lk',
+        phone: '0112345004',
+        password: 'Cashier@1234',
+        role: 'cashier'
+      },
+      {
+        name: 'Anura Bandara (Registered Pet Parent)',
+        email: 'client@4pawclinic.lk',
+        phone: '0771234999',
+        password: 'Client@1234',
+        role: 'customer'
+      }
+    ]);
+
     const adminUser = await User.create({
       name: 'Dr. Perera (Chief Veterinarian & Medical Director)',
       email: 'admin@4paw.lk',
