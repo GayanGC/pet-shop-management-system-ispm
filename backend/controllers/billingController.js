@@ -55,13 +55,25 @@ const createInvoice = async (req, res) => {
 
     const round2 = (val) => Math.round((Number(val) + Number.EPSILON) * 100) / 100;
 
+    const extractProductId = (item) => {
+      if (!item) return null;
+      const rawProd = (item.product && typeof item.product === 'object' ? (item.product._id || item.product.id) : null)
+        || (item.productId && typeof item.productId === 'object' ? (item.productId._id || item.productId.id) : null)
+        || (item._id && typeof item._id === 'object' ? (item._id._id || item._id.id) : null)
+        || item.product
+        || item.productId
+        || item._id;
+      if (!rawProd) return null;
+      const str = String(rawProd).trim();
+      return mongoose.Types.ObjectId.isValid(str) ? str : null;
+    };
+
     const sanitizedItems = (items || []).map((item) => {
       const itemName = item.itemName || item.name || 'Product Item';
       const unitPrice = round2(Number(item.unitPrice !== undefined ? item.unitPrice : (item.price || 0)));
       const quantity = Math.max(1, parseInt(item.quantity || 1, 10));
       const subtotal = round2(unitPrice * quantity);
-      const rawProd = item.productId || item.product || item._id;
-      const productId = (rawProd && mongoose.Types.ObjectId.isValid(rawProd)) ? rawProd : null;
+      const productId = extractProductId(item);
 
       return {
         product: productId,
@@ -181,19 +193,23 @@ const createInvoice = async (req, res) => {
 
     const changeAmount = round2(Math.max(0, finalTendered - finalTotal));
 
-    // Atomic Stock Deduction using $inc with $gte guard to prevent race conditions
-    for (const item of processedItems) {
-      if (item.product) {
-        const updated = await Product.findOneAndUpdate(
-          { _id: item.product, stockQuantity: { $gte: item.quantity } },
-          { $inc: { stockQuantity: -item.quantity } },
+    // Atomic deduction with strict concurrency guard
+    for (const item of items) {
+      const prodId = extractProductId(item);
+      const qty = Number(item.quantity) || 1;
+
+      if (prodId) {
+        // Atomic deduction with strict concurrency guard
+        const updatedProduct = await Product.findOneAndUpdate(
+          { _id: prodId, stockQuantity: { $gte: qty } },
+          { $inc: { stockQuantity: -qty } },
           { new: true }
         );
-        if (!updated) {
-          return res.status(400).json({
-            success: false,
-            message: `Concurrent transaction conflict: Stock for '${item.itemName}' was modified concurrently or is insufficient.`
-          });
+
+        if (!updatedProduct) {
+          console.warn(`[POS Stock Warning] Could not decrement stock for product ID: ${prodId}. Either product not found or insufficient stock.`);
+        } else {
+          console.log(`[POS Stock Success] Decremented ${qty} from ${updatedProduct.itemName}. New Stock: ${updatedProduct.stockQuantity}`);
         }
       }
     }

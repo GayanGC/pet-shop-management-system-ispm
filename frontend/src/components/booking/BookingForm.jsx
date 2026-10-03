@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, UserCheck, FileText, Plus, User, X, CheckCircle2, AlertCircle } from 'lucide-react';
-import { fetchDoctorDaySchedule } from '../../services/bookingService';
+import { fetchBookings, fetchDoctorDaySchedule } from '../../services/bookingService';
 import petService, { getAllPets } from '../../services/petService';
 
 const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose, initialData, prefilledData }) => {
@@ -72,17 +72,23 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
     setFormError('');
   };
 
+  const [bookedSlots, setBookedSlots] = useState([]);
+
   useEffect(() => {
     if (formData.assignedStaff && formData.appointmentDate) {
-      fetchDoctorDaySchedule(formData.assignedStaff, formData.appointmentDate)
+      fetchBookings({ doctor: formData.assignedStaff, date: formData.appointmentDate })
         .then((res) => {
-          if (res.success) {
-            setSlotSchedule(res.data || []);
-          }
+          const list = Array.isArray(res) ? res : (res?.data || res?.bookings || []);
+          const activeBooked = list
+            .filter((b) => b.status !== 'Cancelled' && (!isEditMode || b._id !== initialData?._id))
+            .map((b) => b.timeSlot);
+          setBookedSlots(activeBooked);
         })
-        .catch((err) => console.log('[Schedule Check Note]:', err.message));
+        .catch((err) => console.log('[Slot Availability Note]:', err.message));
+    } else {
+      setBookedSlots([]);
     }
-  }, [formData.assignedStaff, formData.appointmentDate]);
+  }, [formData.assignedStaff, formData.appointmentDate, isEditMode, initialData?._id]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -284,9 +290,8 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {workingSlots.map((slot) => {
-              const matched = slotSchedule.find((s) => s.timeSlot === slot);
               const isMatchedOwnSlot = isEditMode && (initialData?.timeSlot === slot);
-              const isBooked = matched?.status === 'booked' && !isMatchedOwnSlot;
+              const isBooked = (bookedSlots.includes(slot) || slotSchedule.find((s) => s.timeSlot === slot)?.status === 'booked') && !isMatchedOwnSlot;
               const isSelected = formData.timeSlot === slot;
 
               if (isBooked) {
@@ -294,12 +299,12 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
                   <button
                     key={slot}
                     type="button"
-                    disabled
-                    className="py-2.5 px-3 rounded-xl text-xs font-mono font-bold bg-rose-50/80 text-rose-500 border border-rose-200 opacity-60 cursor-not-allowed flex items-center justify-between shadow-2xs"
+                    disabled={isBooked}
+                    className="py-2.5 px-3 rounded-xl text-xs font-mono font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60 line-through flex items-center justify-between shadow-2xs"
                     title="Clinician Slot Already Booked"
                   >
                     <span>{slot}</span>
-                    <span className="text-[9px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">⛔ Busy</span>
+                    <span className="text-[9px] font-bold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded no-underline inline-block">(Booked)</span>
                   </button>
                 );
               }

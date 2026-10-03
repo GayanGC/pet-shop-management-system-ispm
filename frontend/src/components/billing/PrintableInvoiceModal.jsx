@@ -4,8 +4,86 @@ import { X, Printer, Receipt, CheckCircle2 } from 'lucide-react';
 const PrintableInvoiceModal = ({ invoice, onClose }) => {
   if (!invoice) return null;
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrintReceipt = () => {
+    const receiptElement = document.getElementById('printable-thermal-receipt') || document.querySelector('.printable-invoice');
+    if (!receiptElement) {
+      window.print();
+      return;
+    }
+
+    // Remove existing print iframe if any
+    const existingFrame = document.getElementById('receipt-print-frame');
+    if (existingFrame) existingFrame.remove();
+
+    // Create clean isolated iframe
+    const printFrame = document.createElement('iframe');
+    printFrame.id = 'receipt-print-frame';
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>4 Paw Animal Clinic - Receipt</title>
+          <style>
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            body {
+              font-family: 'Courier New', Courier, monospace, monospace;
+              font-size: 11px;
+              line-height: 1.35;
+              color: #000000;
+              background: #ffffff;
+              width: 74mm;
+              max-width: 74mm;
+              padding: 4mm 2mm;
+              margin: 0 auto;
+            }
+            .no-print, button, svg {
+              display: none !important;
+            }
+            table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+            th, td { padding: 3px 0; text-align: left; font-size: 11px; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: bold; }
+            .border-b { border-bottom: 1px dashed #000; }
+            .border-t { border-top: 1px dashed #000; }
+            .my-2 { margin: 6px 0; }
+            .py-1 { padding: 3px 0; }
+            .flex { display: flex; justify-content: space-between; }
+            .text-xs { font-size: 10px; }
+            .text-sm { font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          ${receiptElement.innerHTML}
+        </body>
+      </html>
+    `);
+    frameDoc.close();
+
+    // Trigger print cleanly on iframe
+    setTimeout(() => {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+      setTimeout(() => printFrame.remove(), 2000);
+    }, 250);
   };
 
   const formattedDate = new Date(invoice.createdAt || Date.now()).toLocaleString();
@@ -13,8 +91,8 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
   const customerPhone = invoice.customerPhone || (invoice.customerId ? invoice.customerId.phone : '');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md transition-all duration-300 modal-backdrop">
-      <div className="bg-white/95 backdrop-blur-lg rounded-3xl border border-slate-200/80 shadow-2xl max-w-lg w-full flex flex-col overflow-hidden transform transition-all duration-300 animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md transition-all duration-300 print:static print:p-0 print:m-0 print:bg-transparent">
+      <div className="bg-white/95 backdrop-blur-lg rounded-3xl border border-slate-200/80 shadow-2xl max-w-lg w-full flex flex-col overflow-hidden transform transition-all duration-300 animate-in fade-in zoom-in-95 print:transform-none print:shadow-none print:border-none print:m-0 print:p-0 print:w-auto print:max-w-none">
         {/* Modal Top Actions */}
         <div className="p-4 bg-slate-900 text-white flex justify-between items-center print:hidden no-print">
           <div className="flex items-center gap-2">
@@ -23,7 +101,7 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handlePrint}
+              onClick={handlePrintReceipt}
               className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" /> Print Receipt
@@ -35,7 +113,7 @@ const PrintableInvoiceModal = ({ invoice, onClose }) => {
         </div>
 
         {/* Receipt Content Body (Printable Target) */}
-        <div className="p-8 space-y-6 text-slate-800 font-sans printable-invoice thermal-receipt" id="printable-receipt">
+        <div className="p-8 space-y-6 text-slate-800 font-sans printable-invoice thermal-receipt" id="printable-thermal-receipt">
           {/* Clinic Receipt Header */}
           <div className="receipt-header text-center space-y-1 border-b border-slate-200 pb-4">
             <h1 className="text-xl font-black text-slate-900 tracking-tight">🐾 4 Paw Animal Clinic</h1>

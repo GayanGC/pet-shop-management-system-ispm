@@ -33,7 +33,8 @@ import ProductShowcase from '../inventory/ProductShowcase';
 import PrintableHealthPassportModal from '../pet/PrintableHealthPassportModal';
 import PetDetailsReportModal from '../pet/PetDetailsReportModal';
 import PetEditModal from '../pet/PetEditModal';
-import { createBooking, cancelBooking } from '../../services/bookingService';
+import RescheduleModal from '../booking/RescheduleModal';
+import { createBooking, cancelBooking, fetchBookings, rescheduleBooking } from '../../services/bookingService';
 import petService from '../../services/petService';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -45,12 +46,14 @@ const VET_DOCTORS = [
 
 const TIME_SLOTS = [
   '09:00 AM',
+  '09:30 AM',
   '10:00 AM',
-  '11:30 AM',
+  '11:00 AM',
+  '01:00 PM',
   '02:00 PM',
-  '03:30 PM',
-  '04:45 PM',
-  '06:00 PM'
+  '03:00 PM',
+  '04:00 PM',
+  '05:00 PM'
 ];
 
 const SERVICE_TYPES = [
@@ -175,6 +178,59 @@ const CustomerPortal = ({
   const [channelingNotes, setChannelingNotes] = useState('');
   const [isChannelingLoading, setIsChannelingLoading] = useState(false);
   const [channelingError, setChannelingError] = useState('');
+  const [channelingBookedSlots, setChannelingBookedSlots] = useState([]);
+  const [rescheduleVisitTarget, setRescheduleVisitTarget] = useState(null);
+
+  // Fetch occupied slots for selected Doctor + Date
+  useEffect(() => {
+    if (selectedVet && channelingDate) {
+      fetchBookings({ doctor: selectedVet, date: channelingDate })
+        .then((res) => {
+          const list = Array.isArray(res) ? res : (res?.data || res?.bookings || []);
+          const activeBooked = list
+            .filter((b) => b.status !== 'Cancelled')
+            .map((b) => b.timeSlot);
+          setChannelingBookedSlots(activeBooked);
+        })
+        .catch((err) => console.log('[Channeling Slot Check Note]:', err.message));
+    } else {
+      setChannelingBookedSlots([]);
+    }
+  }, [selectedVet, channelingDate]);
+
+  // Auto-switch away from booked slot if user changes doctor/date
+  useEffect(() => {
+    if (selectedSlot && channelingBookedSlots.includes(selectedSlot)) {
+      const firstAvailable = TIME_SLOTS.find((s) => !channelingBookedSlots.includes(s));
+      if (firstAvailable) setSelectedSlot(firstAvailable);
+    }
+  }, [channelingBookedSlots, selectedSlot]);
+
+  const handleOpenReschedule = (visit) => {
+    setRescheduleVisitTarget(visit);
+  };
+
+  const handleConfirmReschedule = async (bookingId, payload) => {
+    const targetDate = payload.newDate || payload.appointmentDate;
+    const targetSlot = payload.newTimeSlot || payload.timeSlot;
+    const reason = payload.reason || 'Customer requested reschedule';
+
+    const res = await rescheduleBooking(bookingId, {
+      newDate: targetDate,
+      newTimeSlot: targetSlot,
+      reason
+    });
+
+    if (res.success) {
+      if (onShowToast) {
+        onShowToast(`Appointment successfully rescheduled to ${targetSlot}!`);
+      }
+      setRescheduleVisitTarget(null);
+      if (onRefreshData) onRefreshData();
+    } else {
+      throw new Error(res.message || 'Failed to reschedule appointment');
+    }
+  };
 
   const toggleTimeline = (petId) => {
     setExpandedTimelines((prev) => ({
@@ -552,25 +608,51 @@ const CustomerPortal = ({
 
               {/* Time Slot Chips */}
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                  Select Available Time Slot *
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                    Select Available Time Slot *
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-normal">
+                    🟢 Available &nbsp;|&nbsp; 🔴 Booked / Occupied
+                  </span>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {TIME_SLOTS.map((slot) => (
-                    <button
-                      key={slot}
-                      type="button"
-                      onClick={() => setSelectedSlot(slot)}
-                      className={`py-2 px-3.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                        selectedSlot === slot
-                          ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md scale-105'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                      }`}
-                    >
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{slot}</span>
-                    </button>
-                  ))}
+                  {TIME_SLOTS.map((slot) => {
+                    const isBooked = channelingBookedSlots.includes(slot);
+                    const isSelected = selectedSlot === slot;
+
+                    if (isBooked) {
+                      return (
+                        <button
+                          key={slot}
+                          type="button"
+                          disabled={isBooked}
+                          className="py-2 px-3.5 rounded-xl text-xs font-mono font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60 line-through dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 flex items-center gap-1.5 shadow-2xs"
+                          title="This clinician slot is already booked"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{slot}</span>
+                          <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 no-underline inline-block">(Booked)</span>
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setSelectedSlot(slot)}
+                        className={`py-2 px-3.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md scale-105'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{slot}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -644,13 +726,23 @@ const CustomerPortal = ({
                       </div>
 
                       {!isCancelled && (
-                        <button
-                          type="button"
-                          onClick={() => handleCancelChanneling(booking._id)}
-                          className="text-[0.6875rem] font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
-                        >
-                          ✕ Cancel Booking
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReschedule(booking)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 dark:text-amber-300 dark:bg-amber-950/40 dark:border-amber-800 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Reschedule Visit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCancelChanneling(booking._id)}
+                            className="text-[0.6875rem] font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                          >
+                            ✕ Cancel
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
@@ -1119,32 +1211,89 @@ const CustomerPortal = ({
                       </div>
 
                       {/* Doctor Visits Accordion Toggle */}
-                      <div className="pt-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleTimeline(pet._id)}
-                          className="w-full py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-between border border-slate-200 dark:border-slate-700 cursor-pointer transition-all"
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <Stethoscope className="w-3.5 h-3.5 text-violet-600" />
-                            <span>Doctor Consultation Visits ({logs.length})</span>
+                      {(() => {
+                        const petVisits = (bookings || []).filter(
+                          (b) => String(b.petId?._id || b.petId) === String(pet._id) && b.status !== 'Cancelled'
+                        );
+                        return (
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={() => toggleTimeline(pet._id)}
+                              className="w-full py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-between border border-slate-200 dark:border-slate-700 cursor-pointer transition-all"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <Stethoscope className="w-3.5 h-3.5 text-violet-600" />
+                                <span>Doctor Consultation Visits ({petVisits.length + logs.length})</span>
+                              </div>
+                              {isTimelineOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
                           </div>
-                          {isTimelineOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
+                        );
+                      })()}
 
                       {/* 🩺 Expandable Doctor Visit Updates Timeline */}
-                      {isTimelineOpen && (
-                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 animate-fadeIn">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                              <Stethoscope className="w-3.5 h-3.5 text-violet-600" />
-                              Doctor Clinical Visit Notes & Prescriptions
-                            </span>
-                            <span className="text-[0.625rem] text-violet-600 font-mono font-bold">
-                              {logs.length} Recorded Visits
-                            </span>
-                          </div>
+                      {isTimelineOpen && (() => {
+                        const petVisits = (bookings || []).filter(
+                          (b) => String(b.petId?._id || b.petId) === String(pet._id) && b.status !== 'Cancelled'
+                        );
+                        return (
+                          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 animate-fadeIn">
+                            {/* Active / Scheduled Consultation Visits */}
+                            {petVisits.length > 0 && (
+                              <div className="space-y-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                                <span className="text-[0.6875rem] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                                  Scheduled Consultation Appointments ({petVisits.length})
+                                </span>
+                                <div className="space-y-2">
+                                  {petVisits.map((visit) => {
+                                    const visitDate = new Date(visit.appointmentDate).toLocaleDateString();
+                                    const doctor = visit.assignedStaff || visit.doctor || 'Dr. Perera (Senior Vet)';
+
+                                    return (
+                                      <div
+                                        key={visit._id}
+                                        className="p-3 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
+                                      >
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                                              <span>🩺</span> {doctor}
+                                            </span>
+                                            <span className="text-[0.625rem] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                              {visit.status || 'Scheduled'}
+                                            </span>
+                                          </div>
+                                          <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 font-mono">
+                                            📅 {visitDate} at {visit.timeSlot} • {visit.serviceType}
+                                          </p>
+                                        </div>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenReschedule(visit)}
+                                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                                        >
+                                          <Calendar className="w-3.5 h-3.5"/>
+                                          <span>Reschedule Visit</span>
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <Stethoscope className="w-3.5 h-3.5 text-violet-600" />
+                                Doctor Clinical Visit Notes & Prescriptions
+                              </span>
+                              <span className="text-[0.625rem] text-violet-600 font-mono font-bold">
+                                {logs.length} Recorded Visits
+                              </span>
+                            </div>
 
                           {logs.length > 0 ? (
                             <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
@@ -1236,8 +1385,9 @@ const CustomerPortal = ({
                             </div>
                           )}
                         </div>
-                      )}
-                    </div>
+                      );
+                    })()}
+                  </div>
                   </div>
                 );
               })}
@@ -1254,7 +1404,7 @@ const CustomerPortal = ({
         />
       )}
 
-      {/* Comprehensive Clinical Report Modal */}
+                              {/* Comprehensive Clinical Report Modal */}
       {selectedPetForReport && (
         <PetDetailsReportModal
           pet={selectedPetForReport}
@@ -1273,6 +1423,15 @@ const CustomerPortal = ({
           pet={editingPet}
           onClose={() => setEditingPet(null)}
           onSaved={handlePetSaved}
+        />
+      )}
+
+      {/* Customer Appointment Reschedule Modal */}
+      {rescheduleVisitTarget && (
+        <RescheduleModal
+          booking={rescheduleVisitTarget}
+          onClose={() => setRescheduleVisitTarget(null)}
+          onReschedule={handleConfirmReschedule}
         />
       )}
     </div>

@@ -41,7 +41,20 @@ const POSBilling = ({
     }
   }, [products]);
 
-  const availableProducts = internalProducts.length > 0 ? internalProducts : products;
+  // Real-time Inventory update event listener for POS
+  useEffect(() => {
+    const handleInventoryUpdated = () => {
+      productService.getAllProducts().then((res) => {
+        const items = Array.isArray(res) ? res : (res?.data || res?.products || []);
+        if (items.length > 0) setInternalProducts(items);
+      }).catch(console.error);
+    };
+
+    window.addEventListener('inventory-updated', handleInventoryUpdated);
+    return () => window.removeEventListener('inventory-updated', handleInventoryUpdated);
+  }, []);
+
+  const availableProducts = (Array.isArray(products) && products.length > 0) ? products : internalProducts;
 
   const [internalProductSearch, setInternalProductSearch] = useState(productSearchQuery || '');
   const activeProductSearch = productSearchQuery !== undefined ? productSearchQuery : internalProductSearch;

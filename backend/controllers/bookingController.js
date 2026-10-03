@@ -203,7 +203,7 @@ const createBooking = async (req, res) => {
 
 const getAllBookings = async (req, res) => {
   try {
-    const { status, customerId } = req.query;
+    const { status, customerId, doctor, date } = req.query;
 
     let query = {};
 
@@ -211,9 +211,27 @@ const getAllBookings = async (req, res) => {
       query.status = status;
     }
 
-    // Private Scoping for Customer Role: only see own appointments
+    if (doctor && doctor !== 'All' && doctor !== 'undefined' && doctor !== 'null') {
+      const docClean = String(doctor).trim();
+      const escaped = docClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.$or = [
+        { assignedStaff: docClean },
+        { assignedStaff: new RegExp(escaped, 'i') },
+        { doctor: docClean },
+        { doctor: new RegExp(escaped, 'i') }
+      ];
+    }
+
+    if (date && date !== 'undefined' && date !== 'null') {
+      const dateOnly = typeof date === 'string' ? date.slice(0, 10) : new Date(date).toISOString().slice(0, 10);
+      const startOfDay = new Date(`${dateOnly}T00:00:00.000Z`);
+      const endOfDay = new Date(`${dateOnly}T23:59:59.999Z`);
+      query.appointmentDate = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    // Private Scoping for Customer Role: only see own appointments (unless querying doctor/date for slot availability)
     const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
-    if (isCustomer) {
+    if (isCustomer && !doctor && !date) {
       const userPets = await Pet.find({ ownerId: req.user._id }, '_id');
       const userPetIds = userPets.map((p) => p._id);
 
@@ -221,7 +239,7 @@ const getAllBookings = async (req, res) => {
         { customerId: req.user._id },
         { petId: { $in: userPetIds } }
       ];
-    } else if (customerId && customerId !== 'undefined' && customerId !== 'null') {
+    } else if (customerId && customerId !== 'undefined' && customerId !== 'null' && !isCustomer) {
       query.customerId = customerId;
     }
 
