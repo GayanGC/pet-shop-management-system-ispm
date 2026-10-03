@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PawPrint, Tag, User, Scale, Activity, Plus, X, AlertCircle } from 'lucide-react';
+import { getBreedsForSpecies } from '../../constants/breedCatalog';
 
 // ─── Validation rules ────────────────────────────────────────────────────────
 const PET_NAME_RE = /^[a-zA-Z\s\-'\.]{2,30}$/; // 2-30 chars, letters/spaces/hyphens/apostrophes only
@@ -46,7 +47,7 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
   const INITIAL = {
     petName: '',
     species: 'Dog',
-    breed: '',
+    breed: 'Golden Retriever',
     age: '',
     weight: '',
     gender: 'Male',
@@ -56,6 +57,7 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
   };
 
   const [formData, setFormData] = useState(INITIAL);
+  const [customBreed, setCustomBreed] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
 
@@ -64,11 +66,40 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
     if (name === 'uniquePin') {
       value = value.toUpperCase();
     }
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === 'species') {
+      const breeds = getBreedsForSpecies(value);
+      const defaultBreed = breeds[0] || 'Other';
+      setFormData((prev) => ({
+        ...prev,
+        species: value,
+        breed: defaultBreed
+      }));
+      setCustomBreed('');
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+
     // Clear error on change
     if (fieldErrors[name]) {
       setFieldErrors((prev) => ({ ...prev, [name]: '' }));
     }
+  };
+
+  const handleBreedChange = (e) => {
+    const selected = e.target.value;
+    if (selected === 'Other') {
+      setFormData((prev) => ({ ...prev, breed: customBreed || 'Other' }));
+    } else {
+      setCustomBreed('');
+      setFormData((prev) => ({ ...prev, breed: selected }));
+    }
+  };
+
+  const handleCustomBreedChange = (e) => {
+    const val = e.target.value;
+    setCustomBreed(val);
+    setFormData((prev) => ({ ...prev, breed: val || 'Other' }));
   };
 
   const handleBlur = (e) => {
@@ -109,6 +140,8 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
         {fieldErrors[name]}
       </p>
     ) : null;
+
+  const breeds = getBreedsForSpecies(formData.species);
 
   const formContent = (
     <form
@@ -188,15 +221,33 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
             <Tag className="w-3.5 h-3.5 text-slate-400" /> Breed Designation
           </label>
-          <input
-            type="text"
+          <select
             name="breed"
-            value={formData.breed}
-            onChange={handleChange}
-            placeholder="e.g. Golden Retriever"
-            maxLength={60}
-            className="w-full px-3.5 py-2.5 bg-slate-50/50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:bg-white dark:focus:bg-slate-900 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all placeholder:text-slate-400"
-          />
+            value={breeds.includes(formData.breed) ? formData.breed : 'Other'}
+            onChange={handleBreedChange}
+            className={`${fieldClass('breed')} cursor-pointer`}
+          >
+            {breeds.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+
+          {/* Conditional Custom Breed Input when 'Other' is selected */}
+          {(!breeds.includes(formData.breed) || formData.breed === 'Other') && (
+            <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+              <input
+                type="text"
+                name="customBreed"
+                value={customBreed || (formData.breed !== 'Other' ? formData.breed : '')}
+                onChange={handleCustomBreedChange}
+                placeholder="Specify custom breed..."
+                maxLength={60}
+                className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-teal-500/50 rounded-xl text-xs focus:ring-2 focus:ring-teal-600/20 focus:outline-none transition-all placeholder:text-slate-400 text-slate-900 dark:text-white"
+              />
+            </div>
+          )}
         </div>
 
         {/* Age */}
