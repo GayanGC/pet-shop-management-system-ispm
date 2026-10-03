@@ -7,6 +7,8 @@
 const mongoose = require('mongoose');
 const Appointment = require('../models/Appointment');
 const Pet = require('../models/Pet');
+const User = require('../models/User');
+const { sendAppointmentConfirmationEmail } = require('../utils/emailService');
 
 const parseTimeSlotToMinutes = (timeSlotStr) => {
   if (!timeSlotStr) return null;
@@ -186,10 +188,49 @@ const createBooking = async (req, res) => {
     await appointment.populate('petId', 'petName name species breed uniquePin age weight gender ownerName ownerPhone');
     await appointment.populate('customerId', 'name email phone role address');
 
+    // Resolve recipient details for automated clinical confirmation email
+    let recipientEmail = appointment.customerId?.email || (req.user && req.user.email);
+    let recipientName = appointment.customerId?.name || (req.user && req.user.name);
+
+    if (!recipientEmail && targetCustomer) {
+      try {
+        const custDoc = await User.findById(targetCustomer).select('name email');
+        if (custDoc) {
+          recipientEmail = custDoc.email;
+          recipientName = custDoc.name;
+        }
+      } catch (err) {
+        console.warn('[Email Resolution Warning]: Could not fetch customer User record:', err.message);
+      }
+    }
+
+    const petName = appointment.petId?.petName || appointment.petId?.name || pet.petName || pet.name || 'Pet Patient';
+    const doctorName = appointment.assignedStaff || appointment.doctor || staffToUse;
+
+    // Asynchronously dispatch confirmation email in background (non-blocking)
+    sendAppointmentConfirmationEmail({
+      booking: {
+        ...appointment.toObject(),
+        date: dateOnly,
+        timeSlot: appointment.timeSlot,
+        patientPin: appointment.petId?.uniquePin || pet.uniquePin || 'N/A',
+        petPin: appointment.petId?.uniquePin || pet.uniquePin || 'N/A',
+        roomNumber: appointment.roomNumber,
+        queueNumber: appointment.queueNumber
+      },
+      recipientEmail,
+      recipientName: recipientName || 'Valued Pet Parent',
+      petName,
+      doctorName
+    }).catch(emailErr => {
+      console.error('[Email Dispatch Non-blocking Error]:', emailErr.message);
+    });
+
     return res.status(201).json({
       success: true,
-      message: 'Appointment booked successfully',
-      data: appointment
+      message: 'Appointment confirmed',
+      data: appointment,
+      booking: appointment
     });
   } catch (error) {
     console.error('[Create Booking Error]:', error.message);

@@ -34,6 +34,7 @@ import PrintableHealthPassportModal from '../pet/PrintableHealthPassportModal';
 import PetDetailsReportModal from '../pet/PetDetailsReportModal';
 import PetEditModal from '../pet/PetEditModal';
 import RescheduleModal from '../booking/RescheduleModal';
+import AppointmentSlipModal from '../booking/AppointmentSlipModal';
 import { createBooking, cancelBooking, fetchBookings, rescheduleBooking } from '../../services/bookingService';
 import petService from '../../services/petService';
 import { useTheme } from '../../context/ThemeContext';
@@ -180,6 +181,7 @@ const CustomerPortal = ({
   const [channelingError, setChannelingError] = useState('');
   const [channelingBookedSlots, setChannelingBookedSlots] = useState([]);
   const [rescheduleVisitTarget, setRescheduleVisitTarget] = useState(null);
+  const [confirmedSlipBooking, setConfirmedSlipBooking] = useState(null);
 
   // Fetch occupied slots for selected Doctor + Date
   useEffect(() => {
@@ -273,6 +275,22 @@ const CustomerPortal = ({
           onShowToast(`Channeling confirmed with ${selectedVet} on ${channelingDate} at ${selectedSlot}!`);
         }
         setChannelingNotes('');
+
+        // Launch immediate Appointment Slip Modal Pop-up
+        const newBooking = res.booking || res.data;
+        if (newBooking) {
+          const petObj = pets.find((p) => String(p._id) === String(selectedPetId)) || {};
+          const slipPayload = {
+            ...newBooking,
+            petId: typeof newBooking.petId === 'object' && newBooking.petId !== null ? newBooking.petId : petObj,
+            customerId: typeof newBooking.customerId === 'object' && newBooking.customerId !== null ? newBooking.customerId : currentUser,
+            patientPin: petObj.uniquePin,
+            date: channelingDate,
+            timeSlot: selectedSlot
+          };
+          setConfirmedSlipBooking(slipPayload);
+        }
+
         if (onRefreshData) onRefreshData();
       } else {
         throw new Error(res.message || 'Failed to book appointment.');
@@ -727,6 +745,15 @@ const CustomerPortal = ({
 
                       {!isCancelled && (
                         <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setConfirmedSlipBooking(booking)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 dark:text-teal-300 dark:bg-teal-950/40 dark:border-teal-800 rounded-lg transition-colors cursor-pointer"
+                            title="View / Print Official Clinical Appointment Slip"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Slip (PDF)</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleOpenReschedule(booking)}
@@ -1432,6 +1459,15 @@ const CustomerPortal = ({
           booking={rescheduleVisitTarget}
           onClose={() => setRescheduleVisitTarget(null)}
           onReschedule={handleConfirmReschedule}
+        />
+      )}
+
+      {/* Immediate Printable Appointment Slip Modal */}
+      {confirmedSlipBooking && (
+        <AppointmentSlipModal
+          isOpen={true}
+          booking={confirmedSlipBooking}
+          onClose={() => setConfirmedSlipBooking(null)}
         />
       )}
     </div>

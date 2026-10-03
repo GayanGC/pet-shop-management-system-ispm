@@ -16,18 +16,68 @@ import {
   Hash
 } from 'lucide-react';
 
-const AppointmentSlipModal = ({ booking, onClose }) => {
-  if (!booking) return null;
+const AppointmentSlipModal = ({ isOpen = true, booking, onClose }) => {
+  if (isOpen === false || !booking) return null;
 
   const handlePrint = () => {
-    window.print();
+    const printableElement = document.querySelector('.printable-clinical-record');
+    if (!printableElement) {
+      window.print();
+      return;
+    }
+
+    try {
+      const existingFrame = document.getElementById('slip-print-frame');
+      if (existingFrame) existingFrame.remove();
+
+      const printFrame = document.createElement('iframe');
+      printFrame.id = 'slip-print-frame';
+      printFrame.style.position = 'fixed';
+      printFrame.style.top = '-9999px';
+      printFrame.style.left = '-9999px';
+      printFrame.style.width = '0px';
+      printFrame.style.height = '0px';
+      printFrame.style.border = 'none';
+      document.body.appendChild(printFrame);
+
+      const doc = printFrame.contentWindow.document;
+      doc.open();
+      doc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Appointment Slip - ${booking._id ? `APT-${booking._id.slice(-6).toUpperCase()}` : 'APT-LIVE'}</title>
+            <style>
+              @page { size: A4 portrait; margin: 15mm; }
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; color: #0f172a; background: #ffffff; }
+              * { box-sizing: border-box; }
+            </style>
+            ${Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+              .map(node => node.outerHTML)
+              .join('\n')}
+          </head>
+          <body style="background: white !important; padding: 10px;">
+            ${printableElement.outerHTML}
+          </body>
+        </html>
+      `);
+      doc.close();
+
+      printFrame.contentWindow.focus();
+      setTimeout(() => {
+        printFrame.contentWindow.print();
+      }, 400);
+    } catch (e) {
+      console.warn('Iframe print error, falling back to window.print():', e);
+      window.print();
+    }
   };
 
   const pet = booking.petId || {};
   const customer = booking.customerId || {};
 
   const petName = pet.petName || pet.name || 'Patient Pet';
-  const petPin = pet.uniquePin || 'PET-XXXX';
+  const petPin = pet.uniquePin || booking.patientPin || booking.petPin || 'PET-XXXX';
   const species = pet.species || 'Canine / Feline';
   const breed = pet.breed || 'Standard';
 
@@ -38,7 +88,7 @@ const AppointmentSlipModal = ({ booking, onClose }) => {
         month: 'long',
         day: 'numeric'
       })
-    : 'Scheduled Date';
+    : (booking.date || 'Scheduled Date');
 
   const bookingDate = booking.createdAt
     ? new Date(booking.createdAt).toLocaleDateString()
@@ -86,7 +136,7 @@ const AppointmentSlipModal = ({ booking, onClose }) => {
               className="py-2 px-4 bg-teal-700 hover:bg-teal-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>Print Slip / Save PDF</span>
+              <span>Print / Save Slip (PDF)</span>
             </button>
             <button
               onClick={onClose}
@@ -126,9 +176,12 @@ const AppointmentSlipModal = ({ booking, onClose }) => {
             </div>
 
             <div className="text-left sm:text-right bg-teal-50/80 p-3 sm:p-2.5 rounded-xl border border-teal-200/80 w-full sm:w-auto">
-              <span className="font-mono text-xs font-black text-teal-900 block">
+              <span className="font-mono text-xs font-black text-teal-900 block tracking-wider">
                 REF: {referenceId}
               </span>
+              <div className="my-1 py-0.5 px-2 bg-white rounded border border-teal-200 inline-block font-mono text-[11px] tracking-[0.2em] text-slate-800 select-none">
+                |||| | ||||| || ||||
+              </div>
               <span className="text-[10px] text-slate-500 block">
                 Issued: {bookingDate}
               </span>
@@ -212,7 +265,7 @@ const AppointmentSlipModal = ({ booking, onClose }) => {
                 <Stethoscope className="w-4 h-4 text-teal-700 shrink-0" />
                 <div>
                   <span className="text-[10px] text-slate-400 block">Clinical Service</span>
-                  <span className="font-bold text-slate-800">{booking.serviceType}</span>
+                  <span className="font-bold text-slate-800">{booking.serviceType || 'Consultation'}</span>
                 </div>
               </div>
             </div>
@@ -225,13 +278,17 @@ const AppointmentSlipModal = ({ booking, onClose }) => {
           </div>
 
           {/* 4. Client Advisory & Clinical Instructions */}
-          <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-1.5 text-xs text-amber-900">
+          <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-200/90 space-y-2 text-xs text-amber-900">
             <div className="flex items-center gap-1.5 font-bold text-amber-950">
               <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-              <span>Important Patient Arrival Instructions:</span>
+              <span>Clinical Arrival Advisory & Instructions:</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-amber-100/90 border border-amber-300/80 font-bold text-amber-950 text-xs flex items-center gap-2">
+              <span>⏰</span>
+              <span>Arrive 15 minutes before {booking.timeSlot} for clinical triage.</span>
             </div>
             <ul className="list-disc list-inside text-[11px] space-y-1 pl-1 text-amber-900/90">
-              <li><strong>Please arrive 10 minutes prior to your scheduled time</strong> to complete baseline vitals triage.</li>
+              <li>Please complete baseline vitals triage, weight logging, and temperature checks on arrival.</li>
               <li>Bring your pet on a leash or in a secure carrier for clinic and patient safety.</li>
               <li>Have your Pet’s Health Passport or previous prescription records accessible for the attending veterinarian.</li>
               <li>For cancellations or emergency inquiries, call our clinical desk at <strong>+94 11 234 5678</strong>.</li>

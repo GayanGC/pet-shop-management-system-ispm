@@ -31,7 +31,12 @@ const appointmentSchema = new mongoose.Schema(
         'Veterinary Checkup',
         'Vaccination',
         'Dental Care',
-        'General Consultation'
+        'General Consultation',
+        'General Consultation & Diagnosis',
+        'Annual Vaccine Booster & Parasite Screen',
+        'Post-Op Wound Care & Minor Dressing',
+        'Dental Cleaning & Oral Checkup',
+        'Nutritional & Weight Consultation'
       ],
       default: 'General Veterinary Consultation'
     },

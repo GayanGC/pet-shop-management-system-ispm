@@ -48,6 +48,7 @@ import ProductShowcase from './components/inventory/ProductShowcase';
 import SupplierDirectory from './components/inventory/SupplierDirectory';
 import ExpiryTracker from './components/inventory/ExpiryTracker';
 import BookingForm from './components/booking/BookingForm';
+import AppointmentSlipModal from './components/booking/AppointmentSlipModal';
 import BookingList from './components/booking/BookingList';
 import DoctorCalendarView from './components/appointments/DoctorCalendarView';
 import POSBilling from './components/billing/POSBilling';
@@ -245,6 +246,7 @@ function App() {
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const { isThemeModalOpen, setIsThemeModalOpen, customerFontScale, updateCustomerFontScale, setCustomerScaleActive, customerScales } = useTheme();
   const [editingAdminPet, setEditingAdminPet] = useState(null);
+  const [confirmedSlipBooking, setConfirmedSlipBooking] = useState(null);
 
   // Customer accessibility text scale applies only to customer sessions (staff/admin stay at 16px root)
   useEffect(() => {
@@ -852,16 +854,22 @@ function App() {
   const handleCreateBooking = async (bookingData, bookingIdToUpdate) => {
     setIsBookingLoading(true);
     try {
+      let res;
       if (bookingIdToUpdate) {
-        const res = await updateBooking(bookingIdToUpdate, bookingData);
-        showToast(`Appointment updated for ${res.data.assignedStaff} on ${new Date(res.data.appointmentDate).toLocaleDateString()} at ${res.data.timeSlot}!`);
+        res = await updateBooking(bookingIdToUpdate, bookingData);
+        showToast(`Appointment updated for ${res.data?.assignedStaff || 'Doctor'} on ${new Date(res.data?.appointmentDate || Date.now()).toLocaleDateString()} at ${res.data?.timeSlot}!`);
       } else {
-        const res = await createBooking(bookingData);
-        showToast(`Appointment confirmed for ${res.data.assignedStaff} on ${new Date(res.data.appointmentDate).toLocaleDateString()} at ${res.data.timeSlot}!`);
+        res = await createBooking(bookingData);
+        showToast(`Appointment confirmed for ${res.data?.assignedStaff || 'Doctor'} on ${new Date(res.data?.appointmentDate || Date.now()).toLocaleDateString()} at ${res.data?.timeSlot}!`);
+        const bookedRecord = res?.booking || res?.data?.booking || res?.data;
+        if (bookedRecord) {
+          setConfirmedSlipBooking(bookedRecord);
+        }
       }
       setIsBookingModalOpen(false);
       setPrefilledBookingData(null);
       loadBookings();
+      return res;
     } catch (err) {
       showToast(err.message, 'error');
       throw err;
@@ -2694,6 +2702,15 @@ function App() {
         <ProTierModal
           isOpen={isProModalOpen}
           onClose={() => setIsProModalOpen(false)}
+        />
+      )}
+
+      {/* 10. Official Appointment Slip Modal (Pop-up on booking) */}
+      {confirmedSlipBooking && (
+        <AppointmentSlipModal
+          isOpen={true}
+          booking={confirmedSlipBooking}
+          onClose={() => setConfirmedSlipBooking(null)}
         />
       )}
     </div>

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, UserCheck, FileText, Plus, User, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { fetchBookings, fetchDoctorDaySchedule } from '../../services/bookingService';
 import petService, { getAllPets } from '../../services/petService';
+import AppointmentSlipModal from './AppointmentSlipModal';
 
 const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose, initialData, prefilledData }) => {
   const isEditMode = Boolean(initialData?._id);
+  const [confirmedSlipBooking, setConfirmedSlipBooking] = useState(null);
 
   const [availablePets, setAvailablePets] = useState(() => {
     if (Array.isArray(pets) && pets.length > 0) {
@@ -146,7 +148,9 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
     }
 
     try {
-      await onSubmit(formData, initialData?._id);
+      const res = await onSubmit(formData, initialData?._id);
+      const bookedRecord = res?.booking || res?.data?.booking || res?.data;
+
       if (!isEditMode) {
         setFormData({
           petId: '',
@@ -158,7 +162,20 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
         });
       }
       setFormError('');
-      if (isModal && onClose) onClose();
+
+      if (bookedRecord && !isEditMode) {
+        const petObj = availablePets.find((p) => String(p._id) === String(formData.petId)) || {};
+        const slipPayload = {
+          ...bookedRecord,
+          petId: typeof bookedRecord.petId === 'object' && bookedRecord.petId !== null ? bookedRecord.petId : petObj,
+          patientPin: petObj.uniquePin,
+          date: formData.appointmentDate,
+          timeSlot: formData.timeSlot
+        };
+        setConfirmedSlipBooking(slipPayload);
+      } else {
+        if (isModal && onClose) onClose();
+      }
     } catch (err) {
       if (err.status === 409 || err.message?.includes('Conflict')) {
         setConflictError(err.message || 'This doctor slot has already been booked. Please select another time or doctor.');
@@ -367,17 +384,30 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
     </form>
   );
 
-  if (isModal) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md transition-all duration-300">
-        <div className="max-w-3xl w-full transform transition-all duration-300 animate-in fade-in zoom-in-95">
-          {formContent}
+  return (
+    <>
+      {isModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md transition-all duration-300">
+          <div className="max-w-3xl w-full transform transition-all duration-300 animate-in fade-in zoom-in-95">
+            {formContent}
+          </div>
         </div>
-      </div>
-    );
-  }
+      ) : (
+        formContent
+      )}
 
-  return formContent;
+      {confirmedSlipBooking && (
+        <AppointmentSlipModal
+          isOpen={true}
+          booking={confirmedSlipBooking}
+          onClose={() => {
+            setConfirmedSlipBooking(null);
+            if (isModal && onClose) onClose();
+          }}
+        />
+      )}
+    </>
+  );
 };
 
 export default BookingForm;
