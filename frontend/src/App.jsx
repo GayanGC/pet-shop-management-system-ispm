@@ -39,6 +39,7 @@ import {
 
 import PetForm from './components/pet/PetForm';
 import PetList from './components/pet/PetList';
+import PetEditModal from './components/pet/PetEditModal';
 import ClientDirectory from './components/pet/ClientDirectory';
 import PrintableHealthPassportModal from './components/pet/PrintableHealthPassportModal';
 import ProductForm from './components/inventory/ProductForm';
@@ -242,7 +243,13 @@ function App() {
   const [notification, setNotification] = useState({ message: '', type: '' });
   const [isRegisterStaffModalOpen, setIsRegisterStaffModalOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
-  const { isThemeModalOpen, setIsThemeModalOpen, customerFontScale, setCustomerFontScale, customerScales } = useTheme();
+  const { isThemeModalOpen, setIsThemeModalOpen, customerFontScale, updateCustomerFontScale, setCustomerScaleActive, customerScales } = useTheme();
+  const [editingAdminPet, setEditingAdminPet] = useState(null);
+
+  // Customer accessibility text scale applies only to customer sessions (staff/admin stay at 16px root)
+  useEffect(() => {
+    setCustomerScaleActive(role === 'customer');
+  }, [role, setCustomerScaleActive]);
 
   // Cashier POS Patient Link & Real-time Query State
   const [posPatient, setPosPatient] = useState(null);
@@ -1205,7 +1212,8 @@ function App() {
                   <button
                     key={item.scale}
                     type="button"
-                    onClick={() => setCustomerFontScale(item.scale)}
+                    onClick={() => updateCustomerFontScale(item.scale)}
+                    aria-pressed={customerFontScale === item.scale}
                     className={`px-1.5 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
                       customerFontScale === item.scale
                         ? 'bg-violet-600 text-white shadow-xs'
@@ -2184,7 +2192,7 @@ function App() {
                         pets={pets}
                         onDelete={role === 'admin' ? handleDeletePet : null}
                         onArchivePet={handleArchivePet}
-                        onEdit={(pet) => alert(`Editing pet profile for ${pet.petName} (${pet.uniquePin})`)}
+                        onEdit={(pet) => setEditingAdminPet(pet)}
                         onUpdateClinicStatus={handleUpdateClinicStatus}
                         onAddMedicalLog={handleAddMedicalLog}
                         searchTerm={petSearch}
@@ -2639,6 +2647,18 @@ function App() {
           onClose={() => {
             setIsPassportModalOpen(false);
             setSelectedPassportPet(null);
+          }}
+        />
+      )}
+
+      {/* 6b. Admin/Staff Pet Profile Edit Modal (persists via PUT /api/pets/:id) */}
+      {editingAdminPet && (
+        <PetEditModal
+          pet={editingAdminPet}
+          onClose={() => setEditingAdminPet(null)}
+          onSaved={async () => {
+            await loadPets();
+            showToast('Pet profile updated successfully!');
           }}
         />
       )}

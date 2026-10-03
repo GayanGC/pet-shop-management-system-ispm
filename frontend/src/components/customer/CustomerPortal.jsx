@@ -25,11 +25,13 @@ import {
   LayoutGrid,
   List,
   Filter,
-  Receipt
+  Receipt,
+  Edit2
 } from 'lucide-react';
 import ProductShowcase from '../inventory/ProductShowcase';
 import PrintableHealthPassportModal from '../pet/PrintableHealthPassportModal';
 import PetDetailsReportModal from '../pet/PetDetailsReportModal';
+import PetEditModal from '../pet/PetEditModal';
 import { createBooking, cancelBooking } from '../../services/bookingService';
 import petService from '../../services/petService';
 import { useTheme } from '../../context/ThemeContext';
@@ -76,7 +78,7 @@ const CustomerPortal = ({
 }) => {
   // Active Tab: 'store' | 'channeling' | 'pets'
   const [activeTab, setActiveTab] = useState('pets');
-  const { customerFontScale, setCustomerFontScale, customerScales } = useTheme();
+  const { customerFontScale, updateCustomerFontScale, customerScales } = useTheme();
 
   // Internal reactive pets state with auto-fallback fetch
   const [portalPets, setPortalPets] = useState(pets || []);
@@ -127,6 +129,21 @@ const CustomerPortal = ({
   // Selected pet for Health Passport Modal & Clinical Report Modal
   const [selectedPetForPassport, setSelectedPetForPassport] = useState(null);
   const [selectedPetForReport, setSelectedPetForReport] = useState(null);
+
+  // Pet Profile Edit Modal
+  const [editingPet, setEditingPet] = useState(null);
+
+  const handleOpenEditPet = (pet) => setEditingPet(pet);
+
+  const handlePetSaved = async (updated) => {
+    // Optimistically patch local list so the card reflects changes instantly
+    if (updated && updated._id) {
+      setPortalPets((prev) => prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)));
+    }
+    await loadCustomerPets();
+    if (onRefreshData) onRefreshData();
+    if (onShowToast) onShowToast('Pet profile updated successfully!');
+  };
 
   // Customer Pet View Filter & Mode States
   const [petSearchTerm, setPetSearchTerm] = useState('');
@@ -250,7 +267,7 @@ const CustomerPortal = ({
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
                   Welcome, {currentUser.name || 'Client'}
                 </h1>
-                <span className="px-2 py-0.5 rounded bg-violet-800/90 text-violet-100 font-mono text-[10px] font-semibold border border-violet-500/40 uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded bg-violet-800/90 text-violet-100 font-mono text-[0.625rem] font-semibold border border-violet-500/40 uppercase tracking-wider">
                   Verified Client
                 </span>
               </div>
@@ -264,14 +281,15 @@ const CustomerPortal = ({
           <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
             {/* Accessibility Font Size Controller (A- / A / A+) */}
             <div className="flex items-center gap-1 bg-violet-950/70 border border-violet-500/40 rounded-xl p-1 shadow-xs" title="Adjust Text Readability Size (Personal Accessibility)">
-              <span className="text-[10px] font-bold text-violet-300 uppercase px-1.5 flex items-center gap-1">
+              <span className="text-[0.625rem] font-bold text-violet-300 uppercase px-1.5 flex items-center gap-1">
                 Text:
               </span>
               {customerScales.map((item) => (
                 <button
                   key={item.scale}
                   type="button"
-                  onClick={() => setCustomerFontScale(item.scale)}
+                  onClick={() => updateCustomerFontScale(item.scale)}
+                  aria-pressed={customerFontScale === item.scale}
                   className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     customerFontScale === item.scale
                       ? 'bg-violet-600 text-white shadow-xs scale-105'
@@ -285,11 +303,11 @@ const CustomerPortal = ({
             </div>
 
             <div className="px-4 py-2 rounded-xl bg-violet-950/60 dark:bg-slate-800/80 border border-violet-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial">
-              <span className="text-[10px] font-bold text-violet-300 uppercase block tracking-wider">Pets</span>
+              <span className="text-[0.625rem] font-bold text-violet-300 uppercase block tracking-wider">Pets</span>
               <span className="text-lg font-bold font-mono">{portalPets.length}</span>
             </div>
             <div className="px-4 py-2 rounded-xl bg-violet-950/60 dark:bg-slate-800/80 border border-violet-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial">
-              <span className="text-[10px] font-bold text-violet-300 uppercase block tracking-wider">Channelings</span>
+              <span className="text-[0.625rem] font-bold text-violet-300 uppercase block tracking-wider">Channelings</span>
               <span className="text-lg font-bold font-mono">{bookings.length}</span>
             </div>
             <div
@@ -297,7 +315,7 @@ const CustomerPortal = ({
               className="px-4 py-2 rounded-xl bg-violet-950/60 hover:bg-violet-900/80 dark:bg-slate-800/80 border border-violet-700/60 dark:border-slate-700 text-center flex-1 md:flex-initial cursor-pointer transition-all active:scale-95"
               title="Click to view My Orders"
             >
-              <span className="text-[10px] font-bold text-violet-300 uppercase block tracking-wider">Invoices</span>
+              <span className="text-[0.625rem] font-bold text-violet-300 uppercase block tracking-wider">Invoices</span>
               <span className="text-lg font-bold font-mono">{invoices.length}</span>
             </div>
           </div>
@@ -391,7 +409,7 @@ const CustomerPortal = ({
                   </p>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800">
+              <span className="text-[0.625rem] font-mono font-bold px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800">
                 LKR Clinical Rates Apply
               </span>
             </div>
@@ -572,7 +590,7 @@ const CustomerPortal = ({
                             <span className="text-xs font-black text-slate-900 dark:text-white">
                               {petName} ({petSpecies})
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            <span className={`text-[0.625rem] font-bold px-2 py-0.5 rounded-full ${
                               isCancelled
                                 ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
                                 : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
@@ -583,7 +601,7 @@ const CustomerPortal = ({
                           <p className="text-xs text-slate-600 dark:text-slate-300 font-medium mt-0.5">
                             {booking.assignedStaff} • {booking.serviceType}
                           </p>
-                          <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                          <p className="text-[0.6875rem] text-slate-400 font-mono mt-0.5">
                             📅 {dateStr} at {booking.timeSlot}
                           </p>
                         </div>
@@ -593,7 +611,7 @@ const CustomerPortal = ({
                         <button
                           type="button"
                           onClick={() => handleCancelChanneling(booking._id)}
-                          className="text-[11px] font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
+                          className="text-[0.6875rem] font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
                         >
                           ✕ Cancel Booking
                         </button>
@@ -745,7 +763,7 @@ const CustomerPortal = ({
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700 text-[0.6875rem] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                       <th className="py-3.5 px-5">Microchip PIN</th>
                       <th className="py-3.5 px-5">Patient Name</th>
                       <th className="py-3.5 px-5">Species / Breed</th>
@@ -759,7 +777,7 @@ const CustomerPortal = ({
                     {filteredPets.map((pet) => (
                       <tr key={pet._id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="py-3.5 px-5">
-                          <span className="bg-violet-50 dark:bg-teal-950 text-violet-700 dark:text-teal-300 font-mono text-[11px] px-2.5 py-1 rounded-md border border-violet-200 dark:border-violet-800 font-black inline-block">
+                          <span className="bg-violet-50 dark:bg-teal-950 text-violet-700 dark:text-teal-300 font-mono text-[0.6875rem] px-2.5 py-1 rounded-md border border-violet-200 dark:border-violet-800 font-black inline-block">
                             {pet.uniquePin}
                           </span>
                         </td>
@@ -770,13 +788,13 @@ const CustomerPortal = ({
                             </div>
                             <div>
                               <span className="font-black text-slate-900 dark:text-white block">{pet.petName}</span>
-                              <span className="text-[10px] text-slate-400">Reg: {new Date(pet.createdAt || Date.now()).toLocaleDateString()}</span>
+                              <span className="text-[0.625rem] text-slate-400">Reg: {new Date(pet.createdAt || Date.now()).toLocaleDateString()}</span>
                             </div>
                           </div>
                         </td>
                         <td className="py-3.5 px-5">
                           <span className="font-bold text-slate-800 dark:text-slate-200">{pet.species}</span>
-                          <span className="text-slate-400 text-[11px] block">{pet.breed || 'Mixed'}</span>
+                          <span className="text-slate-400 text-[0.6875rem] block">{pet.breed || 'Mixed'}</span>
                         </td>
                         <td className="py-3.5 px-5 text-slate-700 dark:text-slate-300 font-medium">
                           {pet.age} yrs • {pet.weight || 0} kg
@@ -785,7 +803,7 @@ const CustomerPortal = ({
                           {pet.gender || 'Male'}
                         </td>
                         <td className="py-3.5 px-5">
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                          <span className="text-[0.625rem] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                             {pet.clinicStatus || 'Registered'}
                           </span>
                         </td>
@@ -793,7 +811,7 @@ const CustomerPortal = ({
                           <button
                             type="button"
                             onClick={() => setSelectedPetForReport(pet)}
-                            className="py-1.5 px-3 rounded-xl bg-violet-50 dark:bg-teal-950 hover:bg-teal-100 dark:hover:bg-teal-900 text-violet-700 dark:text-teal-300 font-extrabold text-[11px] border border-violet-200 dark:border-violet-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            className="py-1.5 px-3 rounded-xl bg-violet-50 dark:bg-teal-950 hover:bg-teal-100 dark:hover:bg-teal-900 text-violet-700 dark:text-teal-300 font-extrabold text-[0.6875rem] border border-violet-200 dark:border-violet-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
                             title="View Complete Clinical Diagnostic Report"
                           >
                             <FileText className="w-3.5 h-3.5" />
@@ -803,11 +821,21 @@ const CustomerPortal = ({
                           <button
                             type="button"
                             onClick={() => setSelectedPetForPassport(pet)}
-                            className="py-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-[11px] border border-slate-200 dark:border-slate-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            className="py-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-[0.6875rem] border border-slate-200 dark:border-slate-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
                             title="View Printable Health Passport"
                           >
                             <Printer className="w-3.5 h-3.5" />
                             <span>Passport</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditPet(pet)}
+                            className="py-1.5 px-3 rounded-xl bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-900/60 text-violet-700 dark:text-violet-300 font-semibold text-xs border border-violet-200 dark:border-violet-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            title="Edit Pet Details"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
                           </button>
                         </td>
                       </tr>
@@ -841,7 +869,7 @@ const CustomerPortal = ({
                             <h3 className="text-lg font-black text-slate-900 dark:text-white">
                               {pet.petName}
                             </h3>
-                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-teal-600 text-white shadow-xs">
+                            <span className="text-[0.625rem] font-mono font-bold px-2 py-0.5 rounded-md bg-teal-600 text-white shadow-xs">
                               {pet.uniquePin}
                             </span>
                           </div>
@@ -851,7 +879,7 @@ const CustomerPortal = ({
                         </div>
                       </div>
 
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                      <span className="text-[0.625rem] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                         {pet.clinicStatus || 'Registered'}
                       </span>
                     </div>
@@ -860,21 +888,21 @@ const CustomerPortal = ({
                     <div className="p-6 space-y-4">
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                          <span className="text-[10px] text-slate-400 font-bold block uppercase">Age</span>
+                          <span className="text-[0.625rem] text-slate-400 font-bold block uppercase">Age</span>
                           <span className="text-xs font-black text-slate-800 dark:text-white">{pet.age} yrs</span>
                         </div>
                         <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                          <span className="text-[10px] text-slate-400 font-bold block uppercase">Weight</span>
+                          <span className="text-[0.625rem] text-slate-400 font-bold block uppercase">Weight</span>
                           <span className="text-xs font-black text-slate-800 dark:text-white">{pet.weight || 0} kg</span>
                         </div>
                         <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                          <span className="text-[10px] text-slate-400 font-bold block uppercase">Gender</span>
+                          <span className="text-[0.625rem] text-slate-400 font-bold block uppercase">Gender</span>
                           <span className="text-xs font-black text-slate-800 dark:text-white">{pet.gender || 'Male'}</span>
                         </div>
                       </div>
 
                       {/* Extended Details Chip */}
-                      <div className="p-2.5 rounded-xl bg-violet-50/40 dark:bg-slate-800/40 border border-teal-100 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+                      <div className="p-2.5 rounded-xl bg-violet-50/40 dark:bg-slate-800/40 border border-teal-100 dark:border-slate-700/60 flex items-center justify-between text-[0.6875rem]">
                         <span className="text-slate-500 dark:text-slate-400 font-bold">Registration Intake:</span>
                         <span className="font-mono font-bold text-violet-800 dark:text-teal-300">
                           {new Date(pet.createdAt || Date.now()).toLocaleDateString()}
@@ -902,6 +930,16 @@ const CustomerPortal = ({
                           <Printer className="w-3.5 h-3.5 text-violet-600" />
                           <span>🩺 Health Passport</span>
                         </button>
+
+                        {/* 3. Edit Pet Details Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditPet(pet)}
+                          className="sm:col-span-2 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 dark:text-violet-300 dark:bg-violet-950/40 dark:hover:bg-violet-900/60 dark:border-violet-800 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          <span>Edit Details</span>
+                        </button>
                       </div>
 
                       {/* Doctor Visits Accordion Toggle */}
@@ -923,11 +961,11 @@ const CustomerPortal = ({
                       {isTimelineOpen && (
                         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 animate-fadeIn">
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <span className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                               <Stethoscope className="w-3.5 h-3.5 text-violet-600" />
                               Doctor Clinical Visit Notes & Prescriptions
                             </span>
-                            <span className="text-[10px] text-violet-600 font-mono font-bold">
+                            <span className="text-[0.625rem] text-violet-600 font-mono font-bold">
                               {logs.length} Recorded Visits
                             </span>
                           </div>
@@ -948,14 +986,14 @@ const CustomerPortal = ({
                                       <span className="font-bold text-teal-900 dark:text-teal-200 flex items-center gap-1">
                                         <span>🩺</span> {doctor}
                                       </span>
-                                      <span className="text-[10px] font-mono text-slate-400">
+                                      <span className="text-[0.625rem] font-mono text-slate-400">
                                         📅 {visitDate}
                                       </span>
                                     </div>
 
                                     {/* Diagnosis */}
                                     <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                                      <span className="text-[10px] font-black uppercase text-violet-700 dark:text-teal-300 block">
+                                      <span className="text-[0.625rem] font-black uppercase text-violet-700 dark:text-teal-300 block">
                                         Clinical Diagnosis
                                       </span>
                                       <p className="font-bold text-slate-800 dark:text-white mt-0.5">
@@ -965,8 +1003,8 @@ const CustomerPortal = ({
 
                                     {/* Prescribed Medicines */}
                                     {log.medicinesPrescribed && log.medicinesPrescribed.length > 0 && (
-                                      <div className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 text-[11px]">
-                                        <span className="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300 block">
+                                      <div className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 text-[0.6875rem]">
+                                        <span className="text-[0.625rem] font-black uppercase text-amber-800 dark:text-amber-300 block">
                                           💊 Prescribed Medications & Dosage
                                         </span>
                                         <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
@@ -977,8 +1015,8 @@ const CustomerPortal = ({
 
                                     {/* Treatment & Vet Advice */}
                                     {(log.treatmentNotes || log.treatment) && (
-                                      <div className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed bg-white/60 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
-                                        <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                                      <div className="text-[0.6875rem] text-slate-600 dark:text-slate-300 leading-relaxed bg-white/60 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                        <span className="text-[0.625rem] font-bold text-slate-400 block uppercase">
                                           Doctor's Advice & Pet Parent Instructions:
                                         </span>
                                         <p className="mt-0.5 font-medium">
@@ -988,7 +1026,7 @@ const CustomerPortal = ({
                                     )}
 
                                     {/* Vaccine or Follow-up */}
-                                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
+                                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[0.625rem]">
                                       {log.vaccineName && (
                                         <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
                                           💉 Vaccine: {log.vaccineName}
@@ -1015,7 +1053,7 @@ const CustomerPortal = ({
                                   setSelectedPetId(pet._id);
                                   handleTabSwitch('channeling');
                                 }}
-                                className="text-[11px] font-bold text-violet-600 hover:text-violet-700 dark:text-teal-400 underline cursor-pointer"
+                                className="text-[0.6875rem] font-bold text-violet-600 hover:text-violet-700 dark:text-teal-400 underline cursor-pointer"
                               >
                                 + Book Consultation for {pet.petName}
                               </button>
@@ -1050,6 +1088,15 @@ const CustomerPortal = ({
             setSelectedPetId(pet._id);
             handleTabSwitch('channeling');
           }}
+        />
+      )}
+
+      {/* Pet Profile Edit Modal */}
+      {editingPet && (
+        <PetEditModal
+          pet={editingPet}
+          onClose={() => setEditingPet(null)}
+          onSaved={handlePetSaved}
         />
       )}
     </div>

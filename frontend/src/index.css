@@ -13,6 +13,13 @@
 }
 
 @layer base {
+  /* Root rem base: Tailwind sizes are rem-based, so scaling this scales the whole UI.
+     ThemeContext sets --customer-font-scale (and an inline px fallback) for customer sessions. */
+  html {
+    font-size: calc(16px * var(--customer-font-scale, 1));
+    transition: font-size 0.15s ease-in-out;
+  }
+
   body {
     margin: 0;
     font-family: var(--font-family);

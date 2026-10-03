@@ -494,7 +494,7 @@ const getPetById = async (req, res) => {
 
 const updatePet = async (req, res) => {
   try {
-    const { petName, name, species, breed, age, weight, status, clinicStatus, ownerId, owner } = req.body;
+    const { petName, name, species, breed, age, weight, gender, status, clinicStatus, ownerId, owner } = req.body;
 
     let pet = await Pet.findOne({ _id: req.params.id, isArchived: false });
 
@@ -526,6 +526,16 @@ const updatePet = async (req, res) => {
     if (breed) pet.breed = breed;
     if (age !== undefined) pet.age = Number(age);
     if (weight !== undefined) pet.weight = Number(weight);
+    if (gender) {
+      if (!['Male', 'Female', 'Unknown'].includes(gender)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Gender must be Male, Female, or Unknown'
+        });
+      }
+      pet.gender = gender;
+    }
+    // NOTE: uniquePin is intentionally never updated here (immutable microchip key)
     if (status) {
       pet.status = status;
       if (status === 'Deceased') pet.clinicStatus = 'Deceased';

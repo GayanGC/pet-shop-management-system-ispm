@@ -68,28 +68,45 @@ export const FONT_SIZES = {
 };
 
 export const CUSTOMER_SCALES = [
-  { scale: 0.9, label: 'A-', title: 'Compact text' },
-  { scale: 1.0, label: 'A', title: 'Default normal text' },
-  { scale: 1.15, label: 'A+', title: 'Enlarged accessibility text' }
+  { scale: 0.85, label: 'A-', title: 'Compact text' },
+  { scale: 1.0, label: 'A', title: 'Standard text' },
+  { scale: 1.2, label: 'A+', title: 'Enlarged accessibility text' }
 ];
+
+const SCALE_STORAGE_KEY = '4paw_customer_font_scale';
+const BASE_ROOT_PX = 16;
+
+const readSavedScale = () => {
+  try {
+    const saved = parseFloat(localStorage.getItem(SCALE_STORAGE_KEY));
+    return CUSTOMER_SCALES.some((s) => s.scale === saved) ? saved : 1.0;
+  } catch {
+    return 1.0;
+  }
+};
+
+/**
+ * Tailwind typography/spacing is rem-based, so the only reliable way to scale
+ * the whole UI is to change the root <html> font-size.
+ */
+const applyRootFontScale = (scale) => {
+  const root = document.documentElement;
+  root.style.setProperty('--customer-font-scale', scale.toString());
+  root.style.fontSize = `${BASE_ROOT_PX * scale}px`;
+};
 
 export const ThemeProvider = ({ children }) => {
   const [themePalette, setThemePalette] = useState('violet');
   const [globalFont, setGlobalFont] = useState('Inter');
   const [globalFontSize, setGlobalFontSize] = useState('14px');
-  const [customerFontScale, setCustomerFontScaleState] = useState(() => {
-    try {
-      const saved = localStorage.getItem('4paw_customer_font_scale');
-      return saved ? parseFloat(saved) : 1.0;
-    } catch {
-      return 1.0;
-    }
-  });
+  const [customerFontScale, setCustomerFontScaleState] = useState(readSavedScale);
+  // Scale only applies while a customer session is active (set by App based on role)
+  const [isCustomerScaleActive, setCustomerScaleActive] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   // Apply CSS custom properties to document root
-  const applyVariables = useCallback((paletteId, fontId, fontSizeVal, scaleVal) => {
+  const applyVariables = useCallback((paletteId, fontId, fontSizeVal) => {
     const palette = PALETTES[paletteId] || PALETTES.violet;
     const font = FONT_FAMILIES[fontId] || FONT_FAMILIES.Inter;
     const root = document.documentElement;
@@ -100,11 +117,15 @@ export const ThemeProvider = ({ children }) => {
     root.style.setProperty('--border-tint', palette.borderTint);
     root.style.setProperty('--font-family', font.css);
     root.style.setProperty('--global-font-size', fontSizeVal || '14px');
-    root.style.setProperty('--customer-font-scale', (scaleVal || 1.0).toString());
 
     // Update body styling
     document.body.style.fontFamily = font.css;
   }, []);
+
+  // Keep root <html> font-size in sync with the customer scale (role-scoped)
+  useEffect(() => {
+    applyRootFontScale(isCustomerScaleActive ? customerFontScale : 1.0);
+  }, [customerFontScale, isCustomerScaleActive]);
 
   // Fetch initial theme settings from MongoDB Atlas
   useEffect(() => {
@@ -118,19 +139,19 @@ export const ThemeProvider = ({ children }) => {
             if (p && PALETTES[p]) setThemePalette(p);
             if (f && FONT_FAMILIES[f]) setGlobalFont(f);
             if (s && FONT_SIZES[s]) setGlobalFontSize(s);
-            applyVariables(p || 'violet', f || 'Inter', s || '14px', customerFontScale);
+            applyVariables(p || 'violet', f || 'Inter', s || '14px');
           }
         }
       } catch (err) {
         console.warn('[ThemeContext] Falling back to default soft violet theme:', err.message);
-        applyVariables('violet', 'Inter', '14px', customerFontScale);
+        applyVariables('violet', 'Inter', '14px');
       } finally {
         setIsLoadingSettings(false);
       }
     };
 
     fetchSettings();
-  }, [applyVariables, customerFontScale]);
+  }, [applyVariables]);
 
   // Admin: Update theme settings system-wide (Persists to MongoDB Atlas)
   const updateAdminTheme = async (newSettings) => {
@@ -143,7 +164,7 @@ export const ThemeProvider = ({ children }) => {
     setThemePalette(updatedPalette);
     setGlobalFont(updatedFont);
     setGlobalFontSize(updatedSize);
-    applyVariables(updatedPalette, updatedFont, updatedSize, customerFontScale);
+    applyVariables(updatedPalette, updatedFont, updatedSize);
 
     try {
       const res = await fetch('http://localhost:5000/api/settings/theme', {
@@ -167,16 +188,17 @@ export const ThemeProvider = ({ children }) => {
   };
 
   // Customer: Adjust personal accessibility font scale (Persists to localStorage only)
-  const setCustomerFontScale = (scale) => {
+  const updateCustomerFontScale = useCallback((scale) => {
     const numScale = parseFloat(scale) || 1.0;
     setCustomerFontScaleState(numScale);
     try {
-      localStorage.setItem('4paw_customer_font_scale', numScale.toString());
+      localStorage.setItem(SCALE_STORAGE_KEY, numScale.toString());
     } catch (e) {
       console.warn('Could not save customer scale to localStorage', e);
     }
-    applyVariables(themePalette, globalFont, globalFontSize, numScale);
-  };
+    // Apply immediately (don't wait for the effect) for instant feedback
+    applyRootFontScale(numScale);
+  }, []);
 
   const activePalette = PALETTES[themePalette] || PALETTES.violet;
 
@@ -191,7 +213,10 @@ export const ThemeProvider = ({ children }) => {
         isThemeModalOpen,
         setIsThemeModalOpen,
         updateAdminTheme,
-        setCustomerFontScale,
+        updateCustomerFontScale,
+        setCustomerFontScale: updateCustomerFontScale, // backward-compatible alias
+        isCustomerScaleActive,
+        setCustomerScaleActive,
         isLoadingSettings,
         palettes: PALETTES,
         fonts: FONT_FAMILIES,
