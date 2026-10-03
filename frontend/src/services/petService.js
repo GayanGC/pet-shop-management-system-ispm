@@ -83,6 +83,10 @@ export const searchMyPets = async (searchTerm, params = {}) => {
   return getMyPets({ ...params, search: searchTerm });
 };
 
+export const getMyArchivedPets = async (params = {}) => {
+  return getMyPets({ ...params, archived: 'true' });
+};
+
 export const fetchPetByPin = async (pin) => {
   const cleanPin = String(pin).trim().toUpperCase();
   const res = await fetch(`${API_BASE_URL}/pets/pin/${cleanPin}`, {
@@ -99,6 +103,7 @@ const petService = {
   fetchPetByPin,
   getMyPets,
   searchMyPets,
+  getMyArchivedPets,
   createPet,
   updatePet,
   deletePet,

@@ -26,7 +26,8 @@ import {
   List,
   Filter,
   Receipt,
-  Edit2
+  Edit2,
+  Archive
 } from 'lucide-react';
 import ProductShowcase from '../inventory/ProductShowcase';
 import PrintableHealthPassportModal from '../pet/PrintableHealthPassportModal';
@@ -239,7 +240,7 @@ const CustomerPortal = ({
   };
 
   // Filter portalPets by search and species
-  const filteredPets = portalPets.filter((pet) => {
+  const matchesPetFilters = (pet) => {
     const term = petSearchTerm.toLowerCase();
     const matchesSearch =
       !term ||
@@ -249,7 +250,42 @@ const CustomerPortal = ({
       (pet.breed || '').toLowerCase().includes(term);
     const matchesSpecies = petSpeciesFilter === 'All' || pet.species === petSpeciesFilter;
     return matchesSearch && matchesSpecies;
-  });
+  };
+  const filteredPets = portalPets.filter(matchesPetFilters);
+
+  // Archived Records View (MongoDB Atlas: isArchived === true, owner-scoped)
+  const [viewMode, setViewMode] = useState('active'); // 'active' | 'archived'
+  const [archivedPets, setArchivedPets] = useState([]);
+  const [isLoadingArchived, setIsLoadingArchived] = useState(false);
+  const [archivedError, setArchivedError] = useState('');
+
+  const loadArchivedPets = async () => {
+    setIsLoadingArchived(true);
+    setArchivedError('');
+    try {
+      const res = await petService.getMyArchivedPets();
+      const list = Array.isArray(res) ? res : (res?.data || res?.pets || []);
+      // Defensive: only keep genuinely archived records
+      setArchivedPets(Array.isArray(list) ? list.filter((p) => p.isArchived) : []);
+    } catch (err) {
+      console.error('Failed to load archived pets:', err);
+      setArchivedError(err.message || 'Could not load archived records.');
+    } finally {
+      setIsLoadingArchived(false);
+    }
+  };
+
+  // Prefetch once so the toggle badge shows an accurate count
+  useEffect(() => {
+    loadArchivedPets();
+  }, []);
+
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode);
+    if (mode === 'archived') loadArchivedPets(); // always fresh from Atlas
+  };
+
+  const filteredArchivedPets = archivedPets.filter(matchesPetFilters);
 
   const cartItemCount = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
@@ -696,6 +732,40 @@ const CustomerPortal = ({
 
             {/* Search & Species Filter Bar */}
             <div className="flex flex-col sm:flex-row items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              {/* Active vs Archived Toggle (mirrors Admin dashboard) */}
+              <div
+                role="tablist"
+                aria-label="Pet record status"
+                className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs w-full sm:w-auto shrink-0"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === 'active'}
+                  onClick={() => handleViewModeChange('active')}
+                  className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    viewMode === 'active'
+                      ? 'bg-white dark:bg-slate-700 text-violet-700 dark:text-violet-300 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span>🐾 Active Pets ({portalPets.length})</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === 'archived'}
+                  onClick={() => handleViewModeChange('archived')}
+                  className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    viewMode === 'archived'
+                      ? 'bg-white dark:bg-slate-700 text-rose-700 dark:text-rose-300 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span>🗄️ Archived Records ({archivedPets.length})</span>
+                </button>
+              </div>
+
               <div className="relative flex-1 w-full">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -728,8 +798,114 @@ const CustomerPortal = ({
             </div>
           </div>
 
-          {/* Empty State when 0 pets registered */}
-          {portalPets.length === 0 ? (
+          {/* ======================================================= */}
+          {/* ARCHIVED RECORDS VIEW (isArchived: true, read-only) */}
+          {/* ======================================================= */}
+          {viewMode === 'archived' ? (
+            isLoadingArchived ? (
+              <div className="p-12 text-center text-xs font-bold text-slate-400 bg-white/80 dark:bg-slate-900/80 rounded-3xl border border-slate-200 dark:border-slate-800">
+                Loading archived records…
+              </div>
+            ) : archivedError ? (
+              <div className="p-6 rounded-3xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0" />{archivedError}</span>
+                <button type="button" onClick={loadArchivedPets} className="underline cursor-pointer shrink-0">Retry</button>
+              </div>
+            ) : archivedPets.length === 0 ? (
+              <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-10 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-xl text-center space-y-3 max-w-2xl mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center mx-auto">
+                  <Archive className="w-7 h-7" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">No archived records</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  Pets archived by the clinic (e.g. deceased, relocated, or on owner request) will appear here with their full clinical history.
+                </p>
+              </div>
+            ) : filteredArchivedPets.length === 0 ? (
+              <div className="p-12 text-center text-xs font-bold text-slate-400 bg-white/80 dark:bg-slate-900/80 rounded-3xl border border-slate-200 dark:border-slate-800">
+                No archived records match your search criteria.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredArchivedPets.map((pet) => {
+                  const details = pet.archivalDetails || {};
+                  const eventDate = details.dateOfEvent || details.archivedAt;
+                  return (
+                    <div
+                      key={pet._id}
+                      className="bg-white/90 dark:bg-slate-900/90 rounded-3xl border border-rose-200/70 dark:border-rose-900/50 shadow-xl overflow-hidden flex flex-col"
+                    >
+                      <div className="p-6 bg-gradient-to-r from-rose-50 to-slate-50 dark:from-slate-800/80 dark:to-rose-950/40 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-2xl grayscale">
+                            {pet.species === 'Dog' ? '🐕' : pet.species === 'Cat' ? '🐈' : pet.species === 'Bird' ? '🦜' : '🐾'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-lg font-black text-slate-700 dark:text-slate-200">{pet.petName || pet.name}</h3>
+                              <span className="text-[0.625rem] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-500 text-white">
+                                {pet.uniquePin}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                              {pet.species} • {pet.breed || 'Mixed'}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[0.625rem] font-bold px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 shrink-0">
+                          🗄️ {details.reason || 'Archived'}
+                        </span>
+                      </div>
+
+                      <div className="p-6 space-y-3 flex-1 flex flex-col">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+                            <span className="text-[0.625rem] text-slate-400 font-bold block uppercase">Date of Event</span>
+                            <span className="font-bold text-slate-800 dark:text-white">
+                              {eventDate ? new Date(eventDate).toLocaleDateString() : '—'}
+                            </span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+                            <span className="text-[0.625rem] text-slate-400 font-bold block uppercase">Clinical Visits</span>
+                            <span className="font-bold text-slate-800 dark:text-white">{(pet.medicalLogs || []).length} recorded</span>
+                          </div>
+                        </div>
+
+                        {details.clinicalNotes && (
+                          <div className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
+                            <span className="text-[0.625rem] font-bold text-slate-400 block uppercase">Clinic Notes</span>
+                            <p className="mt-0.5 font-medium">"{details.clinicalNotes}"</p>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 mt-auto">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPetForReport(pet)}
+                            className="py-2.5 px-3 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Clinical Report</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPetForPassport(pet)}
+                            className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Health Passport</span>
+                          </button>
+                        </div>
+                        <p className="text-[0.625rem] text-slate-400 text-center">
+                          Archived records are read-only. Contact the clinic to restore this profile.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : portalPets.length === 0 ? (
             <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-10 rounded-3xl border-2 border-dashed border-violet-200 dark:border-slate-800 shadow-xl text-center space-y-4 max-w-2xl mx-auto">
               <div className="w-16 h-16 rounded-3xl bg-violet-50 dark:bg-teal-950/80 text-violet-600 dark:text-teal-300 flex items-center justify-center mx-auto border border-violet-200 dark:border-violet-800 shadow-md">
                 <PawPrint className="w-8 h-8 animate-bounce" />

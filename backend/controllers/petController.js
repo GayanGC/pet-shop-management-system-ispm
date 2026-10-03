@@ -286,7 +286,7 @@ const getMyPets = async (req, res) => {
     }
 
     const searchTerm = req.query.search || req.query.q || req.query.searchTerm;
-    const { species, includeArchived } = req.query;
+    const { species, includeArchived, archived } = req.query;
 
     const andConditions = [
       {
@@ -297,7 +297,13 @@ const getMyPets = async (req, res) => {
       }
     ];
 
-    if (includeArchived !== 'true') {
+    // Archive scoping:
+    //   archived=true          -> ONLY this customer's archived records (isArchived: true)
+    //   includeArchived=true   -> active + archived (legacy behaviour)
+    //   default / archived=false -> active records only
+    if (archived === 'true') {
+      andConditions.push({ isArchived: true });
+    } else if (includeArchived !== 'true') {
       andConditions.push({ isArchived: { $ne: true } });
     }
 
@@ -774,7 +780,9 @@ const getPetHealthSummary = async (req, res) => {
         species: pet.species,
         breed: pet.breed || 'Unknown/Mixed'
       },
-      intakeClearanceStatus: 'EHR Verified & Active',
+      intakeClearanceStatus: pet.isArchived
+        ? `Archived Record (${pet.archivalDetails?.reason || 'Archived'})`
+        : 'EHR Verified & Active',
       certifiedHospital: '4 Paw Animal Clinic & Referral Center'
     };
 
