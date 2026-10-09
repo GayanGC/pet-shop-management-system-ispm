@@ -253,6 +253,20 @@ function App() {
     setCustomerScaleActive(role === 'customer');
   }, [role, setCustomerScaleActive]);
 
+  // Global 401 Session Expiration Handler (Zero white screen, seamless prompt)
+  useEffect(() => {
+    const handleAuthExpired = (e) => {
+      const msg = e?.detail?.message || 'Session expired. Please log in again.';
+      setCurrentUser(null);
+      setAuthModalMessage(msg);
+      setIsAuthModalOpen(true);
+      setNotification({ message: msg, type: 'error' });
+    };
+
+    window.addEventListener('auth:expired', handleAuthExpired);
+    return () => window.removeEventListener('auth:expired', handleAuthExpired);
+  }, []);
+
   // Cashier POS Patient Link & Real-time Query State
   const [posPatient, setPosPatient] = useState(null);
   const [posProductQuery, setPosProductQuery] = useState('');

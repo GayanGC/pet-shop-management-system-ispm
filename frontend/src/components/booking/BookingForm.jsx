@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, UserCheck, FileText, Plus, User, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, UserCheck, FileText, Plus, User, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { fetchBookings, fetchDoctorDaySchedule } from '../../services/bookingService';
 import petService, { getAllPets } from '../../services/petService';
 import AppointmentSlipModal from './AppointmentSlipModal';
@@ -7,6 +7,7 @@ import AppointmentSlipModal from './AppointmentSlipModal';
 const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose, initialData, prefilledData }) => {
   const isEditMode = Boolean(initialData?._id);
   const [confirmedSlipBooking, setConfirmedSlipBooking] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [availablePets, setAvailablePets] = useState(() => {
     if (Array.isArray(pets) && pets.length > 0) {
@@ -147,7 +148,10 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
       return;
     }
 
+    if (isSubmitting || isLoading) return;
+
     try {
+      setIsSubmitting(true);
       const res = await onSubmit(formData, initialData?._id);
       const bookedRecord = res?.booking || res?.data?.booking || res?.data;
 
@@ -182,6 +186,8 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
       } else {
         setFormError(err.message || 'Error booking appointment. Please try again.');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -368,17 +374,22 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
       <div className="pt-2">
         <button
           type="submit"
-          disabled={isLoading || availablePets.length === 0}
+          disabled={isLoading || isSubmitting || availablePets.length === 0}
           className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-3 px-6 rounded-2xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
-          {isLoading
-            ? (isEditMode ? 'Updating Appointment...' : 'Scheduling Appointment...')
-            : availablePets.length === 0
-            ? 'Register a Patient First to Book'
-            : isEditMode
-            ? 'Save & Update Appointment'
-            : 'Confirm & Schedule Appointment'}
+          {(isLoading || isSubmitting) ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+              <span>{isEditMode ? 'Updating Appointment...' : 'Locking Slot & Scheduling...'}</span>
+            </>
+          ) : availablePets.length === 0 ? (
+            'Register a Patient First to Book'
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              <span>{isEditMode ? 'Save & Update Appointment' : 'Confirm & Schedule Appointment'}</span>
+            </>
+          )}
         </button>
       </div>
     </form>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PawPrint, Tag, User, Scale, Activity, Plus, X, AlertCircle } from 'lucide-react';
+import { PawPrint, Tag, User, Scale, Activity, Plus, X, AlertCircle, Loader2 } from 'lucide-react';
 import { getBreedsForSpecies } from '../../constants/breedCatalog';
 
 // ─── Validation rules ────────────────────────────────────────────────────────
@@ -60,6 +60,7 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
   const [customBreed, setCustomBreed] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     let { name, value } = e.target;
@@ -109,8 +110,9 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
     setFieldErrors((prev) => ({ ...prev, [name]: errors[name] || '' }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting || isLoading) return;
     const errors = validate(formData);
     setFieldErrors(errors);
     setTouched({ petName: true, species: true, age: true, weight: true });
@@ -119,11 +121,16 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
       return;
     }
 
-    onSubmit(formData);
-    setFormData(INITIAL);
-    setFieldErrors({});
-    setTouched({});
-    if (isModal && onClose) onClose();
+    try {
+      setIsSubmitting(true);
+      await onSubmit(formData);
+      setFormData(INITIAL);
+      setFieldErrors({});
+      setTouched({});
+      if (isModal && onClose) onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const fieldClass = (name) =>
@@ -328,11 +335,20 @@ const PetForm = ({ onSubmit, isLoading, isModal, onClose }) => {
       <div className="pt-2">
         <button
           type="submit"
-          disabled={isLoading}
-          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2.5 px-6 rounded-xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={isLoading || isSubmitting}
+          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2.5 px-6 rounded-xl shadow-sm hover:shadow-teal-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
-          {isLoading ? 'Registering Patient Record...' : 'Register Pet Patient'}
+          {(isLoading || isSubmitting) ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+              <span>Saving Patient Record...</span>
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              <span>Register Pet Patient</span>
+            </>
+          )}
         </button>
       </div>
     </form>

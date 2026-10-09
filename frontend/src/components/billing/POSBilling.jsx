@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, Plus, Trash2, CreditCard, DollarSign, Receipt, Percent, Stethoscope, Package, Search, X, User, Calculator, Layers, AlertCircle, CheckCircle } from 'lucide-react';
+import { ShoppingCart, Plus, Trash2, CreditCard, DollarSign, Receipt, Percent, Stethoscope, Package, Search, X, User, Calculator, Layers, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { fetchCurrentShift } from '../../services/billingService';
 import ShiftSettlementModal from './ShiftSettlementModal';
 import PrintableZReportModal from './PrintableZReportModal';
@@ -28,6 +28,7 @@ const POSBilling = ({
   setProductSearchQuery
 }) => {
   const [internalCartItems, setInternalCartItems] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const cartItems = externalCartItems !== undefined ? externalCartItems : internalCartItems;
   const setCartItems = externalSetCartItems !== undefined ? externalSetCartItems : setInternalCartItems;
 
@@ -238,8 +239,9 @@ const POSBilling = ({
     }
   }, [paymentMethod, cartItems, discountRate, taxRate]);
 
-  const handleCheckout = (e) => {
+  const handleCheckout = async (e) => {
     e.preventDefault();
+    if (isSubmitting || isLoading) return;
     if (cartItems.length === 0) {
       alert('Cart is empty! Add products before checking out.');
       return;
@@ -281,9 +283,14 @@ const POSBilling = ({
         : 'Dispensary Direct Sale'
     };
 
-    onSubmitOrder(orderPayload);
-    setCartItems([]);
-    setTenderedAmount('');
+    try {
+      setIsSubmitting(true);
+      await onSubmitOrder(orderPayload);
+      setCartItems([]);
+      setTenderedAmount('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -874,14 +881,24 @@ const POSBilling = ({
             onClick={handleCheckout}
             disabled={
               isLoading ||
+              isSubmitting ||
               cartItems.length === 0 ||
               (paymentMethod === 'Cash' && (!tenderedAmount || Number(tenderedAmount) < calculateFinalTotal())) ||
               (paymentMethod === 'Split' && (Number(splitCash || 0) + Number(splitCard || 0) < calculateFinalTotal() - 0.05))
             }
             className="w-full bg-teal-700 hover:bg-teal-600 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-xs text-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer border border-teal-500/40"
           >
-            <Receipt className="w-4 h-4" />
-            {isLoading ? 'Processing Checkout Order...' : 'Complete Payment & Issue Invoice'}
+            {(isLoading || isSubmitting) ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span>Processing Checkout Order...</span>
+              </>
+            ) : (
+              <>
+                <Receipt className="w-4 h-4" />
+                <span>Complete Payment & Issue Invoice</span>
+              </>
+            )}
           </button>
         </div>
       </div>
