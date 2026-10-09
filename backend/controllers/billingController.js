@@ -32,7 +32,7 @@ const billingHealthCheck = async (req, res) => {
  */
 const createInvoice = async (req, res) => {
   try {
-    const { customerId, items, paymentMethod, paymentStatus, discountRate, taxRate, petId, pet } = req.body;
+    const { customerId, items, paymentMethod, paymentStatus, discountRate, discount, taxRate, petId, pet } = req.body;
 
     const patientId = petId || pet;
     if (patientId && mongoose.Types.ObjectId.isValid(patientId)) {
@@ -72,43 +72,79 @@ const createInvoice = async (req, res) => {
       return mongoose.Types.ObjectId.isValid(str) ? str : null;
     };
 
-    const sanitizedItems = (items || []).map((item) => {
-      const itemName = item.itemName || item.name || 'Product Item';
-      const unitPrice = round2(Number(item.unitPrice !== undefined ? item.unitPrice : (item.price || 0)));
-      const quantity = Math.max(1, parseInt(item.quantity || 1, 10));
-      const subtotal = round2(unitPrice * quantity);
-      const productId = extractProductId(item);
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Invoice must contain at least one item'
+      });
+    }
 
-      return {
+    const sanitizedItems = [];
+    for (const item of items) {
+      const itemName = item.itemName || item.name || 'Product Item';
+      const rawPrice = item.unitPrice !== undefined ? item.unitPrice : item.price;
+      const unitPrice = Number(rawPrice);
+      if (rawPrice === undefined || isNaN(unitPrice) || unitPrice <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Validation Error: Item '${itemName}' must have a valid positive unitPrice (unitPrice > 0)`
+        });
+      }
+
+      const rawQty = item.quantity;
+      const quantity = Number(rawQty);
+      if (rawQty === undefined || isNaN(quantity) || quantity <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Validation Error: Item '${itemName}' must have a positive quantity (quantity > 0)`
+        });
+      }
+
+      const productId = extractProductId(item);
+      const subtotal = round2(unitPrice * quantity);
+
+      sanitizedItems.push({
         product: productId,
         productId,
         itemName,
-        unitPrice,
-        price: unitPrice,
+        unitPrice: round2(unitPrice),
+        price: round2(unitPrice),
         quantity,
         subtotal
-      };
-    });
-
-    // Validation check
-    for (const item of sanitizedItems) {
-      if (!item.itemName || item.unitPrice <= 0 || !item.quantity || item.quantity <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Validation Error: Each item must have a valid itemName, positive unitPrice, and positive integer quantity'
-        });
-      }
+      });
     }
 
-    // Over-Stock selling guard: Pre-check inventory availability
+    // Product stock, expiry, and discrete item validation
     for (const item of sanitizedItems) {
       if (item.product) {
         const productDoc = await Product.findById(item.product);
         if (productDoc) {
+          const prodDisplayName = productDoc.itemName || productDoc.name || item.itemName;
+
+          // 1. Prevent Expired Medicine Checkout
+          if (productDoc.expiryDate && new Date(productDoc.expiryDate) < new Date()) {
+            return res.status(400).json({
+              success: false,
+              message: `Cannot dispense expired medication: ${prodDisplayName} (Expired on ${productDoc.expiryDate})`
+            });
+          }
+
+          // 2. Discrete items integer check
+          const discreteUnits = ['piece', 'unit', 'tablet', 'pill', 'vial', 'capsule', 'bottle', 'box'];
+          if (productDoc.unit && discreteUnits.includes(String(productDoc.unit).toLowerCase())) {
+            if (!Number.isInteger(item.quantity)) {
+              return res.status(400).json({
+                success: false,
+                message: `Validation Error: Quantity for discrete item '${prodDisplayName}' (${productDoc.unit}) must be a whole integer.`
+              });
+            }
+          }
+
+          // 3. Over-Stock selling guard: Pre-check inventory availability
           if (productDoc.stockQuantity < item.quantity) {
             return res.status(400).json({
               success: false,
-              message: `Insufficient stock for product '${productDoc.itemName || item.itemName}'. Available in inventory: ${productDoc.stockQuantity}, Requested: ${item.quantity}`
+              message: `Insufficient stock for product '${prodDisplayName}'. Available in inventory: ${productDoc.stockQuantity}, Requested: ${item.quantity}`
             });
           }
         }
@@ -137,7 +173,8 @@ const createInvoice = async (req, res) => {
     }
 
     // Discount rate bounds (0% to 50%)
-    const discRate = discountRate ? Number(discountRate) : 0;
+    const rawDisc = discountRate !== undefined ? discountRate : discount;
+    const discRate = rawDisc !== undefined ? Number(rawDisc) : 0;
     if (isNaN(discRate) || discRate < 0 || discRate > 50) {
       return res.status(400).json({
         success: false,
@@ -146,7 +183,7 @@ const createInvoice = async (req, res) => {
     }
 
     // Tax rate bounds (0% to 15%)
-    const tRate = taxRate ? Number(taxRate) : 0;
+    const tRate = taxRate !== undefined ? Number(taxRate) : 0;
     if (isNaN(tRate) || tRate < 0 || tRate > 15) {
       return res.status(400).json({
         success: false,

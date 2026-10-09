@@ -23,6 +23,7 @@ router.get('/search/my', protect, searchMyPets);
 router.get('/pin/:pin', protect, getPetByPin);
 
 router.patch('/:id/archive', protect, archivePet);
+router.put('/:id/archive', protect, archivePet);
 router.post('/:id/archive', protect, archivePet);
 router.get('/:id/health-passport', protect, getPetHealthSummary);
 

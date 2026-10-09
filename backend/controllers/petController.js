@@ -30,7 +30,7 @@ const PET_PIN_REGEX = /^PET-[A-Z0-9]{4,8}$/;
 
 const createPet = async (req, res) => {
   try {
-    const { uniquePin, petName, species, breed, age, weight, ownerId, status, clinicStatus, microchipNumber, dob, ownerPhone, ownerEmail, gender } = req.body;
+    const { uniquePin, petName, species, breed, age, ageYears, weight, weightKg, ownerId, status, clinicStatus, microchipNumber, dob, ownerPhone, ownerEmail, gender } = req.body;
 
     if (!petName || !petName.trim()) {
       return res.status(400).json({
@@ -46,14 +46,15 @@ const createPet = async (req, res) => {
       });
     }
 
-    if (age === undefined || age === null || age === '') {
+    const rawAge = ageYears !== undefined ? ageYears : age;
+    if (rawAge === undefined || rawAge === null || rawAge === '') {
       return res.status(400).json({
         success: false,
         message: 'Validation Error: Pet age is required'
       });
     }
 
-    const ageNum = Number(age);
+    const ageNum = Number(rawAge);
     if (isNaN(ageNum) || ageNum < 0) {
       return res.status(400).json({
         success: false,
@@ -64,8 +65,27 @@ const createPet = async (req, res) => {
     if (ageNum > 35) {
       return res.status(400).json({
         success: false,
-        message: 'Validation Error: Pet age cannot exceed 35 years'
+        message: 'Validation Error: Pet age cannot exceed biological limit of 35 years'
       });
+    }
+
+    const rawWeight = weightKg !== undefined ? weightKg : weight;
+    let finalWeight = 1;
+    if (rawWeight !== undefined && rawWeight !== null && rawWeight !== '') {
+      const weightNum = Number(rawWeight);
+      if (isNaN(weightNum) || weightNum < 0.05) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Pet weight must be at least 0.05 kg'
+        });
+      }
+      if (weightNum > 150) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Pet weight cannot exceed biological limit of 150 kg'
+        });
+      }
+      finalWeight = weightNum;
     }
 
     // Date of Birth validation (no future dates)
@@ -103,14 +123,23 @@ const createPet = async (req, res) => {
       }
     }
 
-    // Pet PIN Validation & Normalization
+    // Pet PIN Validation & Normalization with Safe Retry Loop (max 5 attempts)
     let finalPin = uniquePin ? String(uniquePin).trim().toUpperCase() : null;
     if (!finalPin) {
-      finalPin = generatePetPin();
-      let pinExists = await Pet.findOne({ uniquePin: finalPin });
-      while (pinExists) {
-        finalPin = generatePetPin();
-        pinExists = await Pet.findOne({ uniquePin: finalPin });
+      let attempts = 0;
+      let pinFound = false;
+      while (attempts < 5) {
+        attempts++;
+        const candidatePin = generatePetPin();
+        const pinExists = await Pet.findOne({ uniquePin: candidatePin });
+        if (!pinExists) {
+          finalPin = candidatePin;
+          pinFound = true;
+          break;
+        }
+      }
+      if (!pinFound) {
+        finalPin = `PET-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`;
       }
     } else {
       if (!PET_PIN_REGEX.test(finalPin)) {
@@ -185,9 +214,10 @@ const createPet = async (req, res) => {
       petName: petName.trim(),
       name: petName.trim(),
       species: species.trim(),
-      breed: breed || 'Unknown/Mixed',
       age: ageNum,
-      weight: weight ? Number(weight) : 0,
+      ageYears: ageNum,
+      weight: finalWeight,
+      weightKg: finalWeight,
       gender: gender || 'Male',
       ownerId: targetOwner,
       owner: targetOwner,
@@ -502,7 +532,7 @@ const getPetById = async (req, res) => {
 
 const updatePet = async (req, res) => {
   try {
-    const { petName, name, species, breed, age, weight, gender, status, clinicStatus, ownerId, owner } = req.body;
+    const { petName, name, species, breed, age, ageYears, weight, weightKg, gender, status, clinicStatus, ownerId, owner } = req.body;
 
     let pet = await Pet.findOne({ _id: req.params.id, isArchived: false });
 
@@ -532,8 +562,32 @@ const updatePet = async (req, res) => {
     }
     if (species) pet.species = species;
     if (breed) pet.breed = breed;
-    if (age !== undefined) pet.age = Number(age);
-    if (weight !== undefined) pet.weight = Number(weight);
+
+    const rawAge = ageYears !== undefined ? ageYears : age;
+    if (rawAge !== undefined && rawAge !== null && rawAge !== '') {
+      const ageNum = Number(rawAge);
+      if (isNaN(ageNum) || ageNum < 0 || ageNum > 35) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Pet age must be between 0 and 35 years'
+        });
+      }
+      pet.age = ageNum;
+      pet.ageYears = ageNum;
+    }
+
+    const rawWeight = weightKg !== undefined ? weightKg : weight;
+    if (rawWeight !== undefined && rawWeight !== null && rawWeight !== '') {
+      const weightNum = Number(rawWeight);
+      if (isNaN(weightNum) || weightNum < 0.05 || weightNum > 150) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Pet weight must be between 0.05 kg and 150 kg'
+        });
+      }
+      pet.weight = weightNum;
+      pet.weightKg = weightNum;
+    }
     if (gender) {
       if (!['Male', 'Female', 'Unknown'].includes(gender)) {
         return res.status(400).json({

@@ -80,6 +80,19 @@ const createBooking = async (req, res) => {
       });
     }
 
+    // Elapsed slot check for today
+    if (targetDay.getTime() === today.getTime()) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const slotMinutes = parseTimeSlotToMinutes(timeSlot);
+      if (slotMinutes !== null && slotMinutes <= currentMinutes) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Selected time slot has already elapsed for today. Cannot book appointments in the past.'
+        });
+      }
+    }
+
     const targetCustomer = customerId || (req.user ? req.user._id : null);
     if (!targetCustomer) {
       return res.status(400).json({
@@ -107,7 +120,7 @@ const createBooking = async (req, res) => {
     if (pet.isArchived || pet.clinicStatus === 'Deceased' || pet.status === 'Deceased' || pet.archivalDetails?.reason === 'Deceased') {
       return res.status(400).json({
         success: false,
-        message: 'Validation Error: Cannot schedule appointments for deceased or archived patients.'
+        message: 'Cannot book appointments for archived patient profiles'
       });
     }
 
@@ -242,6 +255,13 @@ const createBooking = async (req, res) => {
       booking: appointment
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: `Validation Error: ${messages.join(', ')}`
+      });
+    }
     console.error('[Create Booking Error]:', error.message);
     return res.status(500).json({
       success: false,
@@ -476,12 +496,34 @@ const rescheduleBooking = async (req, res) => {
       });
     }
 
+    if (targetDay.getTime() === today.getTime()) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const slotMinutes = parseTimeSlotToMinutes(targetTimeSlot);
+      if (slotMinutes !== null && slotMinutes <= currentMinutes) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Selected time slot has already elapsed for today. Cannot book appointments in the past.'
+        });
+      }
+    }
+
     const booking = await Appointment.findById(req.params.id);
     if (!booking) {
       return res.status(404).json({
         success: false,
         message: 'Appointment booking record not found for rescheduling'
       });
+    }
+
+    if (booking.petId) {
+      const pet = await Pet.findById(booking.petId);
+      if (pet && (pet.isArchived || pet.clinicStatus === 'Deceased' || pet.status === 'Deceased' || pet.archivalDetails?.reason === 'Deceased')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot book appointments for archived patient profiles'
+        });
+      }
     }
 
     const dateOnly = typeof targetDate === 'string' ? targetDate.slice(0, 10) : new Date(targetDate).toISOString().slice(0, 10);

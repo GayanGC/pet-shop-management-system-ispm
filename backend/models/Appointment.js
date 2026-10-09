@@ -61,7 +61,8 @@ const appointmentSchema = new mongoose.Schema(
         'Annual Vaccine Booster & Parasite Screen',
         'Post-Op Wound Care & Minor Dressing',
         'Dental Cleaning & Oral Checkup',
-        'Nutritional & Weight Consultation'
+        'Nutritional & Weight Consultation',
+        'Consultation'
       ],
       default: 'General Veterinary Consultation'
     },

@@ -89,8 +89,13 @@ const petSchema = new mongoose.Schema(
     age: {
       type: Number,
       required: [true, 'Pet age is required'],
-      min: [0, 'Age cannot be negative'],
-      max: [35, 'Age cannot exceed 35 years']
+      min: [0, 'Biological Range Error: Age cannot be negative (min: 0 years)'],
+      max: [35, 'Biological Range Error: Age cannot exceed clinical maximum of 35 years']
+    },
+    ageYears: {
+      type: Number,
+      min: [0, 'Biological Range Error: Age cannot be negative (min: 0 years)'],
+      max: [35, 'Biological Range Error: Age cannot exceed clinical maximum of 35 years']
     },
     dob: {
       type: Date,
@@ -104,8 +109,14 @@ const petSchema = new mongoose.Schema(
     },
     weight: {
       type: Number,
-      default: 0,
-      min: [0, 'Weight cannot be negative']
+      default: 1,
+      min: [0.05, 'Biological Range Error: Weight must be at least 0.05 kg'],
+      max: [150, 'Biological Range Error: Weight cannot exceed clinical maximum of 150 kg']
+    },
+    weightKg: {
+      type: Number,
+      min: [0.05, 'Biological Range Error: Weight must be at least 0.05 kg'],
+      max: [150, 'Biological Range Error: Weight cannot exceed clinical maximum of 150 kg']
     },
     gender: {
       type: String,
@@ -222,7 +233,7 @@ const petSchema = new mongoose.Schema(
   }
 );
 
-// Synchronize name <-> petName and owner <-> ownerId automatically
+// Synchronize name <-> petName, owner <-> ownerId, age <-> ageYears, and weight <-> weightKg automatically
 petSchema.pre('validate', function (next) {
   if (this.petName && !this.name) {
     this.name = this.petName;
@@ -233,6 +244,16 @@ petSchema.pre('validate', function (next) {
     this.owner = this.ownerId;
   } else if (this.owner && !this.ownerId) {
     this.ownerId = this.owner;
+  }
+  if (this.age !== undefined && this.ageYears === undefined) {
+    this.ageYears = this.age;
+  } else if (this.ageYears !== undefined && this.age === undefined) {
+    this.age = this.ageYears;
+  }
+  if (this.weight !== undefined && this.weightKg === undefined) {
+    this.weightKg = this.weight;
+  } else if (this.weightKg !== undefined && this.weight === undefined) {
+    this.weight = this.weightKg;
   }
   next();
 });

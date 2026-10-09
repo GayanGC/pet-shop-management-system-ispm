@@ -72,12 +72,10 @@ const createProduct = async (req, res) => {
 
     if (expiryDate) {
       const exp = new Date(expiryDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (exp < today) {
+      if (isNaN(exp.getTime()) || exp <= new Date()) {
         return res.status(400).json({
           success: false,
-          message: 'Validation Error: Expiry date cannot be in the past'
+          message: 'Validation Error: Expiry date must be in the future'
         });
       }
     }
@@ -230,7 +228,16 @@ const updateProduct = async (req, res) => {
     if (category) product.category = category;
     if (supplier) product.supplier = supplier;
     if (batchNo) product.batchNo = batchNo;
-    if (expiryDate) product.expiryDate = new Date(expiryDate);
+    if (expiryDate !== undefined && expiryDate !== null && expiryDate !== '') {
+      const exp = new Date(expiryDate);
+      if (isNaN(exp.getTime()) || exp <= new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Expiry date must be in the future'
+        });
+      }
+      product.expiryDate = exp;
+    }
     if (unit) product.unit = unit;
 
     const updatedProduct = await product.save();
