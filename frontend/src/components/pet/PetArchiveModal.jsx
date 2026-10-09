@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Archive, X, AlertTriangle, HeartCrack, Calendar, FileText, CheckCircle2 } from 'lucide-react';
 
 const ARCHIVE_REASONS = [
-  { id: 'Deceased', label: 'Deceased 🕊️', desc: 'Patient passed away (euthanasia, natural, illness)' },
-  { id: 'Relocated', label: 'Relocated / Moved 🏠', desc: 'Pet parent relocated outside clinic service area' },
-  { id: 'Owner Request', label: 'Owner Request 👤', desc: 'Owner requested file inactivation or transferred care' },
-  { id: 'Adoption Transfer', label: 'Adoption Transfer 🐾', desc: 'Rehomed or transferred to shelter / new family' },
-  { id: 'Other', label: 'Other Administrative 📋', desc: 'Duplicate entry or administrative closure' }
+  { id: 'Deceased', label: 'Deceased 🕊️', desc: 'Patient passed away (euthanasia, illness, or natural causes)' },
+  { id: 'Re-homed / Adopted', label: 'Re-homed / Adopted 🐾', desc: 'Rehomed, adopted, or care transferred to new family or rescue shelter' },
+  { id: 'Relocated', label: 'Relocated / Moved 🏠', desc: 'Family relocated outside clinic service boundary' },
+  { id: 'Lost / Missing', label: 'Lost / Missing 🔍', desc: 'Patient is lost, missing, or escaped' },
+  { id: 'Other', label: 'Other Administrative 📋', desc: 'Other reason or administrative closure (please specify in notes)' }
 ];
 
 const PetArchiveModal = ({ pet, onClose, onConfirm, isLoading = false }) => {
@@ -31,8 +31,10 @@ const PetArchiveModal = ({ pet, onClose, onConfirm, isLoading = false }) => {
     onConfirm({
       isArchived: true,
       reason,
+      archivalReason: reason,
       dateOfEvent,
-      clinicalNotes: clinicalNotes.trim()
+      clinicalNotes: clinicalNotes.trim(),
+      archivalNotes: clinicalNotes.trim()
     });
   };
 

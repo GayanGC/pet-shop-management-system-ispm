@@ -171,10 +171,32 @@ const petSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    archivalReason: {
+      type: String,
+      enum: ['Deceased', 'Re-homed / Adopted', 'Relocated', 'Lost / Missing', 'Other', null],
+      default: null
+    },
+    archivalNotes: {
+      type: String,
+      default: ''
+    },
+    archivedAt: {
+      type: Date,
+      default: null
+    },
+    archivedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    archivedRole: {
+      type: String,
+      enum: ['Customer', 'Admin', null],
+      default: null
+    },
     archivalDetails: {
       reason: {
         type: String,
-        enum: ['Deceased', 'Relocated', 'Owner Request', 'Adoption Transfer', 'Other'],
         default: 'Other'
       },
       dateOfEvent: {

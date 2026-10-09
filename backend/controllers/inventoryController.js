@@ -6,6 +6,14 @@
 
 const Product = require('../models/Product');
 
+const generateAutomatedBatchNumber = (prefix = 'BATCH') => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}-${year}${month}-${randomSuffix}`;
+};
+
 const inventoryHealthCheck = async (req, res) => {
   return res.status(200).json({
     success: true,
@@ -17,9 +25,10 @@ const inventoryHealthCheck = async (req, res) => {
 
 const createProduct = async (req, res) => {
   try {
-    const { itemName, category, price, stockQuantity, supplier, batchNo, expiryDate, unit } = req.body;
+    const itemName = req.body.itemName || req.body.name;
+    const { category, price, stockQuantity, supplier, batchNo, expiryDate, unit } = req.body;
 
-    if (!itemName || !itemName.trim() || price === undefined || stockQuantity === undefined) {
+    if (!itemName || !String(itemName).trim() || price === undefined || stockQuantity === undefined) {
       return res.status(400).json({
         success: false,
         message: 'Validation Error: Please provide itemName, price, and stockQuantity'
@@ -79,7 +88,7 @@ const createProduct = async (req, res) => {
       price: numPrice,
       stockQuantity: numStock,
       supplier: supplier || 'Direct Supplier',
-      batchNo: batchNo || 'BATCH-2026-01',
+      batchNo: batchNo && String(batchNo).trim() ? String(batchNo).trim() : generateAutomatedBatchNumber(),
       expiryDate: expiryDate ? new Date(expiryDate) : null,
       unit: targetUnit
     });

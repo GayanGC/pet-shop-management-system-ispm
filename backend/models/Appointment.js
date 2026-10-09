@@ -13,10 +13,35 @@ const appointmentSchema = new mongoose.Schema(
       ref: 'Pet',
       required: [true, 'Pet selection is required for appointment booking']
     },
+    pet: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Pet'
+    },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'Customer account is required for appointment booking']
+    },
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    ownerEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: ''
+    },
+    patientName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    patientPin: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: ''
     },
     serviceType: {
       type: String,
@@ -98,17 +123,31 @@ const appointmentSchema = new mongoose.Schema(
     }
   },
   {
-    timestamps: true
+    timestamps: true,
+    strictPopulate: false
   }
 );
 
-// Synchronize assignedStaff <-> doctor
+// Synchronize assignedStaff <-> doctor, petId <-> pet, customerId <-> owner
 appointmentSchema.pre('validate', function (next) {
   if (this.assignedStaff && !this.doctor) {
     this.doctor = this.assignedStaff;
   } else if (this.doctor && !this.assignedStaff) {
     this.assignedStaff = this.doctor;
   }
+
+  if (this.petId && !this.pet) {
+    this.pet = this.petId;
+  } else if (this.pet && !this.petId) {
+    this.petId = this.pet;
+  }
+
+  if (this.customerId && !this.owner) {
+    this.owner = this.customerId;
+  } else if (this.owner && !this.customerId) {
+    this.customerId = this.owner;
+  }
+
   next();
 });
 

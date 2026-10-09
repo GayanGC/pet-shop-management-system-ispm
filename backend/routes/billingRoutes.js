@@ -17,7 +17,12 @@ const {
   updatePaymentStatus,
   voidInvoice,
   getSalesAnalytics,
-  exportInvoicesCSV
+  exportInvoicesCSV,
+  getCurrentShift,
+  openShift,
+  closeShift,
+  getAllShifts,
+  getShiftZReport
 } = require('../controllers/billingController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -27,6 +32,14 @@ router.get('/health', billingHealthCheck);
 // Analytics & CSV Export Endpoints
 router.get('/analytics', getSalesAnalytics);
 router.get('/export-csv', exportInvoicesCSV);
+
+// Cashier Shift & Settlement Routes (Defined before /:id)
+router.get('/shifts/current', protect, authorize('Admin', 'Staff'), getCurrentShift);
+router.post('/shifts/open', protect, authorize('Admin', 'Staff'), openShift);
+router.post('/shifts/close', protect, authorize('Admin', 'Staff'), closeShift);
+router.post('/shifts/:id/close', protect, authorize('Admin', 'Staff'), closeShift);
+router.get('/shifts', protect, authorize('Admin', 'Staff'), getAllShifts);
+router.get('/shifts/:id/z-report', protect, authorize('Admin', 'Staff'), getShiftZReport);
 
 // Protected Billing Endpoints (Restricted to Staff and Admin)
 router.route('/')

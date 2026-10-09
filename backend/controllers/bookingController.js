@@ -171,9 +171,18 @@ const createBooking = async (req, res) => {
     if (staffToUse.includes('Silva')) roomNumber = 'Consultation Room 2';
     else if (staffToUse.includes('Fernando')) roomNumber = 'Consultation Room 3';
 
+    const petDoc = await Pet.findById(targetPetId);
+    const petDocName = petDoc ? (petDoc.petName || petDoc.name || '') : '';
+    const petDocPin = petDoc ? (petDoc.uniquePin || petDoc.microchipNumber || '') : '';
+
     const appointment = await Appointment.create({
       petId,
+      pet: petId,
       customerId: targetCustomer,
+      owner: targetCustomer,
+      ownerEmail: (req.user && req.user.email) || '',
+      patientName: petDocName,
+      patientPin: petDocPin,
       serviceType,
       assignedStaff: staffToUse,
       doctor: staffToUse,
@@ -242,17 +251,112 @@ const createBooking = async (req, res) => {
   }
 };
 
-const getAllBookings = async (req, res) => {
+/**
+ * Role-Scoped Appointment History (Customer Self-Service vs Admin Global View)
+ * GET /api/bookings or /api/bookings/my-history
+ * 🔒 Strict BOLA Data Isolation
+ */
+const getAppointmentHistory = async (req, res) => {
   try {
-    const { status, customerId, doctor, date } = req.query;
+    const rawRole = req.user?.role || '';
+    const userRole = rawRole ? rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase() : 'Customer';
+    const normalizedRole = rawRole.toLowerCase();
+    const userId = req.user._id || req.user.id;
 
     let query = {};
 
-    if (status && status !== 'All' && status !== 'undefined' && status !== 'null') {
-      query.status = status;
+    // 🔒 Strict BOLA Data Isolation
+    if (userRole === 'Customer' || userRole === 'Client' || ['customer', 'client'].includes(normalizedRole)) {
+      // Customers can ONLY query their own bookings
+      const userPets = await Pet.find(
+        { $or: [{ ownerId: userId }, { owner: userId }] },
+        '_id'
+      );
+      const userPetIds = userPets.map((p) => p._id);
+
+      query = { 
+        $or: [
+          { owner: userId },
+          { customerId: userId },
+          { ownerEmail: req.user.email },
+          ...(userPetIds.length > 0 ? [{ petId: { $in: userPetIds } }, { pet: { $in: userPetIds } }] : [])
+        ]
+      };
+
+      if (req.query.status && req.query.status !== 'All') {
+        query.status = req.query.status;
+      }
+      if (req.query.date) {
+        const targetDate = new Date(req.query.date);
+        query.appointmentDate = {
+          $gte: new Date(targetDate.setHours(0, 0, 0, 0)),
+          $lte: new Date(targetDate.setHours(23, 59, 59, 999))
+        };
+      }
+    } else if (
+      ['Admin', 'Veterinarian', 'Receptionist'].includes(userRole) ||
+      ['admin', 'veterinarian', 'receptionist'].includes(normalizedRole)
+    ) {
+      // Clinic staff can view all, or apply search filters (date, status, pet)
+      if (req.query.status && req.query.status !== 'All') query.status = req.query.status;
+      if (req.query.date) {
+        const targetDate = new Date(req.query.date);
+        query.appointmentDate = {
+          $gte: new Date(targetDate.setHours(0, 0, 0, 0)),
+          $lte: new Date(targetDate.setHours(23, 59, 59, 999))
+        };
+      }
+      if (req.query.search) {
+        const searchRegex = { $regex: req.query.search, $options: 'i' };
+        const matchingPets = await Pet.find({
+          $or: [
+            { petName: searchRegex },
+            { name: searchRegex },
+            { uniquePin: searchRegex },
+            { microchipNumber: searchRegex }
+          ]
+        }, '_id');
+        const petIds = matchingPets.map((p) => p._id);
+
+        query.$or = [
+          { patientName: searchRegex },
+          { patientPin: searchRegex },
+          { doctor: searchRegex },
+          { assignedStaff: searchRegex },
+          ...(petIds.length > 0 ? [{ petId: { $in: petIds } }, { pet: { $in: petIds } }] : [])
+        ];
+      }
+    } else {
+      return res.status(403).json({ success: false, message: 'Unauthorized role' });
     }
 
-    if (doctor && doctor !== 'All' && doctor !== 'undefined' && doctor !== 'null') {
+    const bookings = await Appointment.find(query)
+      .populate('pet', 'name species breed microchipPin petName uniquePin')
+      .populate('petId', 'name species breed microchipPin petName uniquePin age weight gender ownerName ownerPhone')
+      .populate('customerId', 'name email phone role')
+      .populate('owner', 'name email phone role')
+      .populate('assignedStaff', 'name specialization')
+      .sort({ appointmentDate: -1, timeSlot: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: bookings.length,
+      bookings,
+      data: bookings
+    });
+  } catch (error) {
+    console.error('Error fetching appointment history:', error);
+    return res.status(500).json({ success: false, message: 'Server error retrieving history', error: error.message });
+  }
+};
+
+const getAllBookings = async (req, res) => {
+  // If doctor & date are specified, allow doctor schedule / slot checking for booking forms
+  if (req.query.doctor && req.query.date) {
+    try {
+      const { status, doctor, date } = req.query;
+      let query = {};
+      if (status && status !== 'All') query.status = status;
       const docClean = String(doctor).trim();
       const escaped = docClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
@@ -261,48 +365,30 @@ const getAllBookings = async (req, res) => {
         { doctor: docClean },
         { doctor: new RegExp(escaped, 'i') }
       ];
-    }
-
-    if (date && date !== 'undefined' && date !== 'null') {
       const dateOnly = typeof date === 'string' ? date.slice(0, 10) : new Date(date).toISOString().slice(0, 10);
       const startOfDay = new Date(`${dateOnly}T00:00:00.000Z`);
       const endOfDay = new Date(`${dateOnly}T23:59:59.999Z`);
       query.appointmentDate = { $gte: startOfDay, $lte: endOfDay };
+
+      const bookings = await Appointment.find(query)
+        .populate('petId', 'petName species breed uniquePin ownerId')
+        .populate('pet', 'petName species breed uniquePin ownerId')
+        .sort({ appointmentDate: 1, timeSlot: 1 });
+
+      return res.status(200).json({
+        success: true,
+        count: bookings.length,
+        message: 'Appointments fetched successfully',
+        data: bookings,
+        bookings: bookings
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
     }
-
-    // Private Scoping for Customer Role: only see own appointments (unless querying doctor/date for slot availability)
-    const isCustomer = req.user && req.user.role && req.user.role.toLowerCase() === 'customer';
-    if (isCustomer && !doctor && !date) {
-      const userPets = await Pet.find({ ownerId: req.user._id }, '_id');
-      const userPetIds = userPets.map((p) => p._id);
-
-      query.$or = [
-        { customerId: req.user._id },
-        { petId: { $in: userPetIds } }
-      ];
-    } else if (customerId && customerId !== 'undefined' && customerId !== 'null' && !isCustomer) {
-      query.customerId = customerId;
-    }
-
-    const bookings = await Appointment.find(query)
-      .populate('petId', 'petName species breed uniquePin ownerId')
-      .populate('customerId', 'name email phone role')
-      .sort({ appointmentDate: 1, timeSlot: 1 });
-
-    return res.status(200).json({
-      success: true,
-      count: bookings.length,
-      message: 'Appointments fetched successfully',
-      data: bookings,
-      bookings: bookings
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Server Error fetching appointment bookings',
-      error: error.message
-    });
   }
+
+  // Otherwise, delegate to role-scoped appointment history
+  return getAppointmentHistory(req, res);
 };
 
 const getBookingById = async (req, res) => {
@@ -738,6 +824,7 @@ module.exports = {
   createBooking,
   getAllBookings,
   getBookings: getAllBookings,
+  getAppointmentHistory,
   getBookingById,
   updateBooking,
   rescheduleBooking,

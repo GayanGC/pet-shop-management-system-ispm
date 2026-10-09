@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Filter, Clock, Edit3, Trash2, FileText, Printer } from 'lucide-react';
+import { Calendar, Filter, Clock, Edit3, Trash2, FileText, Printer, Search, X } from 'lucide-react';
 import RescheduleModal from './RescheduleModal';
 import ClinicalAppointmentReportModal from './ClinicalAppointmentReportModal';
 import AppointmentSlipModal from './AppointmentSlipModal';
@@ -8,6 +8,29 @@ const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, on
   const [selectedBookingForReschedule, setSelectedBookingForReschedule] = useState(null);
   const [selectedBookingForSlip, setSelectedBookingForSlip] = useState(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+
+  const filteredBookings = bookings.filter((item) => {
+    if (statusFilter && statusFilter !== 'All' && item.status !== statusFilter) {
+      return false;
+    }
+    if (dateFilter) {
+      const itemDate = new Date(item.appointmentDate).toISOString().slice(0, 10);
+      if (itemDate !== dateFilter) return false;
+    }
+    if (searchTerm.trim()) {
+      const query = searchTerm.toLowerCase();
+      const petName = (item.patientName || item.pet?.name || item.pet?.petName || item.petId?.petName || item.petId?.name || '').toLowerCase();
+      const petPin = (item.patientPin || item.pet?.microchipPin || item.pet?.uniquePin || item.petId?.uniquePin || '').toLowerCase();
+      const doc = (item.doctor || item.assignedStaff || '').toLowerCase();
+      const cust = (item.customerId?.name || item.owner?.name || '').toLowerCase();
+      const service = (item.serviceType || '').toLowerCase();
+
+      return petName.includes(query) || petPin.includes(query) || doc.includes(query) || cust.includes(query) || service.includes(query);
+    }
+    return true;
+  });
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden space-y-0">
@@ -17,13 +40,13 @@ const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, on
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-slate-800">Scheduled Appointments</h2>
             <span className="bg-teal-50 text-teal-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-teal-200/60">
-              {bookings.length} Bookings
+              {filteredBookings.length} {filteredBookings.length !== bookings.length ? `of ${bookings.length}` : ''} Bookings
             </span>
           </div>
           <p className="text-xs text-slate-500">Clinical Consultations, Diagnostics & Doctor Slots</p>
         </div>
 
-        {/* Action Controls: Report Button & Status filter */}
+        {/* Action Controls: Report Button, Search, Date & Status filter */}
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
@@ -33,6 +56,47 @@ const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, on
             <FileText className="w-4 h-4" />
             <span>📑 Clinical Appointment Report</span>
           </button>
+
+          {/* Real-time Search Box */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search pet, PIN, doctor..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all w-44 sm:w-52"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Date Picker */}
+          <div className="relative flex items-center">
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:bg-white focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 focus:outline-none transition-all cursor-pointer"
+            />
+            {dateFilter && (
+              <button
+                type="button"
+                onClick={() => setDateFilter('')}
+                className="ml-1 text-[11px] text-slate-400 hover:text-slate-600 underline cursor-pointer"
+                title="Clear date"
+              >
+                Clear
+              </button>
+            )}
+          </div>
 
           <div className="relative">
             <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -65,10 +129,10 @@ const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, on
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs">
-            {bookings.length > 0 ? (
-              bookings.map((item) => {
-                const petName = item.petId ? item.petId.petName : 'Unknown Pet';
-                const petPin = item.petId ? item.petId.uniquePin : 'N/A';
+            {filteredBookings.length > 0 ? (
+              filteredBookings.map((item) => {
+                const petName = item.patientName || item.pet?.name || item.pet?.petName || item.petId?.petName || item.petId?.name || 'Unknown Pet';
+                const petPin = item.patientPin || item.pet?.microchipPin || item.pet?.uniquePin || item.petId?.uniquePin || 'N/A';
                 const formattedDate = new Date(item.appointmentDate).toLocaleDateString();
 
                 return (
@@ -82,7 +146,7 @@ const BookingList = ({ bookings = [], onUpdateStatus, onCancel, onReschedule, on
                     <td className="py-3.5 px-5 font-medium text-slate-700">{item.serviceType}</td>
                     <td className="py-3.5 px-5 text-slate-700 text-xs">
                       <span className="font-medium bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200 inline-block">
-                        {item.assignedStaff || 'Dr. Perera (Senior Vet)'}
+                        {item.assignedStaff || item.doctor || 'Dr. Perera (Senior Vet)'}
                       </span>
                     </td>
                     <td className="py-3.5 px-5">

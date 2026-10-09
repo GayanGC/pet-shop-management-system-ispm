@@ -13,6 +13,7 @@ const {
   bookingHealthCheck,
   createBooking,
   getAllBookings,
+  getAppointmentHistory,
   getBookingById,
   updateBooking,
   rescheduleBooking,
@@ -25,6 +26,10 @@ const { protect } = require('../middleware/authMiddleware');
 
 // Health Check Route
 router.get('/health', bookingHealthCheck);
+
+// Role-Scoped Appointment History (Customer Self-Service vs Admin Global View)
+router.get('/my-history', protect, getAppointmentHistory);
+router.get('/history', protect, getAppointmentHistory);
 
 // Doctor Schedule Endpoint
 router.get('/schedule', getDoctorDaySchedule);

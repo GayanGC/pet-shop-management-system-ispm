@@ -328,6 +328,7 @@ const getMyPets = async (req, res) => {
     const pets = await Pet.find(query)
       .populate('ownerId', 'name email phone address role')
       .populate('owner', 'name email phone address role')
+      .populate('archivedBy', 'name email role')
       .sort({ createdAt: -1 });
 
     const serializedPets = pets.map((p) => {
@@ -417,6 +418,7 @@ const getAllPets = async (req, res) => {
     const pets = await Pet.find(query)
       .populate('ownerId', 'name email phone address role')
       .populate('owner', 'name email phone address role')
+      .populate('archivedBy', 'name email role')
       .sort({ createdAt: -1 });
 
     const serializedPets = pets.map((p) => {
@@ -704,42 +706,86 @@ const archivePet = async (req, res) => {
       });
     }
 
-    const { isArchived, reason, dateOfEvent, clinicalNotes } = req.body;
+    const userId = (req.user?._id || req.user?.id || '').toString();
+    const userRole = (req.user?.role || '').toLowerCase();
+    const isCustomer = ['customer', 'client'].includes(userRole);
+    const petOwnerId = (pet.ownerId?._id || pet.ownerId || pet.owner?._id || pet.owner || '').toString();
 
-    if (isArchived !== undefined) {
-      pet.isArchived = Boolean(isArchived);
-    } else {
-      pet.isArchived = !pet.isArchived;
+    // 🔒 OWASP BOLA Security: Customers can only archive their own pet profile
+    if (isCustomer && petOwnerId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access Denied: You are not authorized to archive another customer’s pet profile.'
+      });
     }
 
-    if (pet.isArchived) {
-      const cleanReason = reason || 'Other';
+    const { isArchived, reason, archivalReason, dateOfEvent, clinicalNotes, archivalNotes } = req.body;
+    const shouldArchive = isArchived !== undefined ? Boolean(isArchived) : !pet.isArchived;
+
+    if (shouldArchive) {
+      // 1. Mandatory Reason Validation
+      const candidateReason = archivalReason || reason;
+      const VALID_REASONS = ['Deceased', 'Re-homed / Adopted', 'Relocated', 'Lost / Missing', 'Other'];
+
+      if (!candidateReason || !VALID_REASONS.includes(candidateReason)) {
+        return res.status(400).json({
+          success: false,
+          message: `Validation Error: Mandatory archival reason is required. Must be one of: ${VALID_REASONS.join(', ')}`
+        });
+      }
+
+      const notes = archivalNotes !== undefined ? String(archivalNotes).trim() : (clinicalNotes ? String(clinicalNotes).trim() : '');
+      const now = new Date();
+      const actorRole = isCustomer ? 'Customer' : 'Admin';
+
+      pet.isArchived = true;
+      pet.archivalReason = candidateReason;
+      pet.archivalNotes = notes;
+      pet.archivedAt = now;
+      pet.archivedBy = req.user?._id || req.user?.id || null;
+      pet.archivedRole = actorRole;
+
+      // Backward compatibility with existing archivalDetails
       pet.archivalDetails = {
-        reason: cleanReason,
-        dateOfEvent: dateOfEvent ? new Date(dateOfEvent) : new Date(),
-        clinicalNotes: clinicalNotes || '',
-        archivedAt: new Date(),
-        archivedBy: req.user?.name || 'Clinical Staff'
+        reason: candidateReason,
+        dateOfEvent: dateOfEvent ? new Date(dateOfEvent) : now,
+        clinicalNotes: notes,
+        archivedAt: now,
+        archivedBy: req.user?.name || (isCustomer ? 'Owner (Self-Service)' : 'Clinical Staff')
       };
 
-      if (cleanReason === 'Deceased') {
+      if (candidateReason === 'Deceased') {
         pet.clinicStatus = 'Deceased';
         pet.status = 'Medical Care';
       } else {
-        pet.clinicStatus = `Archived (${cleanReason})`;
+        pet.clinicStatus = `Archived (${candidateReason})`;
       }
     } else {
-      // Restoring to Active
+      // Unarchive / Restore operation
+      if (isCustomer) {
+        return res.status(403).json({
+          success: false,
+          message: 'Archived records are read-only for pet owners. Please contact the clinic to restore this profile.'
+        });
+      }
+
+      pet.isArchived = false;
+      pet.archivalReason = null;
+      pet.archivalNotes = '';
+      pet.archivedAt = null;
+      pet.archivedBy = null;
+      pet.archivedRole = null;
       pet.clinicStatus = 'Registered';
       pet.status = 'Available';
     }
 
     await pet.save();
     await pet.populate('ownerId', 'name email phone address role');
+    await pet.populate('archivedBy', 'name email role');
 
     return res.status(200).json({
       success: true,
-      message: `Pet '${pet.petName}' (${pet.uniquePin}) status updated to ${pet.isArchived ? `Archived (${pet.archivalDetails?.reason || 'Archived'})` : 'Active'}`,
+      message: `Pet '${pet.petName}' (${pet.uniquePin}) status updated to ${pet.isArchived ? `Archived (${pet.archivalReason})` : 'Active'}`,
       data: pet
     });
   } catch (error) {

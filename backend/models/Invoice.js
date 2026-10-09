@@ -116,8 +116,17 @@ const invoiceSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['Cash', 'Card', 'Credit Card', 'Debit Card', 'Online', 'Bank Transfer'],
+      enum: ['Cash', 'Card', 'Credit Card', 'Debit Card', 'Online', 'Bank Transfer', 'Split'],
       default: 'Cash'
+    },
+    paymentBreakdown: {
+      cash: { type: Number, default: 0, min: 0 },
+      card: { type: Number, default: 0, min: 0 }
+    },
+    shiftId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CashierShift',
+      default: null
     },
     paymentStatus: {
       type: String,
@@ -135,6 +144,31 @@ const invoiceSchema = new mongoose.Schema(
     isVoided: {
       type: Boolean,
       default: false
+    },
+    voidReason: {
+      type: String,
+      enum: [
+        'Cashier Entry Error',
+        'Client Cancelled / Return',
+        'Defective / Damaged Medicine',
+        'Incorrect Pricing Applied',
+        'Other',
+        null
+      ],
+      default: null
+    },
+    voidNotes: {
+      type: String,
+      default: ''
+    },
+    voidedAt: {
+      type: Date,
+      default: null
+    },
+    voidedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     }
   },
   {

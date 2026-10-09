@@ -8,12 +8,15 @@ const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
 const Product = require('../models/Product');
 const Pet = require('../models/Pet');
+const CashierShift = require('../models/CashierShift');
 
 const generateInvoiceNumber = () => {
   const year = new Date().getFullYear();
   const randomDigits = Math.floor(1000 + Math.random() * 9000);
   return `INV-${year}-${randomDigits}`;
 };
+
+const round2 = (val) => Math.round((Number(val) + Number.EPSILON) * 100) / 100;
 
 const billingHealthCheck = async (req, res) => {
   return res.status(200).json({
@@ -24,9 +27,12 @@ const billingHealthCheck = async (req, res) => {
   });
 };
 
+/**
+ * POS Checkout / Create Invoice with Stock Decrement and Shift Linking
+ */
 const createInvoice = async (req, res) => {
   try {
-    const { customerId, items, paymentMethod, paymentStatus, discountRate, taxRate, tenderedAmount, petId, pet } = req.body;
+    const { customerId, items, paymentMethod, paymentStatus, discountRate, taxRate, petId, pet } = req.body;
 
     const patientId = petId || pet;
     if (patientId && mongoose.Types.ObjectId.isValid(patientId)) {
@@ -52,8 +58,6 @@ const createInvoice = async (req, res) => {
       invoiceNo = generateInvoiceNumber();
       invoiceExists = await Invoice.findOne({ invoiceNo });
     }
-
-    const round2 = (val) => Math.round((Number(val) + Number.EPSILON) * 100) / 100;
 
     const extractProductId = (item) => {
       if (!item) return null;
@@ -162,44 +166,71 @@ const createInvoice = async (req, res) => {
       });
     }
 
-    // Normalize Payment Method
+    // Normalize Payment Method & Multi-Tender Breakdown
     let pMethod = paymentMethod || 'Cash';
     const pMethodLower = String(pMethod).toLowerCase();
-    if (pMethodLower.includes('card')) {
+    let paymentBreakdown = { cash: 0, card: 0 };
+    let finalTendered = 0;
+    let changeAmount = 0;
+
+    if (pMethodLower === 'split') {
+      pMethod = 'Split';
+      const rawBreakdown = req.body.paymentBreakdown || {};
+      const splitCash = round2(Number(rawBreakdown.cash || 0));
+      const splitCard = round2(Number(rawBreakdown.card || 0));
+
+      if (splitCash < 0 || splitCard < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation Error: Split payment cash and card components cannot be negative'
+        });
+      }
+
+      const totalSplit = round2(splitCash + splitCard);
+      if (totalSplit < round2(finalTotal - 0.05)) {
+        return res.status(400).json({
+          success: false,
+          message: `Split payment totals (Cash: Rs. ${splitCash.toFixed(2)}, Card: Rs. ${splitCard.toFixed(2)} = Rs. ${totalSplit.toFixed(2)}) cannot be less than invoice total (Rs. ${finalTotal.toFixed(2)}). Shortfall: Rs. ${(finalTotal - totalSplit).toFixed(2)}`
+        });
+      }
+
+      paymentBreakdown = { cash: splitCash, card: splitCard };
+      finalTendered = totalSplit;
+      changeAmount = round2(Math.max(0, totalSplit - finalTotal));
+    } else if (pMethodLower.includes('card')) {
       pMethod = 'Card';
+      paymentBreakdown = { cash: 0, card: finalTotal };
+      finalTendered = finalTotal;
+      changeAmount = 0;
     } else if (pMethodLower.includes('online') || pMethodLower.includes('bank') || pMethodLower.includes('qr') || pMethodLower.includes('transfer')) {
       pMethod = 'Online';
+      paymentBreakdown = { cash: 0, card: 0 };
+      finalTendered = finalTotal;
+      changeAmount = 0;
     } else {
       pMethod = 'Cash';
-    }
+      const rawTendered = req.body.tenderedAmount !== undefined ? req.body.tenderedAmount : req.body.cashTendered;
+      finalTendered = rawTendered !== undefined && rawTendered !== null && rawTendered !== ''
+        ? round2(Number(rawTendered))
+        : 0;
 
-    // Normalize tendered amount
-    const rawTendered = req.body.tenderedAmount !== undefined ? req.body.tenderedAmount : req.body.cashTendered;
-    let finalTendered = rawTendered !== undefined && rawTendered !== null && rawTendered !== ''
-      ? round2(Number(rawTendered))
-      : (pMethod === 'Cash' ? 0 : finalTotal);
-
-    // Strict Validation: For Cash sales, tendered cash cannot be less than total amount
-    if (pMethod === 'Cash') {
       if (finalTendered < finalTotal) {
         return res.status(400).json({
           success: false,
           message: `Tendered cash (Rs. ${finalTendered.toFixed(2)}) cannot be less than invoice total (Rs. ${finalTotal.toFixed(2)}). Shortfall: Rs. ${(finalTotal - finalTendered).toFixed(2)}`
         });
       }
-    } else {
-      finalTendered = finalTotal;
+
+      changeAmount = round2(Math.max(0, finalTendered - finalTotal));
+      paymentBreakdown = { cash: finalTotal, card: 0 };
     }
 
-    const changeAmount = round2(Math.max(0, finalTendered - finalTotal));
-
-    // Atomic deduction with strict concurrency guard
+    // Atomic stock deduction with strict concurrency guard
     for (const item of items) {
       const prodId = extractProductId(item);
       const qty = Number(item.quantity) || 1;
 
       if (prodId) {
-        // Atomic deduction with strict concurrency guard
         const updatedProduct = await Product.findOneAndUpdate(
           { _id: prodId, stockQuantity: { $gte: qty } },
           { $inc: { stockQuantity: -qty } },
@@ -213,6 +244,9 @@ const createInvoice = async (req, res) => {
         }
       }
     }
+
+    // Find active cashier shift if any
+    let activeShift = await CashierShift.findOne({ status: 'Open' }).sort({ openedAt: -1 });
 
     const rawCustomer = req.body.customerId || req.body.customer || (req.user ? req.user._id : null);
     const validCustomerId = (rawCustomer && mongoose.Types.ObjectId.isValid(rawCustomer)) ? rawCustomer : null;
@@ -242,6 +276,8 @@ const createInvoice = async (req, res) => {
       taxAmount,
       finalTotal,
       paymentMethod: pMethod,
+      paymentBreakdown,
+      shiftId: activeShift ? activeShift._id : null,
       paymentStatus: paymentStatus || 'Paid',
       tenderedAmount: finalTendered,
       changeAmount
@@ -266,11 +302,22 @@ const createInvoice = async (req, res) => {
   }
 };
 
+/**
+ * GET All Invoices with Optional Voided Filter and Private Customer Scoping
+ */
 const getAllInvoices = async (req, res) => {
   try {
-    const { paymentStatus, paymentMethod, customerId } = req.query;
+    const { paymentStatus, paymentMethod, customerId, isVoided, includeVoided } = req.query;
 
-    let query = { isVoided: false };
+    let query = {};
+
+    if (includeVoided === 'true' || isVoided === 'all') {
+      // Return all including voided
+    } else if (isVoided === 'true') {
+      query.isVoided = true;
+    } else {
+      query.isVoided = false;
+    }
 
     if (paymentStatus && paymentStatus !== 'All') {
       query.paymentStatus = paymentStatus;
@@ -298,6 +345,7 @@ const getAllInvoices = async (req, res) => {
 
     const invoices = await Invoice.find(query)
       .populate('customerId', 'name email phone role')
+      .populate('voidedBy', 'name email role')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -315,15 +363,19 @@ const getAllInvoices = async (req, res) => {
   }
 };
 
+/**
+ * GET Single Invoice by ID
+ */
 const getInvoiceById = async (req, res) => {
   try {
-    const invoice = await Invoice.findOne({ _id: req.params.id, isVoided: false })
-      .populate('customerId', 'name email role');
+    const invoice = await Invoice.findById(req.params.id)
+      .populate('customerId', 'name email role')
+      .populate('voidedBy', 'name email role');
 
     if (!invoice) {
       return res.status(404).json({
         success: false,
-        message: 'Invoice record not found or has been voided'
+        message: 'Invoice record not found'
       });
     }
 
@@ -340,6 +392,9 @@ const getInvoiceById = async (req, res) => {
   }
 };
 
+/**
+ * Update Payment Status
+ */
 const updatePaymentStatus = async (req, res) => {
   try {
     const { paymentStatus, paymentMethod } = req.body;
@@ -349,7 +404,7 @@ const updatePaymentStatus = async (req, res) => {
     if (!invoice) {
       return res.status(404).json({
         success: false,
-        message: 'Invoice record not found for update'
+        message: 'Invoice record not found or is voided'
       });
     }
 
@@ -376,10 +431,26 @@ const updatePaymentStatus = async (req, res) => {
 };
 
 /**
- * Void Invoice Transaction and RESTORE Product Stock Count
+ * Void Invoice Transaction and ATOMICALLY RESTORE Product Stock Count ($inc: +qty)
  */
 const voidInvoice = async (req, res) => {
   try {
+    const { voidReason, voidNotes } = req.body;
+    const VALID_REASONS = [
+      'Cashier Entry Error',
+      'Client Cancelled / Return',
+      'Defective / Damaged Medicine',
+      'Incorrect Pricing Applied',
+      'Other'
+    ];
+
+    if (!voidReason || !VALID_REASONS.includes(voidReason)) {
+      return res.status(400).json({
+        success: false,
+        message: `Validation Error: A mandatory void reason is required. Permitted reasons: ${VALID_REASONS.join(', ')}`
+      });
+    }
+
     const invoice = await Invoice.findById(req.params.id);
 
     if (!invoice) {
@@ -392,35 +463,398 @@ const voidInvoice = async (req, res) => {
     if (invoice.isVoided) {
       return res.status(400).json({
         success: false,
-        message: 'Invoice is already voided'
+        message: `Invoice '${invoice.invoiceNo}' has already been voided on ${new Date(invoice.voidedAt).toLocaleString()}`
       });
     }
 
-    // Restore stock counts for purchased items
+    // Atomic restore stock counts for purchased items using $inc: +qty
+    const restoralLogs = [];
     if (invoice.items && invoice.items.length > 0) {
       for (const item of invoice.items) {
-        if (item.product) {
-          const prod = await Product.findById(item.product);
-          if (prod) {
-            prod.stockQuantity += Number(item.quantity);
-            await prod.save();
+        const prodId = item.product || item.productId;
+        const qty = Number(item.quantity) || 1;
+        if (prodId && mongoose.Types.ObjectId.isValid(prodId)) {
+          const updatedProd = await Product.findByIdAndUpdate(
+            prodId,
+            { $inc: { stockQuantity: qty } },
+            { new: true }
+          );
+          if (updatedProd) {
+            restoralLogs.push({
+              productId: prodId,
+              itemName: updatedProd.itemName,
+              restoredQty: qty,
+              newStock: updatedProd.stockQuantity
+            });
+            console.log(`[POS Void Restoral] Restored ${qty} units to '${updatedProd.itemName}'. New Stock: ${updatedProd.stockQuantity}`);
           }
         }
       }
     }
 
     invoice.isVoided = true;
+    invoice.voidReason = voidReason;
+    invoice.voidNotes = voidNotes || '';
+    invoice.voidedAt = new Date();
+    invoice.voidedBy = req.user ? req.user._id : null;
     await invoice.save();
 
     return res.status(200).json({
       success: true,
-      message: `Invoice '${invoice.invoiceNo}' voided and stock restored successfully`,
-      data: { _id: invoice._id, isVoided: true }
+      message: `Invoice '${invoice.invoiceNo}' voided successfully and inventory stock restored atomically.`,
+      data: invoice,
+      restoralLogs
     });
   } catch (error) {
+    console.error('[Void Invoice Error]:', error.message);
     return res.status(500).json({
       success: false,
       message: 'Server Error voiding invoice',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * ============================================================================
+ * CASHIER SHIFT & Z-REPORT SETTLEMENT CONTROLLERS
+ * ============================================================================
+ */
+
+/**
+ * GET Active Cashier Shift with Real-Time Metrics
+ */
+const getCurrentShift = async (req, res) => {
+  try {
+    const shift = await CashierShift.findOne({ status: 'Open' })
+      .populate('cashier', 'name email role')
+      .sort({ openedAt: -1 });
+
+    if (!shift) {
+      return res.status(200).json({
+        success: true,
+        data: null,
+        message: 'No active cashier shift currently open'
+      });
+    }
+
+    // Aggregate live running metrics
+    const invoices = await Invoice.find({
+      $or: [
+        { shiftId: shift._id },
+        { createdAt: { $gte: shift.openedAt }, shiftId: null }
+      ]
+    });
+
+    let activeCount = 0;
+    let voidedCount = 0;
+    let grossSales = 0;
+    let cashSales = 0;
+    let cardSales = 0;
+    let onlineSales = 0;
+    let totalTax = 0;
+    let totalDiscount = 0;
+
+    for (const inv of invoices) {
+      if (inv.isVoided) {
+        voidedCount++;
+      } else {
+        activeCount++;
+        grossSales = round2(grossSales + (inv.finalTotal || 0));
+        totalTax = round2(totalTax + (inv.taxAmount || 0));
+        totalDiscount = round2(totalDiscount + (inv.discountAmount || 0));
+
+        if (inv.paymentMethod === 'Cash') {
+          cashSales = round2(cashSales + (inv.finalTotal || 0));
+        } else if (inv.paymentMethod === 'Card') {
+          cardSales = round2(cardSales + (inv.finalTotal || 0));
+        } else if (inv.paymentMethod === 'Split') {
+          cashSales = round2(cashSales + (inv.paymentBreakdown?.cash || 0));
+          cardSales = round2(cardSales + (inv.paymentBreakdown?.card || 0));
+        } else {
+          onlineSales = round2(onlineSales + (inv.finalTotal || 0));
+        }
+      }
+    }
+
+    const expectedCashInDrawer = round2(shift.openingFloat + cashSales);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        shift,
+        liveMetrics: {
+          totalInvoicesCount: invoices.length,
+          activeInvoicesCount: activeCount,
+          voidedInvoicesCount: voidedCount,
+          grossSales,
+          netSales: grossSales,
+          totalTax,
+          totalDiscount,
+          cashSales,
+          cardSales,
+          onlineSales,
+          openingFloat: shift.openingFloat,
+          expectedCashInDrawer
+        }
+      }
+    });
+  } catch (error) {
+    console.error('[Get Current Shift Error]:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error retrieving current shift',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * POST Open New Cashier Shift
+ */
+const openShift = async (req, res) => {
+  try {
+    const existingOpen = await CashierShift.findOne({ status: 'Open' });
+    if (existingOpen) {
+      return res.status(400).json({
+        success: false,
+        message: `An active cashier shift (${existingOpen.shiftNo}) is already open. Please reconcile and close the current shift before opening a new one.`
+      });
+    }
+
+    const openingFloat = Math.max(0, Number(req.body.openingFloat || 0));
+    const now = new Date();
+    const dateCode = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const randSeed = Math.floor(1000 + Math.random() * 9000);
+    const shiftNo = `SHIFT-${dateCode}-${randSeed}`;
+
+    const cashierId = req.user ? req.user._id : null;
+    const cashierName = req.user ? (req.user.name || req.user.email) : 'Clinic Cashier';
+
+    const newShift = await CashierShift.create({
+      shiftNo,
+      cashier: cashierId,
+      cashierName,
+      status: 'Open',
+      openingFloat,
+      openedAt: now
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Cashier Shift ${shiftNo} opened successfully with float of Rs. ${openingFloat.toFixed(2)}`,
+      data: newShift
+    });
+  } catch (error) {
+    console.error('[Open Shift Error]:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error opening cashier shift',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * POST Settle & Close Cashier Shift (Z-Report Generation)
+ */
+const closeShift = async (req, res) => {
+  try {
+    const { actualCashCounted, closingNotes } = req.body;
+    const shiftId = req.params.id;
+
+    let shift;
+    if (shiftId && mongoose.Types.ObjectId.isValid(shiftId)) {
+      shift = await CashierShift.findById(shiftId);
+    } else {
+      shift = await CashierShift.findOne({ status: 'Open' }).sort({ openedAt: -1 });
+    }
+
+    if (!shift) {
+      return res.status(404).json({
+        success: false,
+        message: 'No open cashier shift found to close.'
+      });
+    }
+
+    if (shift.status === 'Closed') {
+      return res.status(400).json({
+        success: false,
+        message: `Shift ${shift.shiftNo} has already been closed on ${new Date(shift.closedAt).toLocaleString()}`
+      });
+    }
+
+    if (actualCashCounted === undefined || actualCashCounted === null || isNaN(Number(actualCashCounted))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Actual cash drawer count is required for shift settlement.'
+      });
+    }
+
+    const closingTime = new Date();
+
+    // Fetch all invoices belonging to this shift
+    const invoices = await Invoice.find({
+      $or: [
+        { shiftId: shift._id },
+        { createdAt: { $gte: shift.openedAt, $lte: closingTime }, shiftId: null }
+      ]
+    });
+
+    // Backfill shiftId onto any unlinked invoices created during this shift
+    const unlinkedIds = invoices.filter(inv => !inv.shiftId).map(inv => inv._id);
+    if (unlinkedIds.length > 0) {
+      await Invoice.updateMany({ _id: { $in: unlinkedIds } }, { $set: { shiftId: shift._id } });
+    }
+
+    let totalInvoicesCount = invoices.length;
+    let voidedInvoicesCount = 0;
+    let grossSales = 0;
+    let totalTax = 0;
+    let totalDiscount = 0;
+    let cashSales = 0;
+    let cardSales = 0;
+    let onlineSales = 0;
+
+    for (const inv of invoices) {
+      if (inv.isVoided) {
+        voidedInvoicesCount++;
+      } else {
+        grossSales = round2(grossSales + (inv.finalTotal || 0));
+        totalTax = round2(totalTax + (inv.taxAmount || 0));
+        totalDiscount = round2(totalDiscount + (inv.discountAmount || 0));
+
+        if (inv.paymentMethod === 'Cash') {
+          cashSales = round2(cashSales + (inv.finalTotal || 0));
+        } else if (inv.paymentMethod === 'Card') {
+          cardSales = round2(cardSales + (inv.finalTotal || 0));
+        } else if (inv.paymentMethod === 'Split') {
+          cashSales = round2(cashSales + (inv.paymentBreakdown?.cash || 0));
+          cardSales = round2(cardSales + (inv.paymentBreakdown?.card || 0));
+        } else {
+          onlineSales = round2(onlineSales + (inv.finalTotal || 0));
+        }
+      }
+    }
+
+    const expectedCashInDrawer = round2(shift.openingFloat + cashSales);
+    const countedCash = round2(Number(actualCashCounted));
+    const cashDiscrepancy = round2(countedCash - expectedCashInDrawer);
+
+    const dateCode = closingTime.toISOString().slice(0, 10).replace(/-/g, '');
+    const randSeed = Math.floor(1000 + Math.random() * 9000);
+    const zReportNo = `Z-${dateCode}-${randSeed}`;
+
+    shift.status = 'Closed';
+    shift.closedAt = closingTime;
+    shift.closedBy = req.user ? req.user._id : null;
+    shift.totalInvoicesCount = totalInvoicesCount;
+    shift.voidedInvoicesCount = voidedInvoicesCount;
+    shift.grossSales = grossSales;
+    shift.netSales = grossSales;
+    shift.totalTax = totalTax;
+    shift.totalDiscount = totalDiscount;
+    shift.cashSales = cashSales;
+    shift.cardSales = cardSales;
+    shift.onlineSales = onlineSales;
+    shift.expectedCashInDrawer = expectedCashInDrawer;
+    shift.actualCashCounted = countedCash;
+    shift.cashDiscrepancy = cashDiscrepancy;
+    shift.closingNotes = closingNotes || '';
+    shift.zReportNo = zReportNo;
+
+    await shift.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Cashier Shift ${shift.shiftNo} settled successfully. Generated Z-Report: ${zReportNo}`,
+      data: shift
+    });
+  } catch (error) {
+    console.error('[Close Shift Error]:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error closing cashier shift',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * GET All Shifts (History)
+ */
+const getAllShifts = async (req, res) => {
+  try {
+    const shifts = await CashierShift.find()
+      .populate('cashier', 'name email role')
+      .populate('closedBy', 'name email role')
+      .sort({ openedAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: shifts.length,
+      data: shifts
+    });
+  } catch (error) {
+    console.error('[Get All Shifts Error]:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error fetching shifts',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * GET Specific Shift Z-Report with Invoices Breakdown
+ */
+const getShiftZReport = async (req, res) => {
+  try {
+    const shift = await CashierShift.findById(req.params.id)
+      .populate('cashier', 'name email role')
+      .populate('closedBy', 'name email role');
+
+    if (!shift) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shift record not found.'
+      });
+    }
+
+    const invoices = await Invoice.find({
+      $or: [
+        { shiftId: shift._id },
+        { createdAt: { $gte: shift.openedAt, ...(shift.closedAt ? { $lte: shift.closedAt } : {}) } }
+      ]
+    }).sort({ createdAt: 1 });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        shift,
+        invoicesSummary: {
+          total: invoices.length,
+          active: invoices.filter(i => !i.isVoided).length,
+          voided: invoices.filter(i => i.isVoided).length,
+          invoices: invoices.map(i => ({
+            _id: i._id,
+            invoiceNo: i.invoiceNo,
+            customerName: i.customerName || 'Walk-in',
+            finalTotal: i.finalTotal,
+            paymentMethod: i.paymentMethod,
+            paymentBreakdown: i.paymentBreakdown,
+            isVoided: i.isVoided,
+            voidReason: i.voidReason,
+            createdAt: i.createdAt
+          }))
+        }
+      }
+    });
+  } catch (error) {
+    console.error('[Get Z-Report Error]:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error fetching Z-Report',
       error: error.message
     });
   }
@@ -435,7 +869,7 @@ const getSalesAnalytics = async (req, res) => {
 
     let totalRevenue = 0;
     let paidInvoicesCount = 0;
-    const paymentMap = { Cash: { count: 0, revenue: 0 }, Card: { count: 0, revenue: 0 }, Online: { count: 0, revenue: 0 } };
+    const paymentMap = { Cash: { count: 0, revenue: 0 }, Card: { count: 0, revenue: 0 }, Split: { count: 0, revenue: 0 }, Online: { count: 0, revenue: 0 } };
     const itemMap = {};
     const dailyMap = {};
 
@@ -469,15 +903,12 @@ const getSalesAnalytics = async (req, res) => {
       }
     });
 
-    // Format top 5 selling items
     const topSellingItems = Object.values(itemMap)
       .sort((a, b) => b.totalQuantity - a.totalQuantity)
       .slice(0, 5);
 
-    // Format daily sales array sorted by date
     const dailySales = Object.values(dailyMap).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Summary object
     const totalInvoices = invoices.length;
     const averageOrderValue = totalInvoices > 0 ? (totalRevenue / totalInvoices) : 0;
 
@@ -551,5 +982,10 @@ module.exports = {
   updatePaymentStatus,
   voidInvoice,
   getSalesAnalytics,
-  exportInvoicesCSV
+  exportInvoicesCSV,
+  getCurrentShift,
+  openShift,
+  closeShift,
+  getAllShifts,
+  getShiftZReport
 };

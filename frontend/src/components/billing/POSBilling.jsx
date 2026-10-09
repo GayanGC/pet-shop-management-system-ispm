@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, Plus, Trash2, CreditCard, DollarSign, Receipt, Percent, Stethoscope, Package, Search, X, User } from 'lucide-react';
+import { ShoppingCart, Plus, Trash2, CreditCard, DollarSign, Receipt, Percent, Stethoscope, Package, Search, X, User, Calculator, Layers, AlertCircle, CheckCircle } from 'lucide-react';
+import { fetchCurrentShift } from '../../services/billingService';
+import ShiftSettlementModal from './ShiftSettlementModal';
+import PrintableZReportModal from './PrintableZReportModal';
 import productService from '../../services/inventoryService';
 
 const CLINICAL_SERVICES = [
@@ -92,6 +95,23 @@ const POSBilling = ({
   const [selectedProductId, setSelectedProductId] = useState('');
   const [itemQty, setItemQty] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [splitCash, setSplitCash] = useState('');
+  const [splitCard, setSplitCard] = useState('');
+  const [currentShiftData, setCurrentShiftData] = useState(null);
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [settledZReportData, setSettledZReportData] = useState(null);
+
+  const loadActiveShift = () => {
+    fetchCurrentShift().then((res) => {
+      setCurrentShiftData(res?.data || null);
+    }).catch(console.error);
+  };
+
+  useEffect(() => {
+    loadActiveShift();
+  }, []);
+
+
   const [tenderedAmount, setTenderedAmount] = useState('');
   const [discountRate, setDiscountRate] = useState(0);
   const [taxRate, setTaxRate] = useState(8); // Default 8% VAT
@@ -209,6 +229,15 @@ const POSBilling = ({
   };
   const calculateFinalTotal = calculateGrandTotal;
 
+  useEffect(() => {
+    if (paymentMethod === 'Split') {
+      const total = calculateFinalTotal();
+      const half = Math.round(total / 2);
+      setSplitCash(String(half));
+      setSplitCard(String(total - half));
+    }
+  }, [paymentMethod, cartItems, discountRate, taxRate]);
+
   const handleCheckout = (e) => {
     e.preventDefault();
     if (cartItems.length === 0) {
@@ -259,7 +288,7 @@ const POSBilling = ({
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs space-y-6 transition-colors">
-      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-slate-800 border border-teal-100 dark:border-slate-700 flex items-center justify-center text-teal-700 dark:text-teal-400 shadow-xs">
             <CreditCard className="w-5 h-5" />
@@ -268,6 +297,35 @@ const POSBilling = ({
             <h2 className="text-lg font-bold text-slate-800 dark:text-white">POS Checkout Terminal</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">Sales Transactions & Real-time Stock Deduction</p>
           </div>
+        </div>
+
+        {/* Cashier Shift Banner & Quick Drawer Settlement */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          {currentShiftData?.shift ? (
+            <div className="flex items-center gap-2">
+              <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Active Shift: {currentShiftData.shift.shiftNo} (Float: Rs. {Number(currentShiftData.shift.openingFloat || 0).toLocaleString()})</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsShiftModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>Shift Settlement / Z-Report</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsShiftModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+            >
+              <DollarSign className="w-3.5 h-3.5" />
+              <span>Open Cashier Shift</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -598,6 +656,7 @@ const POSBilling = ({
                 >
                   <option value="Cash">Cash</option>
                   <option value="Card">Credit / Debit Card</option>
+                  <option value="Split">Split Multi-Tender (Cash + Card)</option>
                   <option value="Online">Online Bank Transfer</option>
                 </select>
               </div>
@@ -721,6 +780,93 @@ const POSBilling = ({
                 )}
               </div>
             )}
+
+            {/* Split Multi-Tender Breakdown Panel */}
+            {paymentMethod === 'Split' && (
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Split Tender Allocation (Multi-Payment)
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const total = calculateFinalTotal();
+                        const half = Math.round(total / 2);
+                        setSplitCash(String(half));
+                        setSplitCard(String(total - half));
+                      }}
+                      className="text-[10px] text-teal-600 hover:text-teal-700 font-bold underline px-1 cursor-pointer"
+                    >
+                      50 / 50
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const total = calculateFinalTotal();
+                        const cVal = Number(splitCash || 0);
+                        setSplitCard(String(Math.max(0, total - cVal)));
+                      }}
+                      className="text-[10px] text-teal-600 hover:text-teal-700 font-bold underline px-1 cursor-pointer"
+                    >
+                      Balance to Card
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Cash Portion (Rs.)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="e.g. 1000"
+                      value={splitCash}
+                      onChange={(e) => setSplitCash(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-xs font-bold focus:border-teal-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Card Portion (Rs.)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="e.g. 1500"
+                      value={splitCard}
+                      onChange={(e) => setSplitCard(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-xs font-bold focus:border-teal-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Total Allocated vs Final Total */}
+                <div className="flex justify-between items-center text-xs p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-mono">
+                  <span>
+                    Allocated: <strong className="text-slate-900 dark:text-slate-100">Rs. {(Number(splitCash || 0) + Number(splitCard || 0)).toFixed(2)}</strong> / Rs. {calculateFinalTotal().toFixed(2)}
+                  </span>
+                  {Number(splitCash || 0) + Number(splitCard || 0) < calculateFinalTotal() - 0.05 ? (
+                    <span className="text-rose-600 font-bold">
+                      Short: Rs. {(calculateFinalTotal() - (Number(splitCash || 0) + Number(splitCard || 0))).toFixed(2)}
+                    </span>
+                  ) : Number(splitCash || 0) + Number(splitCard || 0) > calculateFinalTotal() ? (
+                    <span className="text-emerald-600 font-bold">
+                      Change: Rs. {((Number(splitCash || 0) + Number(splitCard || 0)) - calculateFinalTotal()).toFixed(2)}
+                    </span>
+                  ) : (
+                    <span className="text-emerald-600 font-bold">✓ Exact Match</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <button
@@ -729,7 +875,8 @@ const POSBilling = ({
             disabled={
               isLoading ||
               cartItems.length === 0 ||
-              (paymentMethod === 'Cash' && (!tenderedAmount || Number(tenderedAmount) < calculateFinalTotal()))
+              (paymentMethod === 'Cash' && (!tenderedAmount || Number(tenderedAmount) < calculateFinalTotal())) ||
+              (paymentMethod === 'Split' && (Number(splitCash || 0) + Number(splitCard || 0) < calculateFinalTotal() - 0.05))
             }
             className="w-full bg-teal-700 hover:bg-teal-600 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-xs text-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer border border-teal-500/40"
           >
@@ -738,6 +885,27 @@ const POSBilling = ({
           </button>
         </div>
       </div>
+
+      {/* Cashier Shift Float & Drawer Settlement Modal */}
+      <ShiftSettlementModal
+        isOpen={isShiftModalOpen}
+        onClose={() => setIsShiftModalOpen(false)}
+        onShiftOpened={(shift) => {
+          loadActiveShift();
+        }}
+        onShiftSettled={(closedShift) => {
+          loadActiveShift();
+          setSettledZReportData(closedShift);
+        }}
+      />
+
+      {/* 80mm Printable Z-Report Modal */}
+      {settledZReportData && (
+        <PrintableZReportModal
+          zReportData={settledZReportData}
+          onClose={() => setSettledZReportData(null)}
+        />
+      )}
     </div>
   );
 };

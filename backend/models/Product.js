@@ -16,7 +16,7 @@ const productSchema = new mongoose.Schema(
     category: {
       type: String,
       required: [true, 'Product category is required'],
-      enum: ['Food', 'Toys', 'Accessories', 'Healthcare', 'Clinical Supplies', 'General', 'Medicines', 'Vaccines', 'Nutrition', 'Supplements'],
+      enum: ['Food', 'Toys', 'Accessories', 'Healthcare', 'Clinical Supplies', 'General', 'Medicines', 'Medicine', 'Vaccines', 'Nutrition', 'Supplements'],
       default: 'General'
     },
     price: {
@@ -47,7 +47,13 @@ const productSchema = new mongoose.Schema(
     },
     batchNo: {
       type: String,
-      default: 'BATCH-2026-01',
+      default: () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+        return `BATCH-${year}${month}-${randomSuffix}`;
+      },
       trim: true
     },
     expiryDate: {

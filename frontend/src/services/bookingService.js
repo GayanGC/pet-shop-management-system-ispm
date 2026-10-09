@@ -8,6 +8,14 @@ export const fetchBookings = async (params = {}) => {
   return handleResponse(res);
 };
 
+export const fetchAppointmentHistory = async (params = {}) => {
+  const qs = toQueryString(params);
+  const res = await fetch(`${API_BASE_URL}/bookings/my-history${qs}`, {
+    headers: getAuthHeader()
+  });
+  return handleResponse(res);
+};
+
 export const createBooking = async (bookingData) => {
   const res = await fetch(`${API_BASE_URL}/bookings`, {
     method: 'POST',

@@ -599,6 +599,9 @@ function App() {
       if (invoicePaymentFilter !== 'All') {
         params.paymentMethod = invoicePaymentFilter;
       }
+      if (role !== 'customer') {
+        params.includeVoided = true;
+      }
       if (currentUser && (currentUser._id || currentUser.id) && role === 'customer') {
         params.customerId = currentUser._id || currentUser.id;
       }
@@ -939,16 +942,18 @@ function App() {
     }
   };
 
-  const handleVoidInvoice = async (id) => {
-    if (!window.confirm('Void this invoice transaction? (Stock quantity will be restored)')) return;
+  const handleVoidInvoice = async (id, payload) => {
+    if (!payload && !window.confirm('Void this invoice transaction? (Stock quantity will be restored)')) return;
     try {
-      const res = await voidInvoice(id);
-      showToast(res.message);
+      const res = await voidInvoice(id, payload);
+      showToast(res.message || 'Invoice voided and inventory stock restored successfully');
       loadInvoices();
       loadProducts();
       window.dispatchEvent(new CustomEvent('inventory-updated'));
+      return res;
     } catch (err) {
       showToast(err.message, 'error');
+      throw err;
     }
   };
 

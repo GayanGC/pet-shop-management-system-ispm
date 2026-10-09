@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Package, DollarSign, Layers, Truck, Tag, Plus, Calendar, X, AlertCircle, Edit3, Check } from 'lucide-react';
+import { Package, DollarSign, Layers, Truck, Tag, Plus, Calendar, X, AlertCircle, Edit3, Check, Sparkles } from 'lucide-react';
 import { fetchSuppliers } from '../../services/supplierService';
+import { generateAutomatedBatchNumber, getCategoryBatchPrefix } from '../../utils/batchGenerator';
 
 // ─── Validation ─────────────────────────────────────────────────────────────
 const BATCH_RE = /^[A-Z0-9\-]{3,30}$/;
@@ -88,11 +89,23 @@ const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose, in
         unit: initialData.unit || 'Piece'
       });
     } else {
-      setFormData(INITIAL);
+      setFormData({
+        ...INITIAL,
+        batchNo: generateAutomatedBatchNumber(getCategoryBatchPrefix('Food'))
+      });
     }
     setFieldErrors({});
     setTouched({});
   }, [initialData]);
+
+  const handleGenerateBatch = (customPrefix) => {
+    const prefix = customPrefix || getCategoryBatchPrefix(formData.category);
+    const newBatch = generateAutomatedBatchNumber(prefix);
+    setFormData((prev) => ({ ...prev, batchNo: newBatch }));
+    if (fieldErrors.batchNo) {
+      setFieldErrors((prev) => ({ ...prev, batchNo: '' }));
+    }
+  };
 
   useEffect(() => {
     if (Array.isArray(suppliers) && suppliers.length > 0) {
@@ -304,22 +317,46 @@ const ProductForm = ({ suppliers = [], onSubmit, isLoading, isModal, onClose, in
 
         {/* Batch Number */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-            <Tag className="w-3.5 h-3.5 text-slate-400" /> Batch Number
-          </label>
-          <input
-            type="text"
-            name="batchNo"
-            value={formData.batchNo}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="e.g. BTH-2026-09"
-            maxLength={30}
-            className={`${fieldClass('batchNo')} font-mono uppercase`}
-          />
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Tag className="w-3.5 h-3.5 text-slate-400" /> Batch Number
+            </label>
+            <button
+              type="button"
+              onClick={() => handleGenerateBatch()}
+              className="text-[11px] font-semibold text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200 bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200/80 dark:border-teal-800/80 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+              title="Auto-Generate Clinical Batch Number"
+            >
+              <Sparkles className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+              <span>Auto-Generate</span>
+            </button>
+          </div>
+          <div className="relative">
+            <input
+              type="text"
+              name="batchNo"
+              value={formData.batchNo}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              placeholder="e.g. BATCH-202610-4821"
+              maxLength={30}
+              className={`${fieldClass('batchNo')} font-mono uppercase pr-20`}
+            />
+            <button
+              type="button"
+              onClick={() => handleGenerateBatch()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-100/70 dark:bg-teal-900/80 hover:bg-teal-200 dark:hover:bg-teal-800 rounded-md transition-colors cursor-pointer"
+            >
+              Generate
+            </button>
+          </div>
           <ErrorMsg name="batchNo" />
           {!fieldErrors.batchNo && (
-            <p className="text-[10px] text-slate-400 mt-0.5">Auto-uppercased — letters, numbers, and hyphens only</p>
+            <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+              <span>Standard format:</span>
+              <code className="text-teal-600 dark:text-teal-400 font-mono">BATCH-YYYYMM-XXXX</code>
+              <span>(Click Auto-Generate for clinical inwarding)</span>
+            </p>
           )}
         </div>
 

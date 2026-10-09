@@ -33,6 +33,7 @@ import ProductShowcase from '../inventory/ProductShowcase';
 import PrintableHealthPassportModal from '../pet/PrintableHealthPassportModal';
 import PetDetailsReportModal from '../pet/PetDetailsReportModal';
 import PetEditModal from '../pet/PetEditModal';
+import PetArchiveModal from '../pet/PetArchiveModal';
 import RescheduleModal from '../booking/RescheduleModal';
 import AppointmentSlipModal from '../booking/AppointmentSlipModal';
 import { createBooking, cancelBooking, fetchBookings, rescheduleBooking } from '../../services/bookingService';
@@ -360,6 +361,32 @@ const CustomerPortal = ({
   };
 
   const filteredArchivedPets = archivedPets.filter(matchesPetFilters);
+
+  // Self-Service Pet Archival with Mandatory Reason Audit
+  const [selectedPetForArchive, setSelectedPetForArchive] = useState(null);
+  const [isArchivingPet, setIsArchivingPet] = useState(false);
+
+  const handleConfirmArchivePet = async (archiveData) => {
+    if (!selectedPetForArchive) return;
+    setIsArchivingPet(true);
+    try {
+      const res = await petService.archivePet(selectedPetForArchive._id, archiveData);
+      if (onShowToast) {
+        onShowToast(res.message || `Pet '${selectedPetForArchive.petName}' archived successfully.`);
+      }
+      // Remove from active pets list
+      setPortalPets((prev) => prev.filter((p) => String(p._id) !== String(selectedPetForArchive._id)));
+      // Refresh archived pets list and prefetch count
+      await loadArchivedPets();
+      setSelectedPetForArchive(null);
+    } catch (err) {
+      if (onShowToast) {
+        onShowToast(err.message || 'Failed to archive pet profile.', 'error');
+      }
+    } finally {
+      setIsArchivingPet(false);
+    }
+  };
 
   const cartItemCount = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
@@ -707,8 +734,8 @@ const CustomerPortal = ({
             {bookings.length > 0 ? (
               <div className="space-y-3">
                 {bookings.map((booking) => {
-                  const petName = booking.petId?.petName || 'Patient Pet';
-                  const petSpecies = booking.petId?.species || 'Animal';
+                  const petName = booking.patientName || booking.pet?.name || booking.pet?.petName || booking.petId?.petName || booking.petId?.name || 'Patient Pet';
+                  const petSpecies = booking.pet?.species || booking.petId?.species || 'Animal';
                   const dateStr = new Date(booking.appointmentDate).toLocaleDateString();
                   const isCancelled = booking.status === 'Cancelled';
 
@@ -948,7 +975,11 @@ const CustomerPortal = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredArchivedPets.map((pet) => {
                   const details = pet.archivalDetails || {};
-                  const eventDate = details.dateOfEvent || details.archivedAt;
+                  const archivalReason = pet.archivalReason || details.reason || 'Archived';
+                  const eventDate = pet.archivedAt || details.dateOfEvent || details.archivedAt;
+                  const archivalNotes = pet.archivalNotes || details.clinicalNotes;
+                  const actorRole = pet.archivedRole || (details.archivedBy === 'Clinical Staff' ? 'Admin' : 'Customer');
+
                   return (
                     <div
                       key={pet._id}
@@ -971,9 +1002,21 @@ const CustomerPortal = ({
                             </p>
                           </div>
                         </div>
-                        <span className="text-[0.625rem] font-bold px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 shrink-0">
-                          🗄️ {details.reason || 'Archived'}
-                        </span>
+
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className={`text-[0.625rem] font-bold px-2.5 py-1 rounded-full border ${
+                            archivalReason === 'Deceased'
+                              ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
+                              : archivalReason === 'Lost / Missing'
+                              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                              : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30'
+                          }`}>
+                            🗄️ {archivalReason}
+                          </span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                            {actorRole === 'Customer' ? '👤 Owner Self-Service' : '🏥 Clinic Staff'}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="p-6 space-y-3 flex-1 flex flex-col">
@@ -990,10 +1033,10 @@ const CustomerPortal = ({
                           </div>
                         </div>
 
-                        {details.clinicalNotes && (
+                        {archivalNotes && (
                           <div className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
-                            <span className="text-[0.625rem] font-bold text-slate-400 block uppercase">Clinic Notes</span>
-                            <p className="mt-0.5 font-medium">"{details.clinicalNotes}"</p>
+                            <span className="text-[0.625rem] font-bold text-slate-400 block uppercase">Archival Justification & Notes</span>
+                            <p className="mt-0.5 font-medium">"{archivalNotes}"</p>
                           </div>
                         )}
 
@@ -1132,6 +1175,16 @@ const CustomerPortal = ({
                             <Edit2 className="w-3.5 h-3.5" />
                             <span>Edit</span>
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPetForArchive(pet)}
+                            className="py-1.5 px-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 font-semibold text-xs border border-rose-200 dark:border-rose-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            title="Archive Pet Profile (Deceased, Re-homed, Relocated)"
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                            <span>Archive</span>
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1230,17 +1283,28 @@ const CustomerPortal = ({
                         <button
                           type="button"
                           onClick={() => handleOpenEditPet(pet)}
-                          className="sm:col-span-2 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 dark:text-violet-300 dark:bg-violet-950/40 dark:hover:bg-violet-900/60 dark:border-violet-800 rounded-lg transition-colors cursor-pointer"
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 dark:text-violet-300 dark:bg-violet-950/40 dark:hover:bg-violet-900/60 dark:border-violet-800 rounded-xl transition-colors cursor-pointer"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                           <span>Edit Details</span>
+                        </button>
+
+                        {/* 4. Archive Pet Profile Button */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPetForArchive(pet)}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 dark:text-rose-300 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:border-rose-800 rounded-xl transition-colors cursor-pointer"
+                          title="Archive Pet Profile (Deceased, Re-homed, Relocated)"
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                          <span>Archive Profile</span>
                         </button>
                       </div>
 
                       {/* Doctor Visits Accordion Toggle */}
                       {(() => {
                         const petVisits = (bookings || []).filter(
-                          (b) => String(b.petId?._id || b.petId) === String(pet._id) && b.status !== 'Cancelled'
+                          (b) => String(b.petId?._id || b.pet?._id || b.petId || b.pet) === String(pet._id) && b.status !== 'Cancelled'
                         );
                         return (
                           <div className="pt-1">
@@ -1262,7 +1326,7 @@ const CustomerPortal = ({
                       {/* 🩺 Expandable Doctor Visit Updates Timeline */}
                       {isTimelineOpen && (() => {
                         const petVisits = (bookings || []).filter(
-                          (b) => String(b.petId?._id || b.petId) === String(pet._id) && b.status !== 'Cancelled'
+                          (b) => String(b.petId?._id || b.pet?._id || b.petId || b.pet) === String(pet._id) && b.status !== 'Cancelled'
                         );
                         return (
                           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 animate-fadeIn">
@@ -1468,6 +1532,16 @@ const CustomerPortal = ({
           isOpen={true}
           booking={confirmedSlipBooking}
           onClose={() => setConfirmedSlipBooking(null)}
+        />
+      )}
+
+      {/* Self-Service Pet Archival with Mandatory Reason Audit Modal */}
+      {selectedPetForArchive && (
+        <PetArchiveModal
+          pet={selectedPetForArchive}
+          isLoading={isArchivingPet}
+          onClose={() => setSelectedPetForArchive(null)}
+          onConfirm={handleConfirmArchivePet}
         />
       )}
     </div>
