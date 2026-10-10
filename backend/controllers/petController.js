@@ -329,11 +329,11 @@ const getMyPets = async (req, res) => {
 
     // Archive scoping:
     //   archived=true          -> ONLY this customer's archived records (isArchived: true)
-    //   includeArchived=true   -> active + archived (legacy behaviour)
-    //   default / archived=false -> active records only
+    //   archived=false         -> active records only
+    //   default                -> return all records belonging to the customer
     if (archived === 'true') {
       andConditions.push({ isArchived: true });
-    } else if (includeArchived !== 'true') {
+    } else if (archived === 'false') {
       andConditions.push({ isArchived: { $ne: true } });
     }
 
@@ -483,14 +483,14 @@ const getAllPets = async (req, res) => {
 
 const getPetById = async (req, res) => {
   try {
-    const pet = await Pet.findOne({ _id: req.params.id, isArchived: false })
+    const pet = await Pet.findById(req.params.id)
       .populate('ownerId', 'name email phone address role')
       .populate('owner', 'name email phone address role');
 
     if (!pet) {
       return res.status(404).json({
         success: false,
-        message: 'Pet not found or has been archived'
+        message: 'Pet not found'
       });
     }
 
@@ -834,6 +834,7 @@ const archivePet = async (req, res) => {
     }
 
     await pet.save();
+    console.log("Pet archived successfully in DB:", pet._id, pet.isArchived);
     await pet.populate('ownerId', 'name email phone address role');
     await pet.populate('archivedBy', 'name email role');
 

@@ -202,7 +202,6 @@ const petSchema = new mongoose.Schema(
     },
     archivedRole: {
       type: String,
-      enum: ['Customer', 'Admin', null],
       default: null
     },
     archivalDetails: {
