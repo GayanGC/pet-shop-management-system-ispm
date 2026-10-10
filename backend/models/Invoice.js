@@ -116,7 +116,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['Cash', 'Card', 'Credit Card', 'Debit Card', 'Online', 'Bank Transfer', 'Split'],
+      enum: ['Cash', 'Card', 'Online', 'Split'],
       default: 'Cash'
     },
     paymentBreakdown: {

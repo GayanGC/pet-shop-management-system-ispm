@@ -257,6 +257,16 @@ const POSBilling = ({
       }
     }
 
+    if (paymentMethod === 'Split') {
+      const cVal = Number(splitCash || 0);
+      const kVal = Number(splitCard || 0);
+      const totalAllocated = round2(cVal + kVal);
+      if (totalAllocated < round2(finalTotal - 0.05)) {
+        alert(`Split payment total (Cash: Rs. ${cVal.toFixed(2)} + Card: Rs. ${kVal.toFixed(2)} = Rs. ${totalAllocated.toFixed(2)}) cannot be less than invoice total (Rs. ${finalTotal.toFixed(2)}).`);
+        return;
+      }
+    }
+
     if (!currentUser && onRequireAuth) {
       onRequireAuth(() => {
         // Will continue once authenticated
@@ -271,8 +281,22 @@ const POSBilling = ({
       discountRate: Number(discountRate),
       taxRate: Number(taxRate),
       paymentMethod,
-      tenderedAmount: paymentMethod === 'Cash' ? tenderedNum : finalTotal,
-      changeAmount: paymentMethod === 'Cash' ? Math.max(0, tenderedNum - finalTotal) : 0,
+      paymentBreakdown: paymentMethod === 'Split' ? {
+        cash: Number(splitCash || 0),
+        card: Number(splitCard || 0)
+      } : (paymentMethod === 'Cash' ? {
+        cash: finalTotal,
+        card: 0
+      } : {
+        cash: 0,
+        card: finalTotal
+      }),
+      tenderedAmount: paymentMethod === 'Cash'
+        ? tenderedNum
+        : (paymentMethod === 'Split' ? (Number(splitCash || 0) + Number(splitCard || 0)) : finalTotal),
+      changeAmount: paymentMethod === 'Cash'
+        ? Math.max(0, tenderedNum - finalTotal)
+        : (paymentMethod === 'Split' ? Math.max(0, (Number(splitCash || 0) + Number(splitCard || 0)) - finalTotal) : 0),
       paymentStatus: 'Paid',
       customerId: selectedPatient?.ownerId || (currentUser ? (currentUser._id || currentUser.id) : undefined),
       customerName: selectedPatient?.ownerName || (currentUser ? currentUser.name : 'Walk-in Client'),
