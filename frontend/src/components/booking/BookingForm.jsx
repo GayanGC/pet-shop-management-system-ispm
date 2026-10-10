@@ -32,6 +32,39 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
   // 8 official clinic time slots
   const workingSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
 
+  // Helper function to evaluate if a slot has already elapsed for today
+  const isSlotInPast = (slotStr, selectedDateStr) => {
+    if (!selectedDateStr) return false;
+
+    const now = new Date();
+    const selectedDate = new Date(selectedDateStr);
+
+    // Check if selected appointment date is TODAY
+    const isToday =
+      selectedDate.getFullYear() === now.getFullYear() &&
+      selectedDate.getMonth() === now.getMonth() &&
+      selectedDate.getDate() === now.getDate();
+
+    if (!isToday) return false;
+
+    // Parse slot string (e.g. "09:00 AM", "01:30 PM")
+    const match = slotStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return false;
+
+    let [_, hours, minutes, modifier] = match;
+    hours = parseInt(hours, 10);
+    minutes = parseInt(minutes, 10);
+
+    if (modifier.toUpperCase() === 'PM' && hours < 12) hours += 12;
+    if (modifier.toUpperCase() === 'AM' && hours === 12) hours = 0;
+
+    const slotDateTime = new Date();
+    slotDateTime.setHours(hours, minutes, 0, 0);
+
+    // Slot is past if current time is past slot start
+    return now >= slotDateTime;
+  };
+
   // Today's date string for date input min attribute (prevents past dates)
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -100,7 +133,18 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
       setFormError('Appointment date cannot be in the past. Please select today or a future date.');
       return;
     }
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'appointmentDate') {
+        // If current slot is already elapsed for the newly selected date, clear or auto-advance to next upcoming slot
+        if (isSlotInPast(updated.timeSlot, value)) {
+          const firstUpcoming = workingSlots.find((s) => !isSlotInPast(s, value));
+          updated.timeSlot = firstUpcoming || '';
+        }
+      }
+      return updated;
+    });
     setConflictError('');
     setFormError('');
   };
@@ -127,6 +171,11 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
 
     if (!formData.timeSlot) {
       setFormError('Please select a time slot.');
+      return;
+    }
+
+    if (isSlotInPast(formData.timeSlot, formData.appointmentDate)) {
+      setFormError('Selected time slot has already elapsed for today. Please choose an upcoming time slot or a future date.');
       return;
     }
 
@@ -308,14 +357,30 @@ const BookingForm = ({ pets = [], onSubmit, isLoading, isModal, isOpen, onClose,
               <Clock className="w-3.5 h-3.5 text-teal-600" /> Select Time Slot (Live Availability) <span className="text-rose-500">*</span>
             </span>
             <span className="text-[10px] text-slate-400 font-normal">
-              🟢 Available &nbsp;|&nbsp; 🔴 Booked / Busy
+              🟢 Available &nbsp;|&nbsp; 🔴 Booked &nbsp;|&nbsp; ⏱️ Elapsed
             </span>
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {workingSlots.map((slot) => {
               const isMatchedOwnSlot = isEditMode && (initialData?.timeSlot === slot);
               const isBooked = (bookedSlots.includes(slot) || slotSchedule.find((s) => s.timeSlot === slot)?.status === 'booked') && !isMatchedOwnSlot;
+              const isPast = isSlotInPast(slot, formData.appointmentDate);
               const isSelected = formData.timeSlot === slot;
+
+              if (isPast) {
+                return (
+                  <button
+                    key={slot}
+                    type="button"
+                    disabled
+                    className="py-2.5 px-3 rounded-xl text-xs font-mono font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-50 line-through flex items-center justify-between shadow-2xs"
+                    title="Time slot has already elapsed for today"
+                  >
+                    <span>{slot}</span>
+                    <span className="text-[9px] font-bold bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded no-underline inline-block">(Elapsed)</span>
+                  </button>
+                );
+              }
 
               if (isBooked) {
                 return (
