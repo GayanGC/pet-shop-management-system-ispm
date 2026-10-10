@@ -194,6 +194,16 @@ const updateSupplier = async (req, res) => {
       supplier.phone = phone.trim();
     }
 
+    if (req.body.regNo !== undefined) {
+      if (!req.body.regNo || !req.body.regNo.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Supplier company registration number (regNo) is required'
+        });
+      }
+      supplier.regNo = req.body.regNo.trim().toUpperCase();
+    }
+
     if (contactPerson !== undefined) supplier.contactPerson = contactPerson.trim();
     if (email !== undefined) supplier.email = email.trim();
     if (address !== undefined) supplier.address = address.trim();

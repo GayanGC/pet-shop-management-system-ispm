@@ -74,9 +74,14 @@ const SupplierDirectory = ({
     }
   };
 
+  // Helper to generate auto regNo
+  const generateRegNo = () =>
+    'REG-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+
   // Form State
   const [formData, setFormData] = useState({
     name: '',
+    regNo: '',
     contactPerson: '',
     phone: '',
     email: '',
@@ -85,12 +90,18 @@ const SupplierDirectory = ({
     status: 'Active'
   });
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleOpenModal = (supplier = null) => {
     setErrorMsg('');
     if (supplier) {
       setEditingSupplier(supplier);
       setFormData({
         name: supplier.name || '',
+        regNo: supplier.regNo || '',
         contactPerson: supplier.contactPerson || '',
         phone: supplier.phone || '',
         email: supplier.email || '',
@@ -104,6 +115,7 @@ const SupplierDirectory = ({
       setEditingSupplier(null);
       setFormData({
         name: '',
+        regNo: generateRegNo(),
         contactPerson: '',
         phone: '',
         email: '',
@@ -130,6 +142,11 @@ const SupplierDirectory = ({
       return;
     }
 
+    if (!formData.regNo || !formData.regNo.trim()) {
+      setErrorMsg('Supplier company registration number (regNo) is required.');
+      return;
+    }
+
     if (!formData.phone || !formData.phone.trim()) {
       setErrorMsg('Phone number is required.');
       return;
@@ -149,6 +166,7 @@ const SupplierDirectory = ({
 
     const payload = {
       name: formData.name.trim(),
+      regNo: formData.regNo.trim().toUpperCase(),
       contactPerson: formData.contactPerson.trim(),
       phone: formData.phone.trim(),
       email: formData.email.trim(),
@@ -407,6 +425,11 @@ const SupplierDirectory = ({
                           <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold border border-emerald-200/50 dark:border-emerald-800/40">
                             SUP-{supplier._id?.slice(-4).toUpperCase() || 'VEND'}
                           </span>
+                          {supplier.regNo && (
+                            <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-mono font-medium border border-slate-200 dark:border-slate-700">
+                              {supplier.regNo}
+                            </span>
+                          )}
                         </div>
                         {supplier.address && (
                           <span className="text-[11px] text-slate-400 dark:text-slate-500 font-normal flex items-center gap-1 mt-0.5">
@@ -595,6 +618,39 @@ const SupplierDirectory = ({
                 />
               </div>
 
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Company Registration No (regNo) *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        regNo:
+                          'REG-' +
+                          new Date().getFullYear() +
+                          '-' +
+                          Math.floor(1000 + Math.random() * 9000)
+                      }))
+                    }
+                    className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium cursor-pointer"
+                  >
+                    🔄 Auto-Fill
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  name="regNo"
+                  value={formData.regNo || ''}
+                  onChange={handleChange}
+                  placeholder="e.g. PV-104928 or REG-2026-4821"
+                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  required
+                />
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
@@ -727,6 +783,11 @@ const SupplierDirectory = ({
                     <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full font-mono font-bold border border-emerald-200 dark:border-emerald-800">
                       ID: SUP-{viewingSupplier._id?.slice(-6).toUpperCase() || 'VEND'}
                     </span>
+                    {viewingSupplier.regNo && (
+                      <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full font-mono font-bold border border-slate-200 dark:border-slate-700">
+                        Reg: {viewingSupplier.regNo}
+                      </span>
+                    )}
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                         viewingSupplier.status === 'Active'

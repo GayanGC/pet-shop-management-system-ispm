@@ -15,8 +15,9 @@ const supplierSchema = new mongoose.Schema(
     },
     regNo: {
       type: String,
+      required: [true, 'Supplier company registration number (regNo) is required'],
       trim: true,
-      default: ''
+      uppercase: true
     },
     contactPerson: {
       type: String,
